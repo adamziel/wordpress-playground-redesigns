@@ -121,8 +121,12 @@ function renderIndex(designs) {
       backdrop-filter: blur(18px);
     }
     .wrap {
-      width: calc(100% - 32px);
+      width: 100%;
       margin: 0 auto;
+      padding: 0 16px;
+    }
+    .preview-wrap {
+      padding: 0;
     }
     .hero {
       padding: 28px 0 22px;
@@ -163,6 +167,7 @@ function renderIndex(designs) {
       justify-content: space-between;
       gap: 14px;
       margin-bottom: 18px;
+      padding: 0 16px;
     }
     .toolbar nav {
       display: flex;
@@ -176,12 +181,15 @@ function renderIndex(designs) {
     }
     .gallery {
       display: grid;
-      gap: 24px;
+      gap: 30px;
+      width: 100%;
     }
     .design-card {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 10px;
+      border-left: 0;
+      border-right: 0;
+      border-radius: 0;
       overflow: hidden;
     }
     .design-card > header {
@@ -217,13 +225,15 @@ function renderIndex(designs) {
     }
     .frame-wrap {
       width: 100%;
-      height: clamp(760px, 72vw, 980px);
+      height: clamp(800px, 68vw, 1020px);
       min-height: 760px;
+      overflow: hidden;
       background: #edf1f5;
       border-bottom: 1px solid var(--line);
     }
     iframe {
       width: 100%;
+      min-width: 1440px;
       height: 100%;
       display: block;
       border: 0;
@@ -244,9 +254,10 @@ function renderIndex(designs) {
       padding: 28px;
     }
     @media (max-width: 760px) {
-      .wrap { width: calc(100% - 20px); }
+      .wrap { padding: 0 10px; }
+      .preview-wrap { padding: 0; }
       .hero { padding: 24px 0 18px; }
-      .toolbar { flex-direction: column; align-items: flex-start; }
+      .toolbar { flex-direction: column; align-items: flex-start; padding: 0 10px; }
       .design-card > header { min-height: 0; flex-direction: column; }
       .frame-wrap { height: 680px; min-height: 680px; }
     }
@@ -256,7 +267,7 @@ function renderIndex(designs) {
   <header class="page">
     <div class="wrap hero">
       <h1>WordPress Playground Redesigns V3</h1>
-      <p class="lede">Fifty additional redesigns guided by feedback on mobile-first, calmer Figma-like, Epic-style launcher, macOS and Windows settings, glass, tabs, iPad multitasking, and inspector-first concepts. Each preview is full-width so desktop layouts are not forced into mobile mode.</p>
+      <p class="lede">Fifty additional redesigns guided by feedback on mobile-first, calmer Figma-like, Epic-style launcher, macOS and Windows settings, glass, tabs, iPad multitasking, and inspector-first concepts. Each preview spans the page and renders with a desktop-width iframe viewport so layouts are not forced into mobile mode.</p>
       <div class="meta">
         <span class="pill">${count} / 50 V3 designs</span>
         <span class="pill">Feedback-led design families</span>
@@ -265,7 +276,7 @@ function renderIndex(designs) {
     </div>
   </header>
   <main>
-    <div class="wrap">
+    <div class="wrap preview-wrap">
       <div class="toolbar">
         <strong>Full-Width Iframe Preview Gallery</strong>
         <nav>
