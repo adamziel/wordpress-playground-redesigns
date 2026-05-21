@@ -1,0 +1,1522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WordPress Playground — HUD glass (v5 · 037)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --ink-900:#0b0d12;
+    --ink-700:#1c1f27;
+    --ink-500:#3a4150;
+    --ink-300:#6c7484;
+    --ink-100:#cfd4dd;
+    --paper:#f3f3f0;
+    --canvas:#dcd9d2;
+    --accent:#3858e9;
+    --accent-soft:rgba(56,88,233,.18);
+    --good:#0a8f4a;
+    --warn:#c47800;
+    --bad:#c33;
+    --glass-bg:rgba(20,22,28,.42);
+    --glass-bg-strong:rgba(18,20,26,.62);
+    --glass-stroke:rgba(255,255,255,.16);
+    --glass-stroke-soft:rgba(255,255,255,.08);
+    --glass-inner:inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.18);
+    --hud-shadow: 0 12px 40px -8px rgba(0,0,0,.55), 0 2px 10px -2px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#1a1c20;color:var(--ink-900);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+  /* ─────────  page chrome (the gallery wrapper itself, NOT the design)  ───────── */
+  .gallery{padding:36px 32px 80px;max-width:1640px;margin:0 auto;color:#e8e9ed}
+  .gallery h1{font-size:20px;margin:0 0 4px;font-weight:600;letter-spacing:-.01em}
+  .gallery .sub{font-size:13px;color:#8e94a4;margin:0 0 28px;max-width:780px;line-height:1.55}
+  .gallery .sub b{color:#cfd4dd;font-weight:600}
+  .gallery .sub kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:#262932;padding:1px 6px;border-radius:4px;border:1px solid #353a47}
+  .row{display:flex;flex-direction:column;gap:48px}
+  .stage-label{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#8e94a4;margin:0 0 10px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .stage-label::before{content:"";width:6px;height:6px;border-radius:50%;background:#5b6072}
+  .stage-label .tag{font-size:10px;background:#262932;color:#cfd4dd;padding:2px 7px;border-radius:6px;letter-spacing:.04em;text-transform:none;font-weight:500;border:1px solid #353a47}
+  .stage-label .tag.live{background:rgba(56,88,233,.18);border-color:rgba(56,88,233,.45);color:#a6b9ff}
+
+  /* ─────────  the design canvas (frame around each demo state)  ───────── */
+  .demo{position:relative;width:1440px;height:900px;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.04);background:#000}
+  .demo.mobile{width:390px;height:844px;border-radius:38px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06), inset 0 0 0 6px #0b0d12}
+  .demo .nub{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:110px;height:24px;background:#0b0d12;border-radius:0 0 14px 14px;z-index:50;display:none}
+  .demo.mobile .nub{display:block}
+
+  /* ─────────  the iframe — the only solid thing  ───────── */
+  .iframe{position:absolute;inset:0;background:#fff;overflow:hidden}
+  .iframe.boot{background:linear-gradient(180deg,#11151c 0%,#0c0e13 100%)}
+  /* fake WP coffee site */
+  .wp-site{position:absolute;inset:0;color:#161a1f;font-family:'Inter',sans-serif}
+  .wp-site .wp-bar{height:32px;background:#1d2327;color:#fff;display:flex;align-items:center;padding:0 14px;font-size:12px;gap:18px}
+  .wp-site .wp-bar .dot{width:14px;height:14px;border-radius:3px;background:#2c3338;display:inline-flex;align-items:center;justify-content:center;color:#a7aaad}
+  .wp-site .wp-bar a{color:#a7aaad;text-decoration:none;font-weight:500}
+  .wp-site .wp-bar a.brand{color:#fff;font-weight:600}
+  .wp-site .wp-bar .spacer{flex:1}
+  .wp-site .header{padding:36px 64px 0;display:flex;align-items:center;justify-content:space-between;background:#fff}
+  .wp-site .header .logo{font-family:'Inter',serif;font-weight:600;font-size:24px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+  .wp-site .header .logo .glyph{width:32px;height:32px;border-radius:50%;background:#7a3f1d;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono';font-size:14px}
+  .wp-site .header .nav{display:flex;gap:32px;font-size:14px;color:#3a4150}
+  .wp-site .header .nav a{color:inherit;text-decoration:none}
+  .wp-site .header .nav a.cur{color:#7a3f1d;font-weight:600}
+  .wp-site .hero{display:grid;grid-template-columns:1.2fr 1fr;gap:48px;padding:48px 64px 80px;background:#fff;align-items:center}
+  .wp-site .hero .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#7a3f1d;font-weight:600;margin-bottom:18px}
+  .wp-site .hero h1{font-family:'Inter',serif;font-size:64px;line-height:1.02;margin:0 0 22px;letter-spacing:-.025em;font-weight:700;color:#1a1410}
+  .wp-site .hero p{font-size:17px;line-height:1.6;color:#5b5048;margin:0 0 30px;max-width:46ch}
+  .wp-site .hero .ctas{display:flex;gap:12px}
+  .wp-site .hero .ctas .btn{padding:13px 22px;border-radius:999px;font-weight:600;font-size:14px;border:none;cursor:pointer}
+  .wp-site .hero .ctas .btn.primary{background:#7a3f1d;color:#fff}
+  .wp-site .hero .ctas .btn.ghost{background:transparent;color:#1a1410;border:1px solid #d9c8b8}
+  .wp-site .hero .photo{height:420px;border-radius:6px;background:linear-gradient(135deg,#a87248 0%,#5c2f15 100%);position:relative;overflow:hidden;box-shadow:0 30px 60px -20px rgba(0,0,0,.3)}
+  .wp-site .hero .photo::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(255,220,180,.35),transparent 55%)}
+  .wp-site .hero .photo .label{position:absolute;left:24px;bottom:24px;color:#fff;font-size:13px;font-family:'JetBrains Mono';letter-spacing:.05em;z-index:2}
+  .wp-site .strip{background:#f6f0e8;padding:36px 64px;display:flex;justify-content:space-between;gap:48px}
+  .wp-site .strip .col{flex:1}
+  .wp-site .strip .col .k{font-family:'JetBrains Mono';font-size:11px;color:#7a3f1d;letter-spacing:.1em;margin-bottom:8px}
+  .wp-site .strip .col .v{font-family:'Inter',serif;font-size:20px;color:#1a1410;line-height:1.3;font-weight:600}
+
+  /* boot scene */
+  .boot-scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#cfd4dd;font-family:'JetBrains Mono';font-size:13px;gap:18px}
+  .boot-scene .wp-glyph{width:88px;height:88px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3858e9,#1a2a8c);position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Inter',serif;font-size:38px;font-weight:600;letter-spacing:-.04em;box-shadow:0 30px 80px -10px rgba(56,88,233,.45)}
+  .boot-scene .wp-glyph::after{content:"";position:absolute;inset:-12px;border-radius:50%;border:1px solid rgba(56,88,233,.3);border-top-color:#3858e9;animation:spin 2.4s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .boot-scene .label{font-size:14px;color:#8e94a4;font-family:'Inter';letter-spacing:.02em}
+  .boot-scene .progress{width:280px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;position:relative}
+  .boot-scene .progress::after{content:"";position:absolute;left:0;top:0;bottom:0;width:62%;background:linear-gradient(90deg,#3858e9,#7a92ff);border-radius:2px}
+  .boot-scene .log{width:520px;font-size:11px;color:#5b6072;line-height:1.6;text-align:left;font-family:'JetBrains Mono'}
+  .boot-scene .log .ok{color:#0a8f4a}
+  .boot-scene .log .cur{color:#cfd4dd}
+
+  /* ─────────  HUD GLASS LAYER  ───────── */
+  .hud{position:absolute;inset:0;pointer-events:none;z-index:30}
+  .hud > *{pointer-events:auto}
+
+  /* corner pulse — the ONE always-visible affordance */
+  .pulse{position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:#3858e9;box-shadow:0 0 0 0 rgba(56,88,233,.45);animation:beat 2s ease-out infinite;cursor:pointer}
+  .pulse.saved{background:#0a8f4a;box-shadow:0 0 0 0 rgba(10,143,74,.4)}
+  @keyframes beat{0%{box-shadow:0 0 0 0 rgba(56,88,233,.5)}70%{box-shadow:0 0 0 14px rgba(56,88,233,0)}100%{box-shadow:0 0 0 0 rgba(56,88,233,0)}}
+
+  /* glass surface — the common substrate for all HUD pieces */
+  .glass{background:var(--glass-bg);
+         backdrop-filter:blur(22px) saturate(160%);
+         -webkit-backdrop-filter:blur(22px) saturate(160%);
+         border:1px solid var(--glass-stroke);
+         border-radius:14px;
+         color:#f1f3f8;
+         box-shadow:var(--hud-shadow), var(--glass-inner);
+  }
+  .glass.strong{background:var(--glass-bg-strong)}
+  .glass.materializing{animation:materialize .35s cubic-bezier(.2,.7,.3,1) both}
+  .glass.dissolving{animation:dissolve .9s ease both;pointer-events:none}
+  @keyframes materialize{
+    from{opacity:0;transform:scale(.96) translateY(-4px);backdrop-filter:blur(0px) saturate(100%);filter:blur(6px);border-color:transparent}
+    to  {opacity:1;transform:scale(1) translateY(0);backdrop-filter:blur(22px) saturate(160%);filter:blur(0);border-color:var(--glass-stroke)}
+  }
+  @keyframes dissolve{
+    0%{opacity:1;filter:blur(0)}
+    100%{opacity:0;filter:blur(8px) saturate(80%)}
+  }
+
+  /* TOP pill — URL + name + save + menu */
+  .top-pill{position:absolute;top:14px;left:50%;transform:translateX(-50%);height:44px;display:flex;align-items:center;gap:6px;padding:6px 8px;min-width:560px;max-width:780px}
+  .top-pill .icon-btn{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#cfd4dd;cursor:pointer;background:transparent;border:none;transition:background .12s}
+  .top-pill .icon-btn:hover{background:rgba(255,255,255,.08)}
+  .top-pill .icon-btn svg{width:16px;height:16px}
+  .top-pill .url{flex:1;display:flex;align-items:center;gap:8px;height:32px;border-radius:9px;background:rgba(255,255,255,.06);padding:0 12px;font-family:'JetBrains Mono';font-size:12px;color:#cfd4dd;border:1px solid transparent}
+  .top-pill .url:focus-within{background:rgba(255,255,255,.1);border-color:rgba(56,88,233,.4)}
+  .top-pill .url .lock{color:#0a8f4a;display:flex;align-items:center;font-size:10px;gap:4px}
+  .top-pill .url .path{flex:1;color:#f1f3f8}
+  .top-pill .url .path .dim{color:#8e94a4}
+  .top-pill .name-chip{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 10px;border-radius:9px;background:rgba(255,255,255,.06);font-size:12px;font-weight:500;color:#e8eaef;cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+  .top-pill .name-chip .savedot{width:7px;height:7px;border-radius:50%;background:#0a8f4a;box-shadow:0 0 0 2px rgba(10,143,74,.18)}
+  .top-pill .name-chip.unsaved{background:rgba(196,120,0,.18);border-color:rgba(196,120,0,.4);color:#ffd089}
+  .top-pill .name-chip.unsaved .savedot{background:#c47800;box-shadow:0 0 0 2px rgba(196,120,0,.22);animation:beat 2.4s ease-out infinite}
+  .top-pill .name-chip.unsaved .save-verb{font-weight:600;color:#ffe2b8;border-left:1px solid rgba(255,255,255,.14);padding-left:8px;margin-left:4px}
+
+  /* LEFT cluster — saved sites quickdock (avatars) */
+  .left-cluster{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;padding:8px;align-items:center}
+  .left-cluster .avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Inter',serif;font-size:14px;font-weight:600;color:#fff;cursor:pointer;border:1.5px solid transparent;position:relative}
+  .left-cluster .avatar.cur{border-color:#3858e9;box-shadow:0 0 0 2px rgba(56,88,233,.25)}
+  .left-cluster .avatar.a1{background:linear-gradient(135deg,#7a3f1d,#a87248)}
+  .left-cluster .avatar.a2{background:linear-gradient(135deg,#16635a,#43a89c)}
+  .left-cluster .avatar.a3{background:linear-gradient(135deg,#5a2a8c,#a368e6)}
+  .left-cluster .avatar.a4{background:linear-gradient(135deg,#1c4a8e,#4a86d8)}
+  .left-cluster .avatar.unsaved{background:repeating-linear-gradient(45deg,#3a4150 0 6px,#262932 6px 12px);color:#cfd4dd}
+  .left-cluster hr{margin:4px 0;border:none;border-top:1px solid rgba(255,255,255,.1);width:24px}
+  .left-cluster .add{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;color:#cfd4dd;cursor:pointer;border:1px dashed rgba(255,255,255,.18)}
+  .left-cluster .add svg{width:14px;height:14px}
+
+  /* RIGHT capsule — Site Manager opener */
+  .right-cap{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:40px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .right-cap .icon-btn{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#cfd4dd;cursor:pointer;background:transparent;border:none}
+  .right-cap .icon-btn.cur{background:rgba(56,88,233,.22);color:#a6b9ff}
+  .right-cap .icon-btn svg{width:14px;height:14px}
+
+  /* BOTTOM dock — fullscreen + version + log peek */
+  .bot-dock{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);height:40px;display:flex;align-items:center;gap:6px;padding:5px 8px}
+  .bot-dock .v-chip{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;font-family:'JetBrains Mono';font-size:11px;color:#cfd4dd;background:rgba(255,255,255,.04);cursor:default}
+  .bot-dock .v-chip .dot{width:5px;height:5px;border-radius:50%;background:#0a8f4a}
+  .bot-dock .div{width:1px;height:18px;background:rgba(255,255,255,.1);margin:0 2px}
+  .bot-dock .icon-btn{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#cfd4dd;cursor:pointer;background:transparent;border:none;font-size:10px;font-family:'JetBrains Mono'}
+  .bot-dock .icon-btn.kbd{padding:0 8px;width:auto;gap:6px}
+  .bot-dock .icon-btn:hover{background:rgba(255,255,255,.08)}
+  .bot-dock .icon-btn svg{width:14px;height:14px}
+
+  /* ─────────  PANE — the one secondary surface (swaps content)  ───────── */
+  .pane{position:absolute;top:72px;bottom:62px;width:520px;display:flex;flex-direction:column;overflow:hidden;border-radius:14px}
+  .pane.left{left:64px}
+  .pane.right{right:64px;width:560px}
+  .pane.wide{width:880px}
+  .pane-head{display:flex;align-items:center;height:48px;padding:0 12px 0 16px;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .pane-head .title{font-size:13px;font-weight:600;color:#f1f3f8;display:flex;align-items:center;gap:8px}
+  .pane-head .spacer{flex:1}
+  .pane-head .icon-btn{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#cfd4dd;cursor:pointer;background:transparent;border:none}
+  .pane-head .icon-btn:hover{background:rgba(255,255,255,.08)}
+  .pane-head .icon-btn svg{width:14px;height:14px}
+  .pane-tabs{display:flex;gap:2px;padding:8px 12px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .pane-tabs .tab{height:30px;padding:0 11px;border-radius:7px 7px 0 0;display:flex;align-items:center;gap:6px;color:#8e94a4;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent}
+  .pane-tabs .tab svg{width:13px;height:13px}
+  .pane-tabs .tab.cur{color:#f1f3f8;background:rgba(255,255,255,.06);box-shadow:inset 0 -2px 0 #3858e9}
+  .pane-body{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+  /* search row */
+  .sr{padding:12px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:8px;align-items:center}
+  .sr .search{flex:1;display:flex;align-items:center;gap:8px;height:32px;border-radius:9px;background:rgba(255,255,255,.06);padding:0 10px;font-size:12px;color:#cfd4dd;border:1px solid rgba(255,255,255,.05)}
+  .sr .search input{background:none;border:none;color:#f1f3f8;font:inherit;flex:1;outline:none}
+  .sr .search svg{width:13px;height:13px;color:#8e94a4}
+  .sr .filter-chip{height:32px;display:flex;align-items:center;gap:6px;padding:0 10px;border-radius:9px;background:rgba(255,255,255,.04);font-size:11px;color:#cfd4dd;cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+  .sr .filter-chip svg{width:12px;height:12px}
+
+  /* category chips */
+  .cats{display:flex;gap:6px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.06)}
+  .cats .c{height:26px;padding:0 10px;border-radius:99px;display:flex;align-items:center;font-size:11px;color:#cfd4dd;background:rgba(255,255,255,.05);cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+  .cats .c.cur{background:rgba(56,88,233,.22);color:#bccaff;border-color:rgba(56,88,233,.45)}
+
+  /* blueprint cards */
+  .bp-grid{flex:1;overflow:auto;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:flex-start}
+  .bp-card{padding:10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05);cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:background .12s}
+  .bp-card:hover{background:rgba(255,255,255,.07)}
+  .bp-card .thumb{height:62px;border-radius:7px;background:linear-gradient(135deg,#3858e9,#1a2a8c);position:relative;display:flex;align-items:flex-end;padding:6px;color:#fff;font-family:'Inter',serif;font-weight:600;font-size:12px;overflow:hidden}
+  .bp-card .thumb.t2{background:linear-gradient(135deg,#7a3f1d,#a87248)}
+  .bp-card .thumb.t3{background:linear-gradient(135deg,#16635a,#43a89c)}
+  .bp-card .thumb.t4{background:linear-gradient(135deg,#5a2a8c,#a368e6)}
+  .bp-card .thumb.t5{background:linear-gradient(135deg,#c33,#7a1a1a)}
+  .bp-card .thumb.t6{background:linear-gradient(135deg,#1c4a8e,#4a86d8)}
+  .bp-card .thumb.t7{background:linear-gradient(135deg,#0a8f4a,#0d6b3a)}
+  .bp-card .thumb.t8{background:linear-gradient(135deg,#c47800,#834f00)}
+  .bp-card .thumb.t9{background:linear-gradient(135deg,#5b6072,#3a4150)}
+  .bp-card .thumb.t10{background:linear-gradient(135deg,#a3308f,#5e1c52)}
+  .bp-card .thumb::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.18),transparent 60%)}
+  .bp-card .t{font-size:12px;font-weight:600;color:#f1f3f8;line-height:1.3}
+  .bp-card .d{font-size:10.5px;color:#8e94a4;line-height:1.4}
+  .bp-card .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+  .bp-card .tags .tg{font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,.06);color:#a8aebd;font-family:'JetBrains Mono'}
+
+  /* sources list (Start new) */
+  .src-list{padding:10px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .src-list .src{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+  .src-list .src:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.06)}
+  .src-list .src .ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(56,88,233,.18);color:#a6b9ff}
+  .src-list .src .ic svg{width:15px;height:15px}
+  .src-list .src .body{flex:1}
+  .src-list .src .body .t{font-size:12.5px;font-weight:500;color:#f1f3f8}
+  .src-list .src .body .d{font-size:10.5px;color:#8e94a4;margin-top:1px}
+  .src-list .src .kbd{font-family:'JetBrains Mono';font-size:10px;color:#8e94a4;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:5px}
+
+  /* your sites list */
+  .your-sites{padding:10px;display:flex;flex-direction:column;gap:6px}
+  .your-sites .s{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+  .your-sites .s:hover{background:rgba(255,255,255,.04)}
+  .your-sites .s.cur{background:rgba(56,88,233,.12);border-color:rgba(56,88,233,.32)}
+  .your-sites .s .av{width:34px;height:34px;border-radius:9px;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Inter',serif;font-size:13px;font-weight:600}
+  .your-sites .s .body{flex:1;min-width:0}
+  .your-sites .s .body .t{font-size:12.5px;font-weight:500;color:#f1f3f8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .your-sites .s .body .d{font-size:10.5px;color:#8e94a4;display:flex;align-items:center;gap:6px;margin-top:1px;font-family:'JetBrains Mono'}
+  .your-sites .s .body .d .opfs{color:#0a8f4a}
+  .your-sites .s .more{color:#5b6072}
+  .your-sites .s .more svg{width:14px;height:14px}
+
+  /* sub-segment switcher inside pane (lesson #002) */
+  .seg{display:flex;background:rgba(255,255,255,.04);border-radius:9px;padding:3px;margin:10px 12px}
+  .seg .s{flex:1;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#8e94a4;cursor:pointer;border-radius:7px}
+  .seg .s.cur{background:rgba(255,255,255,.08);color:#f1f3f8;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+
+  /* ─────────  SITE MANAGER  ───────── */
+  .sm-head{padding:14px 16px 10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .sm-head .t-row{display:flex;align-items:center;gap:10px}
+  .sm-head .t-row .name{font-size:15px;font-weight:600;color:#f1f3f8;flex:1;background:transparent;border:none;outline:none;font-family:'Inter'}
+  .sm-head .t-row .icon-btn{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#cfd4dd;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);cursor:pointer}
+  .sm-head .t-row .icon-btn svg{width:13px;height:13px}
+  .sm-head .ctas{display:flex;gap:6px}
+  .sm-head .ctas .b{height:28px;padding:0 10px;border-radius:7px;display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cfd4dd;background:rgba(255,255,255,.05);cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+  .sm-head .ctas .b svg{width:12px;height:12px}
+
+  /* settings form */
+  .settings-body{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+  .settings-body .group{display:flex;flex-direction:column;gap:6px}
+  .settings-body .group label{font-size:11px;color:#8e94a4;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .settings-body .group .ctrl{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#f1f3f8;font-size:13px;cursor:pointer}
+  .settings-body .group .ctrl .v{flex:1}
+  .settings-body .group .ctrl svg{width:13px;height:13px;color:#8e94a4}
+  .settings-body .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .settings-body .toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+  .settings-body .toggle .t{font-size:12.5px;color:#f1f3f8;font-weight:500}
+  .settings-body .toggle .d{font-size:10.5px;color:#8e94a4;margin-top:2px}
+  .settings-body .toggle .sw{width:32px;height:18px;border-radius:99px;background:rgba(255,255,255,.12);position:relative;flex-shrink:0}
+  .settings-body .toggle .sw::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s}
+  .settings-body .toggle.on .sw{background:#3858e9}
+  .settings-body .toggle.on .sw::after{left:16px}
+  .settings-body .danger-card{padding:14px;border-radius:10px;background:rgba(195,51,51,.08);border:1px solid rgba(195,51,51,.32);display:flex;flex-direction:column;gap:8px}
+  .settings-body .danger-card .t{font-size:12.5px;font-weight:600;color:#ff8a8a;display:flex;align-items:center;gap:6px}
+  .settings-body .danger-card .t svg{width:13px;height:13px}
+  .settings-body .danger-card .d{font-size:11px;color:#cfd4dd;line-height:1.5}
+  .settings-body .danger-card .b{align-self:flex-start;height:30px;padding:0 14px;border-radius:7px;background:rgba(195,51,51,.2);color:#ff8a8a;font-size:12px;font-weight:600;border:1px solid rgba(195,51,51,.4);cursor:pointer}
+
+  /* file tree */
+  .fb{flex:1;display:grid;grid-template-columns:200px 1fr;min-height:0}
+  .fb .tree{overflow:auto;padding:8px;border-right:1px solid rgba(255,255,255,.06);font-size:11.5px;font-family:'JetBrains Mono';color:#cfd4dd}
+  .fb .tree .row{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:5px;cursor:pointer;white-space:nowrap}
+  .fb .tree .row:hover{background:rgba(255,255,255,.04)}
+  .fb .tree .row.cur{background:rgba(56,88,233,.18);color:#bccaff}
+  .fb .tree .row svg{width:11px;height:11px}
+  .fb .tree .row.dir{font-weight:600;color:#e8eaef}
+  .fb .tree .row.indent-1{padding-left:18px}
+  .fb .tree .row.indent-2{padding-left:30px}
+  .fb .tree .toolbar{display:flex;gap:4px;padding:6px;border-bottom:1px solid rgba(255,255,255,.06);margin:-8px -8px 6px}
+  .fb .tree .toolbar .b{flex:1;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:4px;color:#cfd4dd;font-size:10px;background:rgba(255,255,255,.04);cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+  .fb .tree .toolbar .b svg{width:10px;height:10px}
+  .fb .editor{display:flex;flex-direction:column;min-width:0}
+  .fb .editor .tabbar{height:32px;padding:0 8px;display:flex;align-items:center;gap:4px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .fb .editor .tabbar .t{height:24px;padding:0 8px;border-radius:5px 5px 0 0;background:rgba(255,255,255,.06);font-family:'JetBrains Mono';font-size:11px;color:#f1f3f8;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .fb .editor .tabbar .t .x{color:#5b6072;font-size:10px}
+  .fb .editor .code{flex:1;overflow:auto;padding:10px 12px;font-family:'JetBrains Mono';font-size:11.5px;line-height:1.55;color:#cfd4dd}
+  .fb .editor .code .ln{display:inline-block;width:30px;color:#5b6072;text-align:right;margin-right:14px;user-select:none}
+  .fb .editor .code .k{color:#8aaaff}
+  .fb .editor .code .s{color:#a8d39a}
+  .fb .editor .code .c{color:#5b6072;font-style:italic}
+  .fb .editor .code .v{color:#e8eaef}
+  .fb .editor .code .fn{color:#dec089}
+
+  /* JSON viewer */
+  .json{flex:1;overflow:auto;padding:14px 16px;font-family:'JetBrains Mono';font-size:11.5px;line-height:1.6;color:#cfd4dd}
+  .json .ln{display:inline-block;width:24px;color:#5b6072;text-align:right;margin-right:12px;user-select:none}
+  .json .k{color:#8aaaff}
+  .json .s{color:#a8d39a}
+  .json .n{color:#dec089}
+  .json .p{color:#e8eaef}
+  .json .b{color:#c47800}
+  .bp-actions{padding:10px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:6px;flex-wrap:wrap}
+  .bp-actions .b{height:28px;padding:0 10px;border-radius:7px;display:flex;align-items:center;gap:6px;font-size:11.5px;color:#cfd4dd;background:rgba(255,255,255,.05);cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+  .bp-actions .b.primary{background:#3858e9;color:#fff;border-color:#3858e9;font-weight:600}
+  .bp-actions .b svg{width:12px;height:12px}
+
+  /* DB table */
+  .db{flex:1;overflow:auto;font-family:'JetBrains Mono';font-size:11px;color:#cfd4dd}
+  .db .notice{margin:12px;padding:10px 12px;background:rgba(196,120,0,.1);border:1px solid rgba(196,120,0,.32);border-radius:9px;color:#ffd089;font-family:'Inter';font-size:11.5px;line-height:1.5;display:flex;align-items:flex-start;gap:8px}
+  .db .notice svg{width:14px;height:14px;color:#ffd089;flex-shrink:0;margin-top:1px}
+  .db .notice a{color:#ffe2b8;text-decoration:underline}
+  .db .schema-row{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer}
+  .db .schema-row:hover{background:rgba(255,255,255,.03)}
+  .db .schema-row.cur{background:rgba(56,88,233,.12);color:#bccaff}
+  .db .schema-row svg{width:11px;height:11px;color:#8e94a4}
+  .db .schema-row .ct{margin-left:auto;font-size:10px;color:#5b6072}
+  .db table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono';font-size:10.5px}
+  .db table th{background:rgba(255,255,255,.06);text-align:left;padding:6px 10px;color:#a8aebd;font-weight:500;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0}
+  .db table td{padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:#cfd4dd}
+  .db table tr:hover td{background:rgba(255,255,255,.03)}
+
+  /* logs */
+  .logs{flex:1;overflow:auto;font-family:'JetBrains Mono';font-size:11px;color:#cfd4dd}
+  .logs .filt{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06);align-items:center}
+  .logs .filt .search{flex:1;display:flex;align-items:center;gap:8px;height:28px;border-radius:7px;background:rgba(255,255,255,.05);padding:0 10px;font-size:11px;color:#cfd4dd;border:1px solid rgba(255,255,255,.06)}
+  .logs .filt .search input{background:none;border:none;color:#f1f3f8;font:inherit;flex:1;outline:none}
+  .logs .filt .search svg{width:12px;height:12px;color:#8e94a4}
+  .logs .filt .lv{height:24px;padding:0 9px;border-radius:99px;font-size:10px;font-family:'JetBrains Mono';color:#cfd4dd;background:rgba(255,255,255,.05);cursor:pointer;display:flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.05)}
+  .logs .filt .lv .d{width:6px;height:6px;border-radius:50%;background:#c47800}
+  .logs .filt .lv.err .d{background:#c33}
+  .logs .filt .lv.info .d{background:#3858e9}
+  .logs .filt .lv.cur{background:rgba(255,255,255,.1)}
+  .logs .lines{padding:6px 0;display:flex;flex-direction:column}
+  .logs .lines .l{display:flex;align-items:flex-start;gap:10px;padding:3px 14px;font-size:10.5px;line-height:1.5}
+  .logs .lines .l .t{color:#5b6072;width:78px;flex-shrink:0}
+  .logs .lines .l .lv{width:46px;flex-shrink:0;font-weight:600}
+  .logs .lines .l.warn .lv{color:#c47800}
+  .logs .lines .l.err .lv{color:#ff8a8a}
+  .logs .lines .l.info .lv{color:#8aaaff}
+  .logs .lines .l.notice .lv{color:#a8d39a}
+  .logs .lines .l .m{color:#cfd4dd;flex:1;word-break:break-word}
+  .logs .lines .l .m .file{color:#8e94a4}
+  .logs .lines .l:hover{background:rgba(255,255,255,.03)}
+  .logs .lines .l.cur{background:rgba(56,88,233,.08)}
+
+  /* ─────────  CONFIRM SHEET (Apply & Reset)  ───────── */
+  .confirm-veil{position:absolute;inset:0;background:rgba(8,10,14,.55);backdrop-filter:blur(8px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px}
+  .confirm{width:520px;border-radius:14px;background:#15171d;border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px -10px rgba(0,0,0,.7);overflow:hidden}
+  .confirm .hd{padding:18px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .confirm .hd .ic{width:36px;height:36px;border-radius:10px;background:rgba(195,51,51,.18);display:flex;align-items:center;justify-content:center;color:#ff8a8a}
+  .confirm .hd .ic svg{width:18px;height:18px}
+  .confirm .hd .t{font-size:14px;font-weight:600;color:#f1f3f8}
+  .confirm .hd .d{font-size:12px;color:#8e94a4;margin-top:2px}
+  .confirm .body{padding:20px;color:#cfd4dd;font-size:12.5px;line-height:1.6}
+  .confirm .body .diff{margin:10px 0;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);font-family:'JetBrains Mono';font-size:11px;color:#e8eaef}
+  .confirm .body .diff .from{color:#ff8a8a;text-decoration:line-through;margin-right:8px}
+  .confirm .body .diff .to{color:#a8d39a}
+  .confirm .body .recover{margin-top:14px;padding:10px 12px;border-radius:8px;background:rgba(10,143,74,.08);border:1px solid rgba(10,143,74,.3);font-family:'Inter';font-size:11.5px;color:#a8d39a;display:flex;align-items:center;gap:8px}
+  .confirm .body .recover svg{width:14px;height:14px;flex-shrink:0}
+  .confirm .body .typed{margin-top:18px;display:flex;flex-direction:column;gap:8px}
+  .confirm .body .typed label{font-size:11px;color:#8e94a4;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .confirm .body .typed label .req{font-family:'JetBrains Mono';color:#f1f3f8;text-transform:none;letter-spacing:0;font-weight:600}
+  .confirm .body .typed input{height:34px;padding:0 12px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(56,88,233,.4);color:#f1f3f8;font-family:'JetBrains Mono';font-size:12px;outline:none}
+  .confirm .ft{padding:14px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(255,255,255,.06)}
+  .confirm .ft .b{height:32px;padding:0 16px;border-radius:8px;font-size:12.5px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:transparent;color:#cfd4dd}
+  .confirm .ft .b.danger{background:#c33;border-color:#c33;color:#fff;font-weight:600}
+
+  /* ─────────  FIRST-REVEAL LABELS (one-shot teaching layer)  ───────── */
+  .reveal-label{position:absolute;color:#fff;font-size:10px;font-family:'JetBrains Mono';letter-spacing:.1em;text-transform:uppercase;font-weight:600;background:rgba(56,88,233,.9);padding:3px 8px;border-radius:5px;z-index:35;box-shadow:0 4px 12px -2px rgba(56,88,233,.5)}
+  .reveal-label::before{content:"";position:absolute;width:8px;height:8px;background:inherit;transform:rotate(45deg)}
+  .reveal-label.top{top:64px;left:50%;transform:translateX(-50%)}
+  .reveal-label.top::before{top:-3px;left:50%;margin-left:-4px}
+  .reveal-label.left{left:62px;top:50%;transform:translateY(-50%)}
+  .reveal-label.left::before{left:-3px;top:50%;margin-top:-4px}
+  .reveal-label.right{right:62px;top:50%;transform:translateY(-50%)}
+  .reveal-label.right::before{right:-3px;top:50%;margin-top:-4px}
+  .reveal-label.bot{bottom:64px;left:50%;transform:translateX(-50%)}
+  .reveal-label.bot::before{bottom:-3px;left:50%;margin-left:-4px}
+
+  /* ─────────  MENU (kebab from top pill) ───────── */
+  .menu{position:absolute;top:64px;right:64px;width:240px;padding:6px;z-index:40}
+  .menu .item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:#cfd4dd;font-size:12px;cursor:pointer}
+  .menu .item:hover{background:rgba(255,255,255,.06)}
+  .menu .item svg{width:13px;height:13px}
+  .menu .item .kbd{margin-left:auto;font-family:'JetBrains Mono';font-size:10px;color:#5b6072;background:rgba(255,255,255,.05);padding:1px 6px;border-radius:4px}
+  .menu .sep{height:1px;background:rgba(255,255,255,.08);margin:4px 0}
+
+  /* ─────────  fullscreen mode ───────── */
+  .esc-hint{position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono';font-size:10px;color:rgba(255,255,255,.4);background:rgba(0,0,0,.25);padding:4px 8px;border-radius:5px;backdrop-filter:blur(6px)}
+
+  /* ─────────  annotation labels (for reviewers; would be invisible in prod) ───────── */
+  .anno{position:absolute;font-family:'JetBrains Mono';font-size:10px;color:#a6b9ff;background:rgba(56,88,233,.14);padding:3px 7px;border-radius:5px;border:1px dashed rgba(56,88,233,.4);letter-spacing:.04em;z-index:5;pointer-events:none}
+  .anno.tr{top:42px;right:42px}
+  .anno.bl{bottom:62px;left:42px}
+
+  /* ─────────  MOBILE-SPECIFIC ───────── */
+  .demo.mobile .top-pill{top:34px;left:8px;right:8px;transform:none;min-width:0;max-width:none;height:40px;padding:5px 6px}
+  .demo.mobile .top-pill .icon-btn{width:30px;height:30px}
+  .demo.mobile .top-pill .url{font-size:11px;padding:0 10px;height:30px}
+  .demo.mobile .top-pill .name-chip{height:30px;padding:0 9px 0 8px;font-size:11px}
+  .demo.mobile .pulse{top:38px;right:18px}
+  .demo.mobile .left-cluster{left:8px;top:auto;bottom:62px;flex-direction:row;transform:none;padding:6px}
+  .demo.mobile .left-cluster hr{width:1px;height:24px;margin:0 2px}
+  .demo.mobile .bot-dock{bottom:12px;height:44px;left:8px;right:8px;transform:none;justify-content:space-between}
+  .demo.mobile .right-cap{right:8px;top:auto;bottom:62px;width:auto;flex-direction:row;padding:6px}
+  .demo.mobile .pane{top:84px;bottom:118px;left:8px;right:8px;width:auto}
+
+  /* small kbd badge */
+  .kbd-badge{font-family:'JetBrains Mono';font-size:10px;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;color:#cfd4dd}
+</style>
+</head>
+<body>
+<div class="gallery">
+  <h1>WordPress Playground — v5 · 037 · HUD glass</h1>
+  <p class="sub">All chrome is glass that <b>materializes</b> on mouse-move and <b>dissolves</b> 2s after idle. The iframe is the only solid thing. Four floating HUD pieces — top pill (URL + name + save + menu), left cluster (active sites), right capsule (Site Manager opener), bottom dock (version + fullscreen + keys). A single persistent <kbd>•</kbd> in the corner is the never-dissolving heartbeat. First mouse-move after page load labels all four for 1.5 s — one-shot teaching. Press <kbd>H</kbd> to lock HUD visible, <kbd>F</kbd> for absolute fullscreen, <kbd>Esc</kbd> to exit.</p>
+
+  <div class="row">
+
+    <!-- ─────────────────────────── STATE 1 — IDLE (chrome dissolved) ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 1 — Idle, 2s after last mouse-move <span class="tag">iframe 100%</span></div>
+      <div class="demo">
+        <!-- iframe (only solid thing) -->
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar">
+              <span class="dot"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></span>
+              <a class="brand">Roast & Bean</a>
+              <a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a>
+              <span class="spacer"></span>
+              <a>Howdy, admin</a>
+            </div>
+            <div class="header">
+              <div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div>
+              <div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div>
+            </div>
+            <div class="hero">
+              <div>
+                <div class="eyebrow">Spring 2026 · Single Origin</div>
+                <h1>Beans grown in mist, roasted by hand, sent fresh.</h1>
+                <p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week. No mass blends, no warehouse hold.</p>
+                <div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div>
+              </div>
+              <div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div>
+            </div>
+            <div class="strip">
+              <div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div>
+              <div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div>
+              <div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div>
+              <div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- HUD layer: only the pulse is visible -->
+        <div class="hud">
+          <div class="pulse saved" title="Saved · move mouse to summon HUD · F for fullscreen"></div>
+        </div>
+        <div class="anno tr">↑ corner pulse · the ONLY persistent affordance (never dissolves)</div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 2 — FIRST REVEAL (teaching layer) ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 2 — First mouse-move after page load · 1.5s teaching layer <span class="tag live">one-shot</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero">
+              <div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div>
+              <div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div>
+            </div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+
+          <!-- top pill, materializing -->
+          <div class="glass top-pill materializing">
+            <button class="icon-btn" title="Refresh"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span><span class="kbd-badge">⌘L</span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean<span class="kbd-badge">⌘S</span></div>
+            <button class="icon-btn" title="More"><i data-lucide="more-horizontal"></i></button>
+          </div>
+
+          <!-- left cluster, materializing -->
+          <div class="glass left-cluster materializing">
+            <div class="avatar a1 cur" title="Roast & Bean">R</div>
+            <div class="avatar a2" title="Atlas Photo">A</div>
+            <div class="avatar a3" title="Friends Reader">F</div>
+            <div class="avatar a4" title="Gutenberg PR #67421">G</div>
+            <hr/>
+            <div class="add" title="Launcher · ⌘O"><i data-lucide="plus"></i></div>
+          </div>
+
+          <!-- right capsule, materializing -->
+          <div class="glass right-cap materializing">
+            <button class="icon-btn" title="Settings"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn" title="Files"><i data-lucide="folder"></i></button>
+            <button class="icon-btn" title="Blueprint"><i data-lucide="braces"></i></button>
+            <button class="icon-btn" title="Database"><i data-lucide="database"></i></button>
+            <button class="icon-btn" title="Logs"><i data-lucide="terminal"></i></button>
+          </div>
+
+          <!-- bottom dock, materializing -->
+          <div class="glass bot-dock materializing">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <!-- one-shot teaching labels -->
+          <div class="reveal-label top">URL · NAME · SAVE</div>
+          <div class="reveal-label left">YOUR SITES</div>
+          <div class="reveal-label right">SITE MANAGER</div>
+          <div class="reveal-label bot">VERSION · FULLSCREEN</div>
+        </div>
+        <div class="anno bl">labels fade after 1.5s · never shown again unless localStorage cleared</div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 3 — HUD MATERIALIZED (normal reveal) ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 3 — HUD materialized (mouse moved within last 2s)</div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero">
+              <div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week. No mass blends, no warehouse hold.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div>
+              <div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div>
+            </div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster">
+            <div class="avatar a1 cur">R</div>
+            <div class="avatar a2">A</div>
+            <div class="avatar a3">F</div>
+            <div class="avatar a4">G</div>
+            <hr/>
+            <div class="add"><i data-lucide="plus"></i></div>
+          </div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 4 — LAUNCHER PANE OPEN (from left "+") ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 4 — Launcher pane open · "+" on left cluster · Blueprints tab <span class="tag">≥16 cards · 10 categories · all 6 sources</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero" style="padding-bottom:60px"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+
+          <!-- top pill stays visible (HUD locked while pane open) -->
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster">
+            <div class="avatar a1 cur">R</div>
+            <div class="avatar a2">A</div>
+            <div class="avatar a3">F</div>
+            <div class="avatar a4">G</div>
+            <hr/>
+            <div class="add" style="background:rgba(56,88,233,.22);border-color:rgba(56,88,233,.45);color:#a6b9ff"><i data-lucide="plus"></i></div>
+          </div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <!-- THE pane, docking from the left, wide layout -->
+          <div class="glass strong pane left wide" style="left:64px;width:920px">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="plus-circle" style="width:14px;height:14px"></i> Launcher</div>
+              <div class="spacer"></div>
+              <button class="icon-btn" title="Pop out"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn" title="Close (Esc)"><i data-lucide="x"></i></button>
+            </div>
+            <!-- top-level tabs inside the one pane -->
+            <div class="pane-tabs">
+              <button class="tab"><i data-lucide="hard-drive"></i>Your sites <span class="kbd-badge" style="margin-left:4px">4</span></button>
+              <button class="tab cur"><i data-lucide="package"></i>Blueprints <span class="kbd-badge" style="margin-left:4px">43</span></button>
+              <button class="tab"><i data-lucide="rocket"></i>Start new</button>
+            </div>
+            <div class="pane-body">
+              <div class="sr">
+                <div class="search"><i data-lucide="search"></i><input value="" placeholder="Search 43 blueprints — try 'woo' or 'gutenberg'…"/></div>
+                <div class="filter-chip"><i data-lucide="arrow-down-up"></i>Recent</div>
+              </div>
+              <div class="cats">
+                <div class="c cur">All · 43</div>
+                <div class="c">Featured · 5</div>
+                <div class="c">Website · 10</div>
+                <div class="c">Personal · 6</div>
+                <div class="c">Content · 7</div>
+                <div class="c">Themes · 8</div>
+                <div class="c">Gutenberg · 4</div>
+                <div class="c">Experiments · 3</div>
+                <div class="c">WooCommerce · 4</div>
+                <div class="c">News · 2</div>
+              </div>
+              <div class="bp-grid" style="grid-template-columns:1fr 1fr 1fr">
+                <div class="bp-card"><div class="thumb t2">Art Gallery</div><div class="t">Art Gallery</div><div class="d">An art gallery built on the Vueo theme.</div><div class="tags"><span class="tg">website</span><span class="tg">personal</span></div></div>
+                <div class="bp-card" style="outline:1px solid rgba(56,88,233,.5);outline-offset:-1px"><div class="thumb t8">Coffee Shop</div><div class="t">Coffee Shop ✦</div><div class="d">A stylish WooCommerce storefront with custom theme &amp; products.</div><div class="tags"><span class="tg">woocommerce</span><span class="tg">store</span></div></div>
+                <div class="bp-card"><div class="thumb t3">Friends</div><div class="t">Feed Reader · Friends Plugin</div><div class="d">Read feeds (incl. ActivityPub) in Playground.</div><div class="tags"><span class="tg">rss</span><span class="tg">social</span></div></div>
+                <div class="bp-card"><div class="thumb t6">Gaming News</div><div class="t">Gaming News</div><div class="d">News site built on the Spiel theme.</div><div class="tags"><span class="tg">website</span><span class="tg">news</span></div></div>
+                <div class="bp-card"><div class="thumb t7">Non-profit</div><div class="t">Non-profit Organization</div><div class="d">Org site built on the Koinonia theme.</div><div class="tags"><span class="tg">organization</span></div></div>
+                <div class="bp-card"><div class="thumb t9">Personal Blog</div><div class="t">Personal Blog</div><div class="d">Blog site built on the Substrata theme.</div><div class="tags"><span class="tg">blog</span><span class="tg">personal</span></div></div>
+                <div class="bp-card"><div class="thumb t4">Resume</div><div class="t">Personal Resume</div><div class="d">A resume site built on the Readymade theme.</div><div class="tags"><span class="tg">personal</span></div></div>
+                <div class="bp-card"><div class="thumb t10">Photography</div><div class="t">Photography Portfolio</div><div class="d">Portfolio built on the Grammer theme.</div><div class="tags"><span class="tg">photography</span></div></div>
+                <div class="bp-card"><div class="thumb t5">Skincare</div><div class="t">Skincare Blog</div><div class="d">A skincare blog built on the Piel theme.</div><div class="tags"><span class="tg">blog</span><span class="tg">news</span></div></div>
+                <div class="bp-card"><div class="thumb t1">University</div><div class="t">University Website</div><div class="d">University site built on the Kentwood theme.</div><div class="tags"><span class="tg">education</span></div></div>
+                <div class="bp-card"><div class="thumb t2">Twenty-Twenty-Five</div><div class="t">Twenty-Twenty-Five demo</div><div class="d">Demo content for the default 2025 theme.</div><div class="tags"><span class="tg">themes</span></div></div>
+                <div class="bp-card"><div class="thumb t6">CPT Books</div><div class="t">Custom Post Type · Books</div><div class="d">Adds a custom post type to playground.</div><div class="tags"><span class="tg">content</span><span class="tg">cpt</span></div></div>
+                <div class="bp-card"><div class="thumb t3">Dataview</div><div class="t">Dataview Experiments</div><div class="d">Enable all three Gutenberg Dataview experiments.</div><div class="tags"><span class="tg">gutenberg</span><span class="tg">experiments</span></div></div>
+                <div class="bp-card"><div class="thumb t9">Showcase</div><div class="t">Showcase plugin</div><div class="d">Custom plugin with media + WXR content.</div><div class="tags"><span class="tg">plugin</span><span class="tg">demo</span></div></div>
+                <div class="bp-card"><div class="thumb t8">Stylish Press</div><div class="t">Stylish Press</div><div class="d">A Woo store with custom theme &amp; products.</div><div class="tags"><span class="tg">woocommerce</span></div></div>
+                <div class="bp-card"><div class="thumb t10">Beta</div><div class="t">WordPress Beta</div><div class="d">Latest WordPress Beta/RC with theme test data.</div><div class="tags"><span class="tg">testing</span></div></div>
+                <div class="bp-card"><div class="thumb t7">GraphQL</div><div class="t">Use WPGraphQL to query WP</div><div class="d">WordPress with WPGraphQL + the IDE page.</div><div class="tags"><span class="tg">api</span></div></div>
+                <div class="bp-card"><div class="thumb t4">wp-cli</div><div class="t">Add posts via wp-cli</div><div class="d">Use a wp-cli command to add posts.</div><div class="tags"><span class="tg">content</span><span class="tg">wpcli</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 5 — SITE MANAGER · Settings tab ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 5 — Site Manager opens from right capsule · Settings tab <span class="tag">one canonical home for settings</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster">
+            <div class="avatar a1 cur">R</div>
+            <div class="avatar a2">A</div>
+            <div class="avatar a3">F</div>
+            <div class="avatar a4">G</div>
+            <hr/>
+            <div class="add"><i data-lucide="plus"></i></div>
+          </div>
+          <div class="glass right-cap">
+            <button class="icon-btn cur"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <!-- THE pane, docking from the right -->
+          <div class="glass strong pane right">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="settings-2" style="width:14px;height:14px"></i> Site Manager</div>
+              <div class="spacer"></div>
+              <button class="icon-btn" title="Pop out"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn" title="Close (Esc)"><i data-lucide="x"></i></button>
+            </div>
+            <div class="pane-tabs">
+              <button class="tab cur"><i data-lucide="sliders-horizontal"></i>Settings</button>
+              <button class="tab"><i data-lucide="folder"></i>Files</button>
+              <button class="tab"><i data-lucide="braces"></i>Blueprint</button>
+              <button class="tab"><i data-lucide="database"></i>Database</button>
+              <button class="tab"><i data-lucide="terminal"></i>Logs</button>
+            </div>
+            <div class="pane-body">
+              <div class="sm-head">
+                <div class="t-row">
+                  <input class="name" value="Roast & Bean"/>
+                  <button class="icon-btn" title="Rename"><i data-lucide="pencil"></i></button>
+                </div>
+                <div class="ctas">
+                  <div class="b"><i data-lucide="user-cog"></i>WP Admin</div>
+                  <div class="b"><i data-lucide="home"></i>Homepage</div>
+                  <div class="b" style="margin-left:auto"><i data-lucide="git-pull-request"></i>Export PR</div>
+                  <div class="b"><i data-lucide="download"></i>.zip</div>
+                </div>
+              </div>
+              <div class="settings-body">
+                <div class="group">
+                  <label>WordPress version</label>
+                  <div class="ctrl"><span class="v">6.7 — stable</span><i data-lucide="chevron-down"></i></div>
+                </div>
+                <div class="row2">
+                  <div class="group">
+                    <label>PHP version</label>
+                    <div class="ctrl"><span class="v">8.3</span><i data-lucide="chevron-down"></i></div>
+                  </div>
+                  <div class="group">
+                    <label>Language</label>
+                    <div class="ctrl"><span class="v">English (en_US)</span><i data-lucide="chevron-down"></i></div>
+                  </div>
+                </div>
+                <div class="toggle on">
+                  <div><div class="t">Network access</div><div class="d">Allow PHP fetch() &amp; outbound HTTP requests</div></div>
+                  <div class="sw"></div>
+                </div>
+                <div class="toggle">
+                  <div><div class="t">Multisite</div><div class="d">Enable WordPress multisite (subdirectory)</div></div>
+                  <div class="sw"></div>
+                </div>
+                <div class="danger-card">
+                  <div class="t"><i data-lucide="alert-triangle"></i> Apply &amp; Reset Playground</div>
+                  <div class="d">Changing WP/PHP versions wipes all uploads, posts, plugins, and settings inside the playground. The current state will be auto-snapshotted before reset (downloadable for 24 h).</div>
+                  <button class="b">Apply &amp; Reset…</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 6 — Files tab ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 6 — Site Manager · Files tab <span class="tag">tree + code editor</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster">
+            <div class="avatar a1 cur">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="add"><i data-lucide="plus"></i></div>
+          </div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn cur"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <div class="glass strong pane right wide" style="right:64px;width:760px">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="settings-2" style="width:14px;height:14px"></i> Site Manager</div>
+              <div class="spacer"></div>
+              <button class="icon-btn"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="pane-tabs">
+              <button class="tab"><i data-lucide="sliders-horizontal"></i>Settings</button>
+              <button class="tab cur"><i data-lucide="folder"></i>Files</button>
+              <button class="tab"><i data-lucide="braces"></i>Blueprint</button>
+              <button class="tab"><i data-lucide="database"></i>Database</button>
+              <button class="tab"><i data-lucide="terminal"></i>Logs</button>
+            </div>
+            <div class="fb">
+              <div class="tree">
+                <div class="toolbar">
+                  <div class="b"><i data-lucide="file-plus"></i> File</div>
+                  <div class="b"><i data-lucide="folder-plus"></i> Folder</div>
+                </div>
+                <div class="row dir"><i data-lucide="chevron-down"></i><i data-lucide="folder-open"></i>wordpress</div>
+                <div class="row dir indent-1"><i data-lucide="chevron-right"></i><i data-lucide="folder"></i>wp-admin</div>
+                <div class="row dir indent-1"><i data-lucide="chevron-down"></i><i data-lucide="folder-open"></i>wp-content</div>
+                <div class="row dir indent-2"><i data-lucide="chevron-right"></i><i data-lucide="folder"></i>plugins</div>
+                <div class="row dir indent-2"><i data-lucide="chevron-down"></i><i data-lucide="folder-open"></i>themes</div>
+                <div class="row indent-2" style="padding-left:42px"><i data-lucide="folder"></i>roast-and-bean</div>
+                <div class="row cur indent-2" style="padding-left:54px"><i data-lucide="file-code-2"></i>functions.php</div>
+                <div class="row indent-2" style="padding-left:54px"><i data-lucide="file-code-2"></i>style.css</div>
+                <div class="row indent-2" style="padding-left:54px"><i data-lucide="file-code-2"></i>front-page.php</div>
+                <div class="row dir indent-2"><i data-lucide="chevron-right"></i><i data-lucide="folder"></i>uploads</div>
+                <div class="row indent-1"><i data-lucide="file"></i>wp-config.php</div>
+                <div class="row dir indent-1"><i data-lucide="chevron-right"></i><i data-lucide="folder"></i>wp-includes</div>
+              </div>
+              <div class="editor">
+                <div class="tabbar">
+                  <div class="t">functions.php<span class="x">×</span></div>
+                  <div class="t" style="background:transparent;color:#8e94a4">style.css<span class="x">×</span></div>
+                </div>
+                <div class="code">
+<span class="ln">1</span><span class="k">&lt;?php</span><br/>
+<span class="ln">2</span><span class="c">/**</span><br/>
+<span class="ln">3</span><span class="c"> * Roast &amp; Bean — theme functions</span><br/>
+<span class="ln">4</span><span class="c"> */</span><br/>
+<span class="ln">5</span><br/>
+<span class="ln">6</span><span class="k">function</span> <span class="fn">rb_setup</span>() {<br/>
+<span class="ln">7</span>&nbsp;&nbsp;<span class="fn">add_theme_support</span>(<span class="s">'post-thumbnails'</span>);<br/>
+<span class="ln">8</span>&nbsp;&nbsp;<span class="fn">add_theme_support</span>(<span class="s">'wp-block-styles'</span>);<br/>
+<span class="ln">9</span>&nbsp;&nbsp;<span class="fn">register_nav_menu</span>(<span class="s">'primary'</span>, <span class="fn">__</span>(<span class="s">'Primary'</span>, <span class="s">'roast-and-bean'</span>));<br/>
+<span class="ln">10</span>}<br/>
+<span class="ln">11</span><span class="fn">add_action</span>(<span class="s">'after_setup_theme'</span>, <span class="s">'rb_setup'</span>);<br/>
+<span class="ln">12</span><br/>
+<span class="ln">13</span><span class="k">function</span> <span class="fn">rb_enqueue</span>() {<br/>
+<span class="ln">14</span>&nbsp;&nbsp;<span class="fn">wp_enqueue_style</span>(<span class="s">'rb-main'</span>, <span class="fn">get_stylesheet_uri</span>(), [], <span class="s">'1.4.0'</span>);<br/>
+<span class="ln">15</span>&nbsp;&nbsp;<span class="fn">wp_enqueue_script</span>(<span class="s">'rb-cart'</span>, <span class="fn">get_template_directory_uri</span>() . <span class="s">'/cart.js'</span>, [<span class="s">'wp-i18n'</span>], <span class="s">'1.4.0'</span>, <span class="k">true</span>);<br/>
+<span class="ln">16</span>}<br/>
+<span class="ln">17</span><span class="fn">add_action</span>(<span class="s">'wp_enqueue_scripts'</span>, <span class="s">'rb_enqueue'</span>);<br/>
+<span class="ln">18</span><br/>
+<span class="ln">19</span><span class="c">// Custom roast date meta for products</span><br/>
+<span class="ln">20</span><span class="k">function</span> <span class="fn">rb_add_roast_date</span>(<span class="v">$product_id</span>) {<br/>
+<span class="ln">21</span>&nbsp;&nbsp;<span class="fn">update_post_meta</span>(<span class="v">$product_id</span>, <span class="s">'_roast_date'</span>, <span class="fn">current_time</span>(<span class="s">'Y-m-d'</span>));<br/>
+<span class="ln">22</span>}<br/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 7 — Blueprint tab ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 7 — Site Manager · Blueprint tab <span class="tag">JSON + copy/download/run</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster"><div class="avatar a1 cur">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="add"><i data-lucide="plus"></i></div></div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn cur"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <div class="glass strong pane right wide" style="right:64px;width:660px">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="settings-2" style="width:14px;height:14px"></i> Site Manager</div>
+              <div class="spacer"></div>
+              <button class="icon-btn"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="pane-tabs">
+              <button class="tab"><i data-lucide="sliders-horizontal"></i>Settings</button>
+              <button class="tab"><i data-lucide="folder"></i>Files</button>
+              <button class="tab cur"><i data-lucide="braces"></i>Blueprint</button>
+              <button class="tab"><i data-lucide="database"></i>Database</button>
+              <button class="tab"><i data-lucide="terminal"></i>Logs</button>
+            </div>
+            <div class="pane-body">
+              <div class="json">
+<span class="ln">1</span><span class="p">{</span><br/>
+<span class="ln">2</span>&nbsp;&nbsp;<span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,<br/>
+<span class="ln">3</span>&nbsp;&nbsp;<span class="k">"meta"</span>: <span class="p">{</span> <span class="k">"title"</span>: <span class="s">"Coffee Shop"</span>, <span class="k">"author"</span>: <span class="s">"@adamz"</span> <span class="p">}</span>,<br/>
+<span class="ln">4</span>&nbsp;&nbsp;<span class="k">"preferredVersions"</span>: <span class="p">{</span><br/>
+<span class="ln">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"php"</span>: <span class="s">"8.3"</span>,<br/>
+<span class="ln">6</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"wp"</span>: <span class="s">"6.7"</span><br/>
+<span class="ln">7</span>&nbsp;&nbsp;<span class="p">}</span>,<br/>
+<span class="ln">8</span>&nbsp;&nbsp;<span class="k">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],<br/>
+<span class="ln">9</span>&nbsp;&nbsp;<span class="k">"login"</span>: <span class="b">true</span>,<br/>
+<span class="ln">10</span>&nbsp;&nbsp;<span class="k">"steps"</span>: [<br/>
+<span class="ln">11</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="k">"step"</span>: <span class="s">"installPlugin"</span>, <span class="k">"pluginData"</span>: <span class="p">{</span> <span class="k">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> <span class="p">}</span> <span class="p">}</span>,<br/>
+<span class="ln">12</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="k">"step"</span>: <span class="s">"installTheme"</span>, <span class="k">"themeData"</span>: <span class="p">{</span> <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"https://github.com/wp/coffee-theme/archive/refs/heads/trunk.zip"</span> <span class="p">}</span> <span class="p">}</span>,<br/>
+<span class="ln">13</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="k">"step"</span>: <span class="s">"runPHP"</span>, <span class="k">"code"</span>: <span class="s">"&lt;?php require_once 'wordpress/wp-load.php'; wp_insert_post(['post_title'=&gt;'House Blend','post_type'=&gt;'product','post_status'=&gt;'publish']);"</span> <span class="p">}</span>,<br/>
+<span class="ln">14</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="k">"options"</span>: <span class="p">{</span> <span class="k">"blogname"</span>: <span class="s">"Roast &amp; Bean"</span>, <span class="k">"blogdescription"</span>: <span class="s">"Single-origin coffee, roasted weekly."</span> <span class="p">}</span> <span class="p">}</span>,<br/>
+<span class="ln">15</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="k">"step"</span>: <span class="s">"updateUserMeta"</span>, <span class="k">"userId"</span>: <span class="n">1</span>, <span class="k">"meta"</span>: <span class="p">{</span> <span class="k">"admin_color"</span>: <span class="s">"modern"</span> <span class="p">}</span> <span class="p">}</span>,<br/>
+<span class="ln">16</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="k">"step"</span>: <span class="s">"importWxr"</span>, <span class="k">"file"</span>: <span class="p">{</span> <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"https://playground.wordpress.net/demo-content/coffee.wxr"</span> <span class="p">}</span> <span class="p">}</span><br/>
+<span class="ln">17</span>&nbsp;&nbsp;]<br/>
+<span class="ln">18</span><span class="p">}</span>
+              </div>
+              <div class="bp-actions">
+                <button class="b primary"><i data-lucide="play"></i>Run blueprint</button>
+                <button class="b"><i data-lucide="link"></i>Copy share link</button>
+                <button class="b"><i data-lucide="download"></i>Download bundle</button>
+                <button class="b"><i data-lucide="folder-tree"></i>Browse files</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 8 — Database + Logs (triptych composite) ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 8 — Site Manager · Database tab <span class="tag">SQLite browser · early access</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster"><div class="avatar a1 cur">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="add"><i data-lucide="plus"></i></div></div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn cur"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <div class="glass strong pane right wide" style="right:64px;width:780px">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="settings-2" style="width:14px;height:14px"></i> Site Manager</div>
+              <div class="spacer"></div>
+              <button class="icon-btn"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="pane-tabs">
+              <button class="tab"><i data-lucide="sliders-horizontal"></i>Settings</button>
+              <button class="tab"><i data-lucide="folder"></i>Files</button>
+              <button class="tab"><i data-lucide="braces"></i>Blueprint</button>
+              <button class="tab cur"><i data-lucide="database"></i>Database</button>
+              <button class="tab"><i data-lucide="terminal"></i>Logs</button>
+            </div>
+            <div class="db" style="display:flex;flex-direction:column;min-height:0">
+              <div class="notice"><i data-lucide="flask-conical"></i><div><b>Database browser is early access.</b> Schema mutations may not persist across refresh. Track progress on <a>GitHub #1842</a>.</div></div>
+              <div style="display:grid;grid-template-columns:200px 1fr;flex:1;min-height:0">
+                <div style="border-right:1px solid rgba(255,255,255,.06);overflow:auto;padding:6px 0">
+                  <div class="schema-row"><i data-lucide="chevron-down"></i><b style="color:#e8eaef">wp_</b></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>posts<span class="ct">142</span></div>
+                  <div class="schema-row cur" style="padding-left:30px"><i data-lucide="table-2"></i>postmeta<span class="ct">486</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>options<span class="ct">187</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>users<span class="ct">1</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>usermeta<span class="ct">21</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>woocommerce_orders<span class="ct">8</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>woocommerce_products<span class="ct">12</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>terms<span class="ct">6</span></div>
+                  <div class="schema-row" style="padding-left:30px"><i data-lucide="table-2"></i>term_relationships<span class="ct">18</span></div>
+                </div>
+                <div style="overflow:auto">
+                  <table>
+                    <thead><tr><th>meta_id</th><th>post_id</th><th>meta_key</th><th>meta_value</th></tr></thead>
+                    <tbody>
+                      <tr><td>1</td><td>14</td><td>_roast_date</td><td>2026-05-11</td></tr>
+                      <tr><td>2</td><td>14</td><td>_origin</td><td>Antioquia, Colombia</td></tr>
+                      <tr><td>3</td><td>14</td><td>_price</td><td>18.00</td></tr>
+                      <tr><td>4</td><td>14</td><td>_stock_status</td><td>instock</td></tr>
+                      <tr><td>5</td><td>14</td><td>_sca_score</td><td>92.5</td></tr>
+                      <tr><td>6</td><td>17</td><td>_roast_date</td><td>2026-05-11</td></tr>
+                      <tr><td>7</td><td>17</td><td>_origin</td><td>Huila, Colombia</td></tr>
+                      <tr><td>8</td><td>17</td><td>_price</td><td>16.50</td></tr>
+                      <tr><td>9</td><td>23</td><td>_thumbnail_id</td><td>104</td></tr>
+                      <tr><td>10</td><td>23</td><td>_wp_attached_file</td><td>2026/05/origin-andes.jpg</td></tr>
+                      <tr><td>11</td><td>23</td><td>_edit_last</td><td>1</td></tr>
+                      <tr><td>12</td><td>27</td><td>_menu_item_type</td><td>post_type</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 9 — Logs tab ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 9 — Site Manager · Logs tab <span class="tag">PHP error log · level filter · search</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster"><div class="avatar a1 cur">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="add"><i data-lucide="plus"></i></div></div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn cur"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <div class="glass strong pane right wide" style="right:64px;width:780px">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="settings-2" style="width:14px;height:14px"></i> Site Manager</div>
+              <div class="spacer"></div>
+              <button class="icon-btn"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="pane-tabs">
+              <button class="tab"><i data-lucide="sliders-horizontal"></i>Settings</button>
+              <button class="tab"><i data-lucide="folder"></i>Files</button>
+              <button class="tab"><i data-lucide="braces"></i>Blueprint</button>
+              <button class="tab"><i data-lucide="database"></i>Database</button>
+              <button class="tab cur"><i data-lucide="terminal"></i>Logs</button>
+            </div>
+            <div class="logs">
+              <div class="filt">
+                <div class="search"><i data-lucide="search"></i><input value="rb_" placeholder="Filter…"/></div>
+                <div class="lv info"><span class="d"></span>INFO 84</div>
+                <div class="lv cur"><span class="d"></span>WARN 6</div>
+                <div class="lv err"><span class="d"></span>ERROR 1</div>
+                <button class="lv"><i data-lucide="trash-2" style="width:11px;height:11px"></i>Clear</button>
+              </div>
+              <div class="lines">
+                <div class="l info"><span class="t">21 May 14:02:11</span><span class="lv">INFO</span><span class="m">PHP/8.3.7 boot complete in 1142 ms <span class="file">[wp-includes/load.php:142]</span></span></div>
+                <div class="l notice"><span class="t">21 May 14:02:12</span><span class="lv">NOTC</span><span class="m">SQLite database driver loaded · wp-config.php drop-in detected <span class="file">[sqlite-database-integration/drop-in.php:34]</span></span></div>
+                <div class="l info"><span class="t">21 May 14:02:12</span><span class="lv">INFO</span><span class="m">Theme "roast-and-bean" activated, callbacks registered: 14 <span class="file">[wp-includes/theme.php:1521]</span></span></div>
+                <div class="l info"><span class="t">21 May 14:02:12</span><span class="lv">INFO</span><span class="m">WooCommerce 9.4.2 → init complete · 12 products indexed <span class="file">[woocommerce/woocommerce.php:268]</span></span></div>
+                <div class="l warn cur"><span class="t">21 May 14:02:13</span><span class="lv">WARN</span><span class="m">Function <b>rb_add_roast_date</b>() expected post_id to be int, string given <span class="file">[themes/roast-and-bean/functions.php:21]</span></span></div>
+                <div class="l info"><span class="t">21 May 14:02:13</span><span class="lv">INFO</span><span class="m">REST API endpoint registered: /wc/v3/products · 14 methods</span></div>
+                <div class="l warn"><span class="t">21 May 14:02:14</span><span class="lv">WARN</span><span class="m">Deprecated · sanitize_url() — use esc_url_raw() since 2.8.0 <span class="file">[themes/roast-and-bean/inc/cart.php:88]</span></span></div>
+                <div class="l warn"><span class="t">21 May 14:02:14</span><span class="lv">WARN</span><span class="m">Function <b>rb_add_roast_date</b>() called from filter `save_post`; recommended hook is `save_post_product` <span class="file">[themes/roast-and-bean/functions.php:21]</span></span></div>
+                <div class="l info"><span class="t">21 May 14:02:15</span><span class="lv">INFO</span><span class="m">Cron event 'wc_admin_daily' scheduled for 2026-05-22 02:00:00</span></div>
+                <div class="l err"><span class="t">21 May 14:03:02</span><span class="lv">ERR </span><span class="m">cURL error 28 · Connection timed out after 5000 ms while fetching https://api.openweathermap.org/data/2.5 <span class="file">[plugins/weather-shortcode/api.php:42]</span></span></div>
+                <div class="l info"><span class="t">21 May 14:03:08</span><span class="lv">INFO</span><span class="m">Page rendered: /menu in 86 ms · 14 queries · peak mem 24.1 MB</span></div>
+                <div class="l warn"><span class="t">21 May 14:03:11</span><span class="lv">WARN</span><span class="m">Function <b>rb_add_roast_date</b>() expected post_id to be int, string given <span class="file">[themes/roast-and-bean/functions.php:21]</span></span></div>
+                <div class="l info"><span class="t">21 May 14:03:42</span><span class="lv">INFO</span><span class="m">Page rendered: / in 102 ms · 18 queries · peak mem 25.6 MB</span></div>
+                <div class="l notice"><span class="t">21 May 14:04:10</span><span class="lv">NOTC</span><span class="m">OPFS save complete — playground 'Roast & Bean' persisted (4.2 MB)</span></div>
+                <div class="l warn"><span class="t">21 May 14:04:14</span><span class="lv">WARN</span><span class="m">Function <b>rb_add_roast_date</b>() expected post_id to be int, string given <span class="file">[themes/roast-and-bean/functions.php:21]</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 10 — Booting ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 10 — Booting a blueprint <span class="tag">HUD locked open during boot</span></div>
+      <div class="demo">
+        <div class="iframe boot">
+          <div class="boot-scene">
+            <div class="wp-glyph">W</div>
+            <div class="label">Booting "Coffee Shop" blueprint — 6 of 9 steps</div>
+            <div class="progress"></div>
+            <div class="log">
+<span class="ok">✓</span> php-wasm 8.3 mounted · 21 MB<br/>
+<span class="ok">✓</span> sqlite database initialized · 0.4 MB<br/>
+<span class="ok">✓</span> wordpress 6.7 unpacked · 184 files<br/>
+<span class="ok">✓</span> step 1/9 · login as admin<br/>
+<span class="ok">✓</span> step 2/9 · installPlugin · woocommerce@9.4.2<br/>
+<span class="ok">✓</span> step 3/9 · installTheme · roast-and-bean<br/>
+<span class="ok">✓</span> step 4/9 · runPHP · insert sample products<br/>
+<span class="ok">✓</span> step 5/9 · setSiteOptions · blogname, blogdescription<br/>
+<span class="cur">▸</span> step 6/9 · importWxr · coffee.wxr (4.2 MB)…
+            </div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse" style="background:#3858e9"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="x"></i></button>
+            <div class="url"><span class="lock" style="color:#cfd4dd"><i data-lucide="loader-2" style="width:11px;height:11px"></i> boot</span><span class="path" style="color:#8e94a4">playground.wordpress.net/?blueprint=coffee-shop</span></div>
+            <div class="name-chip unsaved"><span class="savedot"></span>Unsaved Playground<span class="save-verb">Save</span></div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster"><div class="avatar a1">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="avatar unsaved cur">?</div></div>
+          <div class="glass right-cap">
+            <button class="icon-btn" style="opacity:.35"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn" style="opacity:.35"><i data-lucide="folder"></i></button>
+            <button class="icon-btn" style="opacity:.35"><i data-lucide="braces"></i></button>
+            <button class="icon-btn" style="opacity:.35"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot" style="background:#3858e9;animation:beat 1.4s ease-out infinite"></span>WP 6.7 · PHP 8.3 · EN · booting</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 11 — Apply & Reset typed-phrase confirm ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 11 — Apply &amp; Reset confirm sheet <span class="tag">typed-phrase + auto-snapshot</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site" style="filter:saturate(.6) brightness(.7)">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="confirm-veil">
+          <div class="confirm">
+            <div class="hd">
+              <div class="ic"><i data-lucide="alert-triangle"></i></div>
+              <div><div class="t">Apply &amp; Reset Playground</div><div class="d">This wipes the running playground and re-creates it.</div></div>
+            </div>
+            <div class="body">
+              You are changing PHP and WP versions on <b>Roast &amp; Bean</b>:
+              <div class="diff"><span class="from">PHP 8.3 · WP 6.7</span><span class="to">→ PHP 8.4 · WP 6.8-beta</span></div>
+              All uploads, posts, plugins, custom files, and database rows will be erased. The currently-active blueprint will re-run from scratch.
+              <div class="recover"><i data-lucide="archive"></i><div>An automatic snapshot will be saved to your Downloads as <b>roast-and-bean-2026-05-21-1410.zip</b> — you can re-import it within 24 hours.</div></div>
+              <div class="typed">
+                <label>To confirm, type <span class="req">Roast &amp; Bean</span> below:</label>
+                <input value="Roast & Be" placeholder="Type the playground name…"/>
+              </div>
+            </div>
+            <div class="ft">
+              <button class="b">Cancel</button>
+              <button class="b danger" style="opacity:.45">Apply &amp; Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 12 — Absolute fullscreen (chrome dissolved · F) ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 12 — Absolute fullscreen (F) · even the pulse is gone <span class="tag">Esc to exit</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays and ship the same week. No mass blends, no warehouse hold.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="esc-hint"><i data-lucide="corner-up-left" style="width:11px;height:11px"></i> Esc to exit fullscreen</div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 13 — Menu open from kebab ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 13 — Menu open from top-pill kebab <span class="tag">Export PR · Download .zip · Import .zip</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila. We roast to order on Wednesdays.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn" style="background:rgba(255,255,255,.08)"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster"><div class="avatar a1 cur">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="add"><i data-lucide="plus"></i></div></div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <div class="glass strong menu" style="top:64px;right:auto;left:50%;margin-left:160px">
+            <div class="item"><i data-lucide="save"></i>Save playground<span class="kbd">⌘S</span></div>
+            <div class="item"><i data-lucide="rename"></i>Rename…</div>
+            <div class="sep"></div>
+            <div class="item"><i data-lucide="git-pull-request"></i>Export to GitHub PR…</div>
+            <div class="item"><i data-lucide="download"></i>Download .zip</div>
+            <div class="item"><i data-lucide="upload"></i>Import .zip…</div>
+            <div class="sep"></div>
+            <div class="item"><i data-lucide="link-2"></i>Copy share URL</div>
+            <div class="item"><i data-lucide="keyboard"></i>Keyboard shortcuts<span class="kbd">?</span></div>
+            <div class="sep"></div>
+            <div class="item" style="color:#ff8a8a"><i data-lucide="trash-2"></i>Delete from browser…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── STATE 14 — "Start new" tab inside Launcher (six sources) ─────────────────────────── -->
+    <section>
+      <div class="stage-label">State 14 — Launcher · Start new tab <span class="tag">all 6 sources visible</span></div>
+      <div class="demo">
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-bar"><span class="dot"></span><a class="brand">Roast & Bean</a><a>Dashboard</a><a>Posts</a><a>Pages</a><a>Products</a><span class="spacer"></span><a>Howdy, admin</a></div>
+            <div class="header"><div class="logo"><div class="glyph">R&amp;B</div>Roast &amp; Bean</div><div class="nav"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+            <div class="hero"><div><div class="eyebrow">Spring 2026 · Single Origin</div><h1>Beans grown in mist, roasted by hand, sent fresh.</h1><p>Six farms across Antioquia and Huila.</p><div class="ctas"><button class="btn primary">Shop the spring lot →</button><button class="btn ghost">Watch the roast</button></div></div><div class="photo"><span class="label">DE LOS ANDES · LOT 042 · Q92</span></div></div>
+            <div class="strip"><div class="col"><div class="k">ORIGIN</div><div class="v">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v">Stonefruit · brown sugar · cocoa</div></div><div class="col"><div class="k">ROAST</div><div class="v">Medium · 11 May 2026</div></div><div class="col"><div class="k">CUPPING</div><div class="v">92.5 · SCA</div></div></div>
+          </div>
+        </div>
+        <div class="hud">
+          <div class="pulse saved"></div>
+          <div class="glass top-pill">
+            <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+            <div class="url"><span class="lock"><i data-lucide="lock" style="width:11px;height:11px"></i> https</span><span class="path"><span class="dim">roast-and-bean.playground/</span></span></div>
+            <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="glass left-cluster"><div class="avatar a1 cur">R</div><div class="avatar a2">A</div><div class="avatar a3">F</div><div class="avatar a4">G</div><hr/><div class="add" style="background:rgba(56,88,233,.22);border-color:rgba(56,88,233,.45);color:#a6b9ff"><i data-lucide="plus"></i></div></div>
+          <div class="glass right-cap">
+            <button class="icon-btn"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="icon-btn"><i data-lucide="folder"></i></button>
+            <button class="icon-btn"><i data-lucide="braces"></i></button>
+            <button class="icon-btn"><i data-lucide="database"></i></button>
+            <button class="icon-btn"><i data-lucide="terminal"></i></button>
+          </div>
+          <div class="glass bot-dock">
+            <div class="v-chip"><span class="dot"></span>WP 6.7 · PHP 8.3 · EN</div>
+            <div class="div"></div>
+            <button class="icon-btn kbd"><i data-lucide="maximize"></i>F · fullscreen</button>
+            <button class="icon-btn kbd" title="Lock HUD on">H · keep HUD</button>
+          </div>
+
+          <div class="glass strong pane left" style="left:64px;width:620px">
+            <div class="pane-head">
+              <div class="title"><i data-lucide="plus-circle" style="width:14px;height:14px"></i> Launcher</div>
+              <div class="spacer"></div>
+              <button class="icon-btn"><i data-lucide="external-link"></i></button>
+              <button class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="pane-tabs">
+              <button class="tab"><i data-lucide="hard-drive"></i>Your sites <span class="kbd-badge" style="margin-left:4px">4</span></button>
+              <button class="tab"><i data-lucide="package"></i>Blueprints <span class="kbd-badge" style="margin-left:4px">43</span></button>
+              <button class="tab cur"><i data-lucide="rocket"></i>Start new</button>
+            </div>
+            <div class="pane-body" style="overflow:auto">
+              <div class="src-list">
+                <div class="src">
+                  <div class="ic"><i data-lucide="sparkles"></i></div>
+                  <div class="body"><div class="t">Vanilla WordPress</div><div class="d">Latest stable WP, no plugins, no theme override — fastest boot.</div></div>
+                  <div class="kbd">⌘1</div>
+                </div>
+                <div class="src">
+                  <div class="ic" style="background:rgba(10,143,74,.18);color:#a8d39a"><i data-lucide="git-pull-request"></i></div>
+                  <div class="body"><div class="t">WordPress core PR</div><div class="d">Boot from a github.com/WordPress/wordpress-develop PR — paste # or URL.</div></div>
+                  <div class="kbd">⌘2</div>
+                </div>
+                <div class="src">
+                  <div class="ic" style="background:rgba(168,104,230,.18);color:#c89ee6"><i data-lucide="git-merge"></i></div>
+                  <div class="body"><div class="t">Gutenberg PR</div><div class="d">Boot from a github.com/WordPress/gutenberg PR — paste # or URL.</div></div>
+                  <div class="kbd">⌘3</div>
+                </div>
+                <div class="src">
+                  <div class="ic" style="background:rgba(196,120,0,.18);color:#ffd089"><i data-lucide="github"></i></div>
+                  <div class="body"><div class="t">From GitHub</div><div class="d">Load a theme or plugin from any github.com repo as a starter.</div></div>
+                  <div class="kbd">⌘4</div>
+                </div>
+                <div class="src">
+                  <div class="ic" style="background:rgba(72,153,232,.18);color:#7fb1e8"><i data-lucide="link"></i></div>
+                  <div class="body"><div class="t">Blueprint URL</div><div class="d">Paste any blueprint.json URL to boot it. Supports gists, raw.githubusercontent, …</div></div>
+                  <div class="kbd">⌘5</div>
+                </div>
+                <div class="src">
+                  <div class="ic" style="background:rgba(195,51,51,.16);color:#ff8a8a"><i data-lucide="upload"></i></div>
+                  <div class="body"><div class="t">Import .zip</div><div class="d">Upload a previously-exported playground .zip. Restores OPFS + blueprint.</div></div>
+                  <div class="kbd">⌘6</div>
+                </div>
+              </div>
+              <div class="seg">
+                <div class="s">Use a blueprint</div>
+                <div class="s cur">Start from a source</div>
+                <div class="s">Resume saved</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── MOBILE STATES ─────────────────────────── -->
+    <div style="display:flex;gap:48px;flex-wrap:wrap">
+
+      <!-- mobile idle -->
+      <section>
+        <div class="stage-label">Mobile · idle <span class="tag">390×844 · iframe 100%</span></div>
+        <div class="demo mobile">
+          <div class="nub"></div>
+          <div class="iframe">
+            <div class="wp-site">
+              <div class="wp-bar" style="padding:0 8px;font-size:10px;gap:10px"><span class="dot"></span><a class="brand">Roast & Bean</a><span class="spacer"></span><a>admin</a></div>
+              <div class="header" style="padding:18px 18px 0;flex-direction:column;align-items:flex-start;gap:10px"><div class="logo" style="font-size:18px"><div class="glyph" style="width:24px;height:24px;font-size:11px">R&amp;B</div>Roast &amp; Bean</div><div class="nav" style="gap:14px;font-size:11px;flex-wrap:wrap"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+              <div class="hero" style="grid-template-columns:1fr;padding:24px 18px;gap:16px"><div><div class="eyebrow" style="font-size:10px;margin-bottom:8px">Spring 2026 · Single Origin</div><h1 style="font-size:28px;line-height:1.05;margin-bottom:12px">Beans grown in mist, roasted by hand, sent fresh.</h1><p style="font-size:13px;margin-bottom:14px">Six farms across Antioquia and Huila. We roast to order on Wednesdays.</p><div class="ctas"><button class="btn primary" style="padding:10px 16px;font-size:12px">Shop spring lot →</button></div></div><div class="photo" style="height:180px"><span class="label" style="font-size:10px">DE LOS ANDES · LOT 042</span></div></div>
+              <div class="strip" style="flex-direction:column;padding:18px;gap:12px"><div class="col"><div class="k">ORIGIN</div><div class="v" style="font-size:14px">Antioquia, Colombia</div></div><div class="col"><div class="k">NOTES</div><div class="v" style="font-size:14px">Stonefruit · cocoa</div></div></div>
+            </div>
+          </div>
+          <div class="hud">
+            <div class="pulse saved"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- mobile revealed -->
+      <section>
+        <div class="stage-label">Mobile · HUD revealed (tap iframe) <span class="tag">8 affordances</span></div>
+        <div class="demo mobile">
+          <div class="nub"></div>
+          <div class="iframe">
+            <div class="wp-site">
+              <div class="wp-bar" style="padding:0 8px;font-size:10px;gap:10px"><span class="dot"></span><a class="brand">Roast & Bean</a><span class="spacer"></span><a>admin</a></div>
+              <div class="header" style="padding:18px 18px 0;flex-direction:column;align-items:flex-start;gap:10px"><div class="logo" style="font-size:18px"><div class="glyph" style="width:24px;height:24px;font-size:11px">R&amp;B</div>Roast &amp; Bean</div><div class="nav" style="gap:14px;font-size:11px;flex-wrap:wrap"><a class="cur">Menu</a><a>Origins</a><a>Wholesale</a><a>Journal</a><a>Cart · 2</a></div></div>
+              <div class="hero" style="grid-template-columns:1fr;padding:24px 18px;gap:16px"><div><div class="eyebrow" style="font-size:10px;margin-bottom:8px">Spring 2026 · Single Origin</div><h1 style="font-size:28px;line-height:1.05;margin-bottom:12px">Beans grown in mist, roasted by hand, sent fresh.</h1><p style="font-size:13px">Six farms across Antioquia and Huila.</p></div><div class="photo" style="height:180px"><span class="label" style="font-size:10px">DE LOS ANDES · LOT 042</span></div></div>
+              <div class="strip" style="flex-direction:column;padding:18px;gap:12px"><div class="col"><div class="k">ORIGIN</div><div class="v" style="font-size:14px">Antioquia, Colombia</div></div></div>
+            </div>
+          </div>
+          <div class="hud">
+            <div class="pulse saved"></div>
+            <div class="glass top-pill">
+              <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+              <div class="url" style="min-width:0"><span class="lock"><i data-lucide="lock" style="width:9px;height:9px"></i></span><span class="path" style="font-size:10px"><span class="dim">roast-and-bean/</span></span></div>
+              <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+              <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+            </div>
+            <div class="glass left-cluster" style="height:44px">
+              <div class="avatar a1 cur" style="width:32px;height:32px;font-size:12px">R</div>
+              <div class="avatar a2" style="width:32px;height:32px;font-size:12px">A</div>
+              <div class="avatar a3" style="width:32px;height:32px;font-size:12px">F</div>
+              <div class="avatar a4" style="width:32px;height:32px;font-size:12px">G</div>
+              <div class="add" style="width:32px;height:32px"><i data-lucide="plus"></i></div>
+            </div>
+            <div class="glass right-cap" style="height:44px">
+              <button class="icon-btn"><i data-lucide="settings-2"></i></button>
+            </div>
+            <div class="glass bot-dock">
+              <div class="v-chip" style="font-size:10px">WP 6.7 · PHP 8.3</div>
+              <button class="icon-btn kbd"><i data-lucide="maximize"></i>F</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- mobile Site Manager pane (Settings) -->
+      <section>
+        <div class="stage-label">Mobile · Site Manager Settings open <span class="tag">single secondary surface</span></div>
+        <div class="demo mobile">
+          <div class="nub"></div>
+          <div class="iframe">
+            <div class="wp-site">
+              <div class="wp-bar" style="padding:0 8px;font-size:10px"><span class="dot"></span><a class="brand">Roast & Bean</a></div>
+              <div class="header" style="padding:18px"><div class="logo" style="font-size:18px"><div class="glyph" style="width:24px;height:24px;font-size:11px">R&amp;B</div>Roast &amp; Bean</div></div>
+              <div class="hero" style="grid-template-columns:1fr;padding:16px 18px"><div><h1 style="font-size:24px">Beans grown in mist</h1></div></div>
+            </div>
+          </div>
+          <div class="hud">
+            <div class="pulse saved"></div>
+            <div class="glass top-pill">
+              <button class="icon-btn"><i data-lucide="refresh-ccw"></i></button>
+              <div class="url" style="min-width:0"><span class="path" style="font-size:10px"><span class="dim">/wp-admin</span></span></div>
+              <div class="name-chip"><span class="savedot"></span>Roast & Bean</div>
+              <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+            </div>
+            <div class="glass strong pane" style="top:84px;bottom:118px;left:8px;right:8px;width:auto">
+              <div class="pane-head">
+                <div class="title">Site Manager</div>
+                <div class="spacer"></div>
+                <button class="icon-btn"><i data-lucide="x"></i></button>
+              </div>
+              <div class="pane-tabs" style="overflow-x:auto">
+                <button class="tab cur"><i data-lucide="sliders-horizontal"></i>Settings</button>
+                <button class="tab"><i data-lucide="folder"></i>Files</button>
+                <button class="tab"><i data-lucide="braces"></i>BP</button>
+                <button class="tab"><i data-lucide="database"></i>DB</button>
+                <button class="tab"><i data-lucide="terminal"></i>Logs</button>
+              </div>
+              <div class="pane-body">
+                <div class="settings-body" style="padding:12px">
+                  <div class="group"><label>WordPress version</label><div class="ctrl"><span class="v">6.7</span><i data-lucide="chevron-down"></i></div></div>
+                  <div class="group"><label>PHP version</label><div class="ctrl"><span class="v">8.3</span><i data-lucide="chevron-down"></i></div></div>
+                  <div class="toggle on"><div><div class="t">Network</div></div><div class="sw"></div></div>
+                  <div class="danger-card"><div class="t"><i data-lucide="alert-triangle"></i> Apply &amp; Reset</div><button class="b">Apply &amp; Reset…</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="glass left-cluster" style="height:44px">
+              <div class="avatar a1 cur" style="width:32px;height:32px;font-size:12px">R</div>
+              <div class="avatar a2" style="width:32px;height:32px;font-size:12px">A</div>
+              <div class="avatar a3" style="width:32px;height:32px;font-size:12px">F</div>
+              <div class="add" style="width:32px;height:32px"><i data-lucide="plus"></i></div>
+            </div>
+            <div class="glass right-cap" style="height:44px">
+              <button class="icon-btn cur"><i data-lucide="settings-2"></i></button>
+            </div>
+            <div class="glass bot-dock">
+              <div class="v-chip" style="font-size:10px">WP 6.7 · PHP 8.3</div>
+              <button class="icon-btn kbd"><i data-lucide="maximize"></i>F</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+</div>
+<script>
+  if(window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>
