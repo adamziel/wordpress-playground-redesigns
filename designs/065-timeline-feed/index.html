@@ -1,0 +1,1652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Playground — Timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  /* ---------- Reset + tokens ---------- */
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  :root{
+    --bg:#ffffff;
+    --bg-elev:#f7f9fa;
+    --bg-hover:#eff3f4;
+    --bg-deep:#e6e9ea;
+    --line:#eff3f4;
+    --line-strong:#cfd9de;
+    --text:#0f1419;
+    --text-muted:#536471;
+    --text-light:#71767b;
+    --brand:#3858e9; /* WP blue, slightly bluer */
+    --brand-strong:#1d3fd6;
+    --brand-soft:#e7ecff;
+    --boot:#00ba7c; /* green like a "follow" pill */
+    --boot-strong:#018859;
+    --danger:#f4212e;
+    --warn:#ffd400;
+    --pr-purple:#7856ff;
+    --pr-purple-soft:#ece7ff;
+    --gb-orange:#ff6a00;
+    --gb-orange-soft:#ffe8d6;
+    --radius:16px;
+    --radius-sm:10px;
+    --shadow:0 1px 0 #eff3f4;
+    --shadow-pop:0 0 15px rgba(101,119,134,.2),0 0 3px 1px rgba(101,119,134,.15);
+    --max:1290px;
+    --col-l:275px;
+    --col-c:600px;
+    --col-r:350px;
+  }
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);
+    font-size:15px;line-height:1.3;-webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .mono{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ---------- Top toast region ---------- */
+  .toasts{position:fixed;bottom:24px;left:24px;display:flex;flex-direction:column;gap:8px;z-index:90;max-width:380px}
+  .toast{background:var(--text);color:#fff;border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:12px;font-weight:500;box-shadow:var(--shadow-pop);font-size:14px}
+  .toast.success{background:#00ba7c}
+  .toast.info{background:#1d3fd6}
+  .toast .x{margin-left:auto;color:rgba(255,255,255,.7);cursor:pointer;font-size:18px;line-height:1}
+
+  /* ---------- Layout grid ---------- */
+  .app{display:grid;grid-template-columns:var(--col-l) var(--col-c) var(--col-r);max-width:var(--max);margin:0 auto;min-height:100vh;gap:0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+
+  /* ---------- LEFT RAIL ---------- */
+  .leftrail{position:sticky;top:0;height:100vh;padding:8px 12px 12px;border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .logo{display:flex;align-items:center;gap:10px;padding:12px 12px 12px;font-weight:800;font-size:18px}
+  .logo .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#3858e9,#7856ff);display:grid;place-items:center;color:#fff;font-weight:800}
+  .navlist{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+  .navitem{display:flex;align-items:center;gap:16px;padding:11px 14px;border-radius:999px;font-size:18px;font-weight:500;color:var(--text);user-select:none}
+  .navitem .icon{width:24px;height:24px;display:grid;place-items:center;color:var(--text)}
+  .navitem:hover{background:var(--bg-hover)}
+  .navitem.active{font-weight:800}
+  .navitem .count{margin-left:auto;font-size:12px;background:var(--brand);color:#fff;border-radius:999px;padding:2px 8px;font-weight:700}
+  .navitem .pip{margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--brand)}
+
+  .compose-btn{
+    margin-top:14px;display:block;width:100%;padding:14px;font-size:17px;font-weight:700;
+    color:#fff;background:var(--brand);border-radius:999px;transition:background .15s;
+    box-shadow:0 1px 0 rgba(0,0,0,.05);
+  }
+  .compose-btn:hover{background:var(--brand-strong)}
+
+  .me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px;border-radius:999px}
+  .me:hover{background:var(--bg-hover)}
+  .me .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#0073aa,#5d2eff);display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0}
+  .me .who{flex:1;min-width:0}
+  .me .who b{display:block;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .me .who span{display:block;font-size:13px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .me .more{color:var(--text-muted)}
+
+  /* ---------- CENTER COLUMN ---------- */
+  .center{border-right:1px solid var(--line);min-width:0}
+  .center-header{position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:saturate(180%) blur(10px);z-index:5;border-bottom:1px solid var(--line)}
+  .center-title{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 12px}
+  .center-title h1{font-size:20px;font-weight:800;margin:0;letter-spacing:-.01em}
+  .header-actions{display:flex;gap:4px}
+  .iconbtn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--text);transition:background .15s}
+  .iconbtn:hover{background:var(--bg-hover)}
+  .iconbtn[aria-pressed="true"]{background:var(--brand-soft);color:var(--brand)}
+
+  .tabbar{display:flex;border-bottom:1px solid var(--line)}
+  .tabbar .tab{flex:1;text-align:center;padding:16px 0 14px;font-weight:500;color:var(--text-muted);position:relative;cursor:pointer;font-size:15px}
+  .tabbar .tab:hover{background:var(--bg-hover)}
+  .tabbar .tab.active{color:var(--text);font-weight:700}
+  .tabbar .tab.active::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:56px;height:4px;border-radius:4px;background:var(--brand)}
+
+  /* address bar inside center header (for thread-detail view) */
+  .urlbar{display:flex;align-items:center;gap:8px;padding:8px 16px 12px;border-bottom:1px solid var(--line)}
+  .urlbar .refresh{background:var(--bg-elev);border-radius:50%;width:34px;height:34px;display:grid;place-items:center;color:var(--text-muted);flex-shrink:0}
+  .urlbar .refresh:hover{background:var(--bg-hover);color:var(--text)}
+  .urlbar form{flex:1;display:flex;align-items:center;gap:6px;background:var(--bg-elev);border-radius:999px;padding:6px 14px}
+  .urlbar form .scheme{color:var(--text-muted);font-size:13px}
+  .urlbar form input{flex:1;border:none;background:transparent;font:inherit;font-size:14px;color:var(--text);outline:none;padding:4px 0}
+  .urlbar form button{font-size:13px;font-weight:700;color:var(--brand);padding:4px 8px;border-radius:999px}
+
+  /* ---------- POST / TWEET ---------- */
+  .post{display:grid;grid-template-columns:48px 1fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s}
+  .post:hover{background:var(--bg-elev)}
+  .post .av{width:48px;height:48px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-weight:800;color:#fff;font-size:18px;overflow:hidden}
+  .post .body{min-width:0}
+  .post .head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px}
+  .post .name{font-weight:700;color:var(--text);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+  .post .verified{width:18px;height:18px;color:var(--brand)}
+  .post .handle,.post .dot,.post .when{color:var(--text-muted);font-size:14px}
+  .post .more{margin-left:auto;color:var(--text-muted);padding:4px;border-radius:50%}
+  .post .more:hover{background:var(--brand-soft);color:var(--brand)}
+  .post .text{margin-top:2px;font-size:15px;line-height:1.35;color:var(--text)}
+  .post .badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:4px;background:var(--bg-elev);border:1px solid var(--line);padding:3px 9px;font-size:12px;border-radius:999px;font-weight:600;color:var(--text-muted)}
+  .badge.wp{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+  .badge.php{background:#f3e9ff;color:#5d2eff;border-color:#f3e9ff}
+  .badge.unsaved{background:#fff8e0;color:#9a7700;border-color:#fff8e0}
+  .badge.saved{background:#e2f9ed;color:var(--boot-strong);border-color:#e2f9ed}
+  .badge.pr{background:var(--pr-purple-soft);color:var(--pr-purple);border-color:var(--pr-purple-soft)}
+  .badge.gb{background:var(--gb-orange-soft);color:var(--gb-orange);border-color:var(--gb-orange-soft)}
+  .badge.wc{background:#f6e7f3;color:#a02568;border-color:#f6e7f3}
+
+  .post .preview{margin-top:10px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+  .post .preview .thumb{height:170px;background:linear-gradient(135deg,#f7f9fa,#eaeef0);display:grid;place-items:center;color:var(--text-muted);position:relative;overflow:hidden}
+  .post .preview .thumb svg{position:absolute;inset:0;width:100%;height:100%}
+  .post .preview .meta{padding:10px 12px;font-size:13px;color:var(--text-muted);display:flex;flex-direction:column;gap:2px}
+  .post .preview .meta b{color:var(--text);font-weight:700;font-size:14px}
+
+  .actions{display:flex;justify-content:space-between;margin-top:10px;max-width:425px}
+  .actions .a{display:flex;align-items:center;gap:6px;color:var(--text-muted);font-size:13px;padding:6px 8px;border-radius:8px;transition:background .15s,color .15s}
+  .actions .a:hover{background:var(--brand-soft);color:var(--brand)}
+  .actions .a.boot{color:var(--boot);font-weight:700}
+  .actions .a.boot:hover{background:#e2f9ed;color:var(--boot-strong)}
+  .actions .a.danger:hover{background:#ffe2e6;color:var(--danger)}
+
+  .pinned-label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);font-weight:600;margin-bottom:4px;margin-left:-4px}
+
+  /* repost label */
+  .repost-label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+
+  /* "Show new posts" */
+  .newposts{padding:14px 16px;text-align:center;color:var(--brand);font-weight:500;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px}
+  .newposts:hover{background:var(--bg-elev)}
+
+  /* ---------- Avatar colors helpers ---------- */
+  .av-wp{background:linear-gradient(135deg,#21759b,#0073aa)}
+  .av-gb{background:linear-gradient(135deg,#ff6a00,#ee0979)}
+  .av-pr{background:linear-gradient(135deg,#7856ff,#3858e9)}
+  .av-wc{background:linear-gradient(135deg,#a02568,#5d2eff)}
+  .av-coffee{background:linear-gradient(135deg,#6b4423,#a06340)}
+  .av-art{background:linear-gradient(135deg,#ff8a80,#d72b8a)}
+  .av-news{background:linear-gradient(135deg,#0f1419,#3858e9)}
+  .av-non{background:linear-gradient(135deg,#018859,#3858e9)}
+  .av-blog{background:linear-gradient(135deg,#0073aa,#7856ff)}
+  .av-edu{background:linear-gradient(135deg,#9a7700,#018859)}
+  .av-photo{background:linear-gradient(135deg,#0f1419,#71767b)}
+  .av-skin{background:linear-gradient(135deg,#ffb3c1,#ff6a8a)}
+  .av-resume{background:linear-gradient(135deg,#3858e9,#0f1419)}
+  .av-fan{background:linear-gradient(135deg,#5a3eb7,#21759b)}
+  .av-zip{background:linear-gradient(135deg,#9a7700,#5d2eff)}
+  .av-friends{background:linear-gradient(135deg,#ff6a00,#ffb3c1)}
+  .av-gh{background:linear-gradient(135deg,#0f1419,#536471)}
+  .av-stylish{background:linear-gradient(135deg,#a02568,#3858e9)}
+  .av-mywp{background:linear-gradient(135deg,#21759b,#018859)}
+  .av-graph{background:linear-gradient(135deg,#e10098,#7856ff)}
+
+  /* ---------- RIGHT RAIL ---------- */
+  .rightrail{padding:8px 24px 12px 24px;display:flex;flex-direction:column;gap:16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .rightrail::-webkit-scrollbar{width:8px}
+  .rightrail::-webkit-scrollbar-thumb{background:var(--bg-deep);border-radius:8px}
+
+  .search{position:sticky;top:0;padding:6px 0;background:var(--bg);z-index:3}
+  .search .input{display:flex;align-items:center;gap:8px;background:var(--bg-elev);border:1px solid var(--bg-elev);border-radius:999px;padding:9px 16px;transition:background .1s,border-color .1s}
+  .search .input:focus-within{background:var(--bg);border-color:var(--brand)}
+  .search .input input{flex:1;border:none;background:transparent;outline:none;font:inherit;font-size:15px;color:var(--text)}
+
+  .card{background:var(--bg-elev);border-radius:16px;overflow:hidden}
+  .card .ch{padding:12px 16px;font-size:20px;font-weight:800}
+  .card .row{padding:12px 16px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:background .1s}
+  .card .row:hover{background:var(--bg-hover)}
+  .card .row.with-action{flex-direction:row;align-items:center;gap:10px}
+  .card .row .ctx{font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:4px}
+  .card .row .h{font-size:14px;font-weight:700;color:var(--text)}
+  .card .row .meta{font-size:13px;color:var(--text-muted)}
+  .card .row.with-action .avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0}
+  .card .row.with-action .who{flex:1;min-width:0}
+  .card .row.with-action .who b{display:block;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .row.with-action .who span{display:block;font-size:13px;color:var(--text-muted)}
+  .card .row.with-action .followbtn{padding:6px 14px;border-radius:999px;background:var(--text);color:#fff;font-weight:700;font-size:13px}
+  .card .row.with-action .followbtn:hover{background:#272c30}
+  .card .seemore{padding:14px 16px;font-size:14px;color:var(--brand);cursor:pointer;border-radius:0 0 16px 16px}
+  .card .seemore:hover{background:var(--bg-hover)}
+
+  /* Settings popover affordance, accessible from right rail */
+  .settings-card .row{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
+  .settings-card .row .meta{color:var(--brand);font-weight:600;font-size:13px}
+
+  /* footer-y links */
+  .legal{font-size:13px;color:var(--text-muted);padding:4px 4px 12px}
+  .legal a{color:var(--text-muted);margin-right:8px}
+
+  /* ---------- THREAD DETAIL (state 2) ---------- */
+  .thread{display:none}
+  .thread.show{display:block}
+  .feed.hide{display:none}
+
+  .thread-meta{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+  .thread-meta .av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;flex-shrink:0}
+  .thread-meta .who b{font-weight:700;display:block;font-size:15px}
+  .thread-meta .who .handle{color:var(--text-muted);font-size:14px;display:block}
+  .thread-meta .editable-name{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;margin:-2px -8px;border-radius:6px}
+  .thread-meta .editable-name:hover{background:var(--brand-soft)}
+  .thread-meta .more{margin-left:auto;color:var(--text-muted);padding:4px;border-radius:50%}
+  .thread-meta .more:hover{background:var(--brand-soft);color:var(--brand)}
+  .thread-meta .btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .pillbtn{padding:6px 12px;border-radius:999px;background:var(--bg-elev);border:1px solid var(--line);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;color:var(--text)}
+  .pillbtn:hover{background:var(--bg-hover)}
+  .pillbtn.primary{background:var(--text);color:#fff;border-color:var(--text)}
+  .pillbtn.primary:hover{background:#272c30}
+  .pillbtn.boot{background:var(--boot);color:#fff;border-color:var(--boot)}
+  .pillbtn.boot:hover{background:var(--boot-strong);border-color:var(--boot-strong)}
+  .pillbtn.danger{background:#fff;color:var(--danger);border-color:#ffd0d4}
+  .pillbtn.danger:hover{background:#ffe2e6}
+  .pillbtn.save{background:var(--warn);color:#5a4500;border-color:var(--warn)}
+  .pillbtn.save:hover{background:#e5be00}
+
+  /* Sub tabs for thread (Site/Files/Blueprint/DB/Logs) */
+  .subtabs{display:flex;border-bottom:1px solid var(--line);padding:0 16px;gap:4px;overflow-x:auto;scrollbar-width:none}
+  .subtabs::-webkit-scrollbar{display:none}
+  .subtab{padding:12px 12px 10px;font-size:14px;color:var(--text-muted);font-weight:600;position:relative;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+  .subtab:hover{color:var(--text)}
+  .subtab.active{color:var(--text)}
+  .subtab.active::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--brand);border-radius:3px 3px 0 0}
+
+  .pane{display:none}
+  .pane.show{display:block}
+
+  /* Site pane = iframe */
+  .iframe-card{margin:12px 16px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+  .iframe-card .chrome{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg-elev);border-bottom:1px solid var(--line);font-size:12px;color:var(--text-muted)}
+  .iframe-card .chrome .dot{width:10px;height:10px;border-radius:50%}
+  .iframe-card .chrome .dot.r{background:#ff5f57}.iframe-card .chrome .dot.y{background:#febc2e}.iframe-card .chrome .dot.g{background:#28c840}
+  .iframe-card .chrome .url{margin-left:8px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:12px}
+  .iframe-card .surface{position:relative;background:#fafafa;min-height:520px;display:flex;flex-direction:column}
+  .iframe-card .surface .wp-bar{background:#1d2327;color:#fff;padding:7px 14px;font-size:13px;display:flex;align-items:center;gap:14px;font-weight:500}
+  .iframe-card .surface .wp-bar .wp-logo{width:18px;height:18px;background:#fff;color:#1d2327;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:11px}
+  .iframe-card .surface .wp-bar .item{color:rgba(255,255,255,.7);font-size:13px}
+  .iframe-card .surface .hero{flex:1;padding:36px;display:flex;flex-direction:column;justify-content:center;gap:14px;font-family:Georgia,serif;background:#fff}
+  .iframe-card .surface .hero h2{font-size:32px;font-weight:700;margin:0;color:#1d2327}
+  .iframe-card .surface .hero p{margin:0;font-size:16px;color:#3c434a;max-width:560px;line-height:1.5}
+  .iframe-card .surface .hero .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .iframe-card .surface .hero .card-mini{background:#f6f7f7;border-radius:6px;padding:14px;font-size:13px;color:#3c434a}
+  .iframe-card .surface .hero .card-mini b{display:block;color:#1d2327;font-size:14px;margin-bottom:4px;font-family:'Inter',sans-serif}
+
+  /* Replies (logs) */
+  .replies-head{padding:10px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px}
+  .replies-head .filters{margin-left:auto;display:flex;gap:6px}
+  .replies-head .filters .f{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg-elev);color:var(--text-muted)}
+  .replies-head .filters .f.active{background:var(--brand);color:#fff}
+
+  .reply{display:grid;grid-template-columns:38px 1fr;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+  .reply .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0}
+  .reply .av.php{background:#777bb4}
+  .reply .av.sql{background:#00758f}
+  .reply .av.wp-cron{background:#21759b}
+  .reply .av.warn{background:#9a7700}
+  .reply .av.error{background:#f4212e}
+  .reply .av.notice{background:#536471}
+  .reply .head{display:flex;align-items:baseline;gap:6px;font-size:14px}
+  .reply .head .h{font-weight:700;color:var(--text)}
+  .reply .head .when{color:var(--text-muted);font-size:13px}
+  .reply .head .sev{padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase}
+  .reply .head .sev.error{background:#ffe2e6;color:var(--danger)}
+  .reply .head .sev.warn{background:#fff3c4;color:#9a7700}
+  .reply .head .sev.notice{background:var(--bg-deep);color:var(--text-muted)}
+  .reply pre{margin:6px 0 4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);background:var(--bg-elev);padding:8px 10px;border-radius:8px;white-space:pre-wrap;line-height:1.5}
+  .reply .actions{max-width:380px;margin-top:6px}
+
+  /* Files / blueprint */
+  .split{display:grid;grid-template-columns:230px 1fr;min-height:520px;border-top:1px solid var(--line)}
+  .tree{padding:10px 0;border-right:1px solid var(--line);font-size:13px;overflow-y:auto;max-height:560px}
+  .tree .item{display:flex;align-items:center;gap:6px;padding:5px 14px;cursor:pointer;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12.5px}
+  .tree .item:hover{background:var(--bg-elev)}
+  .tree .item.active{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  .tree .item.dir{font-weight:600}
+  .tree .item .indent{display:inline-block;width:12px}
+  .tree .head{padding:8px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .tree .head button{font-size:12px;color:var(--brand);font-weight:600;padding:2px 8px;border-radius:999px}
+  .tree .head button:hover{background:var(--brand-soft)}
+
+  .editor{padding:10px 0;font-family:'JetBrains Mono',monospace;font-size:12.5px;background:#fafbfc;line-height:1.6;overflow:auto;max-height:560px}
+  .editor .ln{display:grid;grid-template-columns:42px 1fr;gap:0;align-items:start}
+  .editor .ln span:first-child{color:var(--text-light);text-align:right;padding-right:10px;user-select:none;font-size:11.5px;border-right:1px solid var(--line)}
+  .editor .ln span:last-child{padding-left:12px;white-space:pre;color:var(--text)}
+  .k{color:#7856ff;font-weight:600}
+  .s{color:#018859}
+  .n{color:#a02568}
+  .c{color:var(--text-light);font-style:italic}
+  .p{color:#3858e9}
+
+  /* DB pane */
+  .db-pane{padding:14px 16px}
+  .db-notice{padding:10px 12px;background:#fff8e0;color:#9a7700;border-radius:8px;font-size:13px;display:flex;gap:8px;align-items:flex-start;margin-bottom:14px}
+  .db-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .db-toolbar select{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
+  .db-toolbar input{flex:1;min-width:160px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px}
+  table.db{border-collapse:collapse;width:100%;font-size:13px}
+  table.db th,table.db td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:12px}
+  table.db th{background:var(--bg-elev);font-weight:700;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  table.db tr:hover td{background:var(--bg-elev)}
+
+  /* ---------- MODAL (compose / launcher) ---------- */
+  .scrim{display:none;position:fixed;inset:0;background:rgba(91,112,131,.4);z-index:50;align-items:flex-start;justify-content:center;padding:48px 16px;overflow-y:auto}
+  .scrim.show{display:flex}
+  .modal{background:#fff;border-radius:16px;max-width:600px;width:100%;overflow:hidden;box-shadow:0 0 24px rgba(0,0,0,.15)}
+  .modal .topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .modal .topbar .close{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--text)}
+  .modal .topbar .close:hover{background:var(--bg-hover)}
+  .modal .topbar h2{font-size:17px;font-weight:800;margin:0;flex:1;letter-spacing:-.01em}
+  .modal .topbar .draft{font-size:13px;color:var(--brand);font-weight:600;padding:6px 12px;border-radius:999px}
+  .modal .topbar .draft:hover{background:var(--brand-soft)}
+
+  .compose-grid{display:grid;grid-template-columns:48px 1fr;gap:12px;padding:18px 16px 6px}
+  .compose-grid .av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#0073aa,#5d2eff);display:grid;place-items:center;color:#fff;font-weight:800}
+  .audience{display:inline-flex;align-items:center;gap:4px;padding:3px 12px;border-radius:999px;background:#fff;border:1px solid var(--brand-soft);color:var(--brand);font-size:13px;font-weight:700;margin-bottom:6px;cursor:pointer}
+  .audience:hover{background:var(--brand-soft)}
+  .compose-input{font-size:18px;color:var(--text);min-height:60px;outline:none;border:none;padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:14px}
+  .compose-input[contenteditable]:empty::before{content:attr(data-placeholder);color:var(--text-light);font-family:'Inter',sans-serif;font-size:18px;font-weight:400}
+  .compose-tabs{display:flex;gap:4px;padding:6px 16px 6px 76px;flex-wrap:wrap}
+  .ctab{padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--brand);background:transparent;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .ctab:hover{background:var(--brand-soft)}
+  .ctab.active{background:var(--brand);color:#fff}
+  .compose-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 14px 76px;border-top:1px solid var(--line);margin-top:10px}
+  .compose-foot .icons{display:flex;gap:2px}
+  .compose-foot .icons .iconbtn{color:var(--brand)}
+  .compose-foot .post-btn{padding:9px 18px;border-radius:999px;background:var(--text);color:#fff;font-weight:800;font-size:15px}
+  .compose-foot .post-btn:hover{background:#272c30}
+
+  /* settings popover modal */
+  .settings-modal{max-width:520px}
+  .settings-modal .body{padding:18px 22px 22px}
+  .settings-modal h3{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:14px 0 8px;font-weight:700}
+  .settings-modal h3:first-child{margin-top:0}
+  .field{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .field:last-of-type{border-bottom:none}
+  .field label{font-weight:600;font-size:14px}
+  .field select,.field input[type="text"]{font:inherit;padding:6px 10px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;font-size:13px;min-width:140px}
+  .toggle{width:38px;height:22px;background:var(--bg-deep);border-radius:999px;position:relative;cursor:pointer;flex-shrink:0;transition:background .15s}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .toggle.on{background:var(--brand)}
+  .toggle.on::after{left:18px}
+  .danger-row{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#ffe2e6;color:#7a0011;border-radius:8px;margin-top:14px;font-size:13px}
+  .danger-row .pillbtn{margin-left:12px}
+
+  /* Explore / blueprint gallery view */
+  .explore-toolbar{padding:8px 16px;border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  .explore-toolbar::-webkit-scrollbar{display:none}
+  .chip{padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;color:var(--text);background:var(--bg-elev);white-space:nowrap;cursor:pointer}
+  .chip:hover{background:var(--bg-hover)}
+  .chip.active{background:var(--text);color:#fff}
+
+  .gallery{padding:8px 12px 16px;column-count:2;column-gap:8px}
+  @media (max-width:600px){.gallery{column-count:1}}
+  .bp{break-inside:avoid;margin:0 0 8px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;cursor:pointer;transition:transform .1s, box-shadow .1s}
+  .bp:hover{box-shadow:var(--shadow-pop)}
+  .bp .thumb{height:120px;background:linear-gradient(135deg,#f7f9fa,#eaeef0);display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px;position:relative}
+  .bp .thumb.tall{height:170px}
+  .bp .body{padding:10px 12px}
+  .bp .body b{display:block;font-size:14px;font-weight:700;color:var(--text)}
+  .bp .body span{display:block;font-size:13px;color:var(--text-muted);margin-top:2px;line-height:1.4}
+  .bp .body .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+  .bp .body .tags span{font-size:11px;background:var(--bg-elev);padding:2px 8px;border-radius:999px;color:var(--text-muted);margin-top:0}
+
+  /* Theme thumbs for blueprints (CSS art) */
+  .th-art{background:linear-gradient(135deg,#ff8a80 0%,#d72b8a 60%,#7856ff 100%)}
+  .th-coffee{background:linear-gradient(135deg,#6b4423,#a06340 50%,#d3a472)}
+  .th-friends{background:linear-gradient(135deg,#ff6a00,#ffb3c1)}
+  .th-news{background:linear-gradient(135deg,#0f1419,#3858e9)}
+  .th-non{background:linear-gradient(135deg,#018859,#3858e9)}
+  .th-blog{background:linear-gradient(135deg,#0073aa,#7856ff)}
+  .th-resume{background:linear-gradient(135deg,#3858e9,#0f1419)}
+  .th-photo{background:linear-gradient(135deg,#0f1419,#71767b)}
+  .th-skin{background:linear-gradient(135deg,#ffb3c1,#ff6a8a)}
+  .th-edu{background:linear-gradient(135deg,#9a7700,#018859)}
+  .th-cbt{background:linear-gradient(135deg,#3858e9,#018859)}
+  .th-cpt{background:linear-gradient(135deg,#5d2eff,#3858e9)}
+  .th-2025{background:linear-gradient(135deg,#1d2327,#3858e9)}
+  .th-gb{background:linear-gradient(135deg,#ff6a00,#ee0979)}
+  .th-wc{background:linear-gradient(135deg,#a02568,#5d2eff)}
+  .th-stylish{background:linear-gradient(135deg,#a02568,#3858e9)}
+  .th-mywp{background:linear-gradient(135deg,#21759b,#018859)}
+  .th-graph{background:linear-gradient(135deg,#e10098,#7856ff)}
+  .th-beta{background:linear-gradient(135deg,#0f1419,#7856ff)}
+  .th-content{background:linear-gradient(135deg,#3858e9,#0f1419)}
+  .th-debug{background:linear-gradient(135deg,#536471,#0f1419)}
+  .th-default{background:linear-gradient(135deg,#0f1419,#536471)}
+  .th-shortcode{background:linear-gradient(135deg,#018859,#0073aa)}
+  .th-feed{background:linear-gradient(135deg,#a02568,#ff6a00)}
+  .th-color{background:linear-gradient(135deg,#7856ff,#ff6a00)}
+
+  /* ---------- MOBILE VIEW (right) ---------- */
+  .mobile{display:none}
+
+  @media (max-width:1100px){
+    :root{--col-r:0px}
+    .app{grid-template-columns:88px var(--col-c)}
+    .rightrail{display:none}
+    .navitem{justify-content:center;gap:0;padding:12px}
+    .navitem span.lbl{display:none}
+    .navitem .count,.navitem .pip{display:none}
+    .compose-btn{padding:14px 0;font-size:0}
+    .compose-btn::before{content:"+";font-size:22px;font-weight:800}
+    .me .who,.me .more{display:none}
+    .logo span:not(.mark){display:none}
+  }
+  @media (max-width:720px){
+    :root{--col-c:100vw}
+    .app{grid-template-columns:1fr;border:none;max-width:100%}
+    .leftrail{display:none}
+    .mobile{display:block}
+    .center{border-right:none}
+    .mobile-tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);z-index:30}
+    .mobile-tabbar .mt{padding:12px 0;display:grid;place-items:center;color:var(--text-muted)}
+    .mobile-tabbar .mt.active{color:var(--brand)}
+    .mobile-compose{position:fixed;bottom:72px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;box-shadow:0 6px 16px rgba(56,88,233,.4);z-index:25}
+    .center{padding-bottom:80px}
+    .post{padding:12px}
+    .iframe-card .surface{min-height:360px}
+    .iframe-card .surface .hero{padding:18px}
+    .iframe-card .surface .hero h2{font-size:22px}
+    .iframe-card .surface .hero .grid{grid-template-columns:1fr}
+    .split{grid-template-columns:1fr}
+    .tree{max-height:200px;border-right:none;border-bottom:1px solid var(--line)}
+  }
+
+  /* ---------- LOADING STATE ---------- */
+  .skeleton-post{display:grid;grid-template-columns:48px 1fr;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .sk-av{width:48px;height:48px;border-radius:50%;background:linear-gradient(90deg,#eef1f3,#f7f9fa,#eef1f3);background-size:200% 100%;animation:sh 1.4s linear infinite}
+  .sk-bar{height:12px;border-radius:6px;background:linear-gradient(90deg,#eef1f3,#f7f9fa,#eef1f3);background-size:200% 100%;animation:sh 1.4s linear infinite;margin-bottom:8px}
+  .sk-bar.short{width:40%}
+  .sk-bar.long{width:90%}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* ---------- HEADER BAR (a tiny global utility row for state switching demo) ---------- */
+  .state-switcher{
+    position:fixed;top:12px;left:50%;transform:translateX(-50%);
+    z-index:60;background:#0f1419;color:#fff;border-radius:999px;padding:6px;display:flex;gap:2px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18)
+  }
+  .state-switcher button{font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;color:rgba(255,255,255,.75)}
+  .state-switcher button.active{background:var(--brand);color:#fff}
+  .state-switcher button:hover{color:#fff}
+  @media (max-width:600px){.state-switcher{top:auto;bottom:80px;font-size:11px}}
+
+  /* divider list */
+  .post.unsaved-pin{background:linear-gradient(180deg,#fff8e0 0%,#fff 100%)}
+
+  /* svg subtleties */
+  [data-lucide]{width:20px;height:20px;stroke-width:2}
+  .navitem [data-lucide]{width:26px;height:26px;stroke-width:1.75}
+  .iconbtn [data-lucide]{width:18px;height:18px}
+  .ctab [data-lucide]{width:16px;height:16px}
+  .compose-foot .icons [data-lucide]{width:20px;height:20px}
+  .mobile-tabbar .mt [data-lucide]{width:22px;height:22px;stroke-width:1.8}
+  .post .more [data-lucide],.thread-meta .more [data-lucide]{width:18px;height:18px}
+  .reply .head [data-lucide],.actions .a [data-lucide]{width:16px;height:16px}
+  .subtab [data-lucide]{width:16px;height:16px}
+  .urlbar [data-lucide]{width:16px;height:16px}
+
+  .verified-svg{width:18px;height:18px;display:inline-block;vertical-align:middle;color:var(--brand)}
+
+  /* hide tour overlays at top to focus on content */
+  .legalrow{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-muted);padding:4px 4px 12px}
+  .legalrow a{color:var(--text-muted)}
+
+</style>
+</head>
+<body>
+
+<!-- ============================== STATE SWITCHER ============================== -->
+<div class="state-switcher" role="tablist" aria-label="Demo state switcher">
+  <button data-state="home" class="active" onclick="setState('home')">Home feed</button>
+  <button data-state="thread" onclick="setState('thread')">Thread (iframe)</button>
+  <button data-state="explore" onclick="setState('explore')">Explore</button>
+  <button data-state="compose" onclick="openCompose()">Compose</button>
+  <button data-state="settings" onclick="openSettings()">Settings</button>
+  <button data-state="loading" onclick="setState('loading')">Booting</button>
+  <button data-state="mobile" onclick="setState('mobile')">Mobile</button>
+</div>
+
+<!-- ============================== APP ============================== -->
+<div class="app">
+
+  <!-- ============================== LEFT RAIL ============================== -->
+  <aside class="leftrail" aria-label="Primary navigation">
+    <div class="logo"><div class="mark">W</div><span>Playground</span></div>
+
+    <nav class="navlist">
+      <div class="navitem active" onclick="setState('home')"><div class="icon"><i data-lucide="home"></i></div><span class="lbl">Home</span><span class="count">3</span></div>
+      <div class="navitem" onclick="setState('explore')"><div class="icon"><i data-lucide="compass"></i></div><span class="lbl">Explore blueprints</span></div>
+      <div class="navitem" onclick="openCompose('wppr')"><div class="icon"><i data-lucide="git-pull-request"></i></div><span class="lbl">WordPress PRs</span><span class="pip"></span></div>
+      <div class="navitem" onclick="openCompose('gbpr')"><div class="icon"><i data-lucide="rocket"></i></div><span class="lbl">Gutenberg PRs</span></div>
+      <div class="navitem" onclick="openCompose('gh')"><div class="icon"><i data-lucide="github"></i></div><span class="lbl">From GitHub</span></div>
+      <div class="navitem" onclick="openCompose('zip')"><div class="icon"><i data-lucide="upload-cloud"></i></div><span class="lbl">Import .zip</span></div>
+      <div class="navitem" onclick="setState('home')"><div class="icon"><i data-lucide="bookmark"></i></div><span class="lbl">Your Playgrounds</span></div>
+      <div class="navitem" onclick="openSettings()"><div class="icon"><i data-lucide="settings-2"></i></div><span class="lbl">Settings</span></div>
+      <div class="navitem"><div class="icon"><i data-lucide="circle-help"></i></div><span class="lbl">Docs</span></div>
+    </nav>
+
+    <button class="compose-btn" onclick="openCompose()">New Playground</button>
+
+    <div class="me">
+      <div class="avatar">AZ</div>
+      <div class="who"><b>You</b><span>@local-browser-opfs</span></div>
+      <div class="more"><i data-lucide="more-horizontal"></i></div>
+    </div>
+  </aside>
+
+  <!-- ============================== CENTER ============================== -->
+  <main class="center" aria-label="Main">
+
+    <!-- ============================== STATE: HOME FEED ============================== -->
+    <section class="feed" id="state-home">
+      <div class="center-header">
+        <div class="center-title">
+          <h1>Home</h1>
+          <div class="header-actions">
+            <button class="iconbtn" aria-pressed="true" title="Latest" onclick="toggleSort(this)"><i data-lucide="sparkles"></i></button>
+            <button class="iconbtn" title="View options"><i data-lucide="sliders-horizontal"></i></button>
+          </div>
+        </div>
+        <div class="tabbar" role="tablist">
+          <div class="tab active" role="tab">For you</div>
+          <div class="tab" role="tab" onclick="setState('explore')">Blueprints</div>
+          <div class="tab" role="tab">Following</div>
+          <div class="tab" role="tab">Activity</div>
+        </div>
+      </div>
+
+      <!-- new posts indicator -->
+      <div class="newposts" onclick="this.style.display='none'">Show 7 new posts</div>
+
+      <!-- PINNED: Unsaved playground (current session) -->
+      <article class="post unsaved-pin" onclick="setState('thread')">
+        <div class="av av-wp">W</div>
+        <div class="body">
+          <div class="pinned-label"><i data-lucide="pin"></i> Pinned · Current session</div>
+          <div class="head">
+            <span class="name">Unsaved Playground</span>
+            <svg class="verified-svg" viewBox="0 0 22 22" fill="currentColor"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>
+            <span class="handle mono">@unsaved · WP 6.5 · PHP 8.2</span>
+            <span class="dot">·</span><span class="when">live</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">This is an Unsaved Playground. Your changes will be lost on page refresh. <button onclick="event.stopPropagation()" style="color:var(--brand);font-weight:700;padding:0">Save site locally</button> to keep it.</div>
+          <div class="badges">
+            <span class="badge unsaved"><i data-lucide="alert-triangle"></i> Unsaved</span>
+            <span class="badge wp">WP 6.5</span>
+            <span class="badge php">PHP 8.2</span>
+            <span class="badge">SQLite</span>
+            <span class="badge"><i data-lucide="wifi"></i> Network on</span>
+          </div>
+          <div class="preview">
+            <div class="thumb" style="background:linear-gradient(135deg,#21759b,#3858e9);color:#fff">
+              <div style="text-align:center;font-family:Georgia,serif">
+                <div style="font-size:13px;opacity:.8;letter-spacing:.08em;text-transform:uppercase">Hello from</div>
+                <div style="font-size:34px;font-weight:700;margin-top:4px">WordPress Playground</div>
+              </div>
+            </div>
+            <div class="meta"><b>playground.wordpress.net</b><span>/ · running · last touched just now</span></div>
+          </div>
+          <div class="actions">
+            <div class="a" title="Refresh iframe" onclick="event.stopPropagation();toast('Reloading iframe…')"><i data-lucide="rotate-cw"></i><span>Refresh</span></div>
+            <div class="a" title="Open in Site Manager" onclick="event.stopPropagation();setState('thread')"><i data-lucide="message-circle"></i><span>Open</span></div>
+            <div class="a boot" title="Save"  onclick="event.stopPropagation();toast('Saved as “Untitled #1”','success')"><i data-lucide="bookmark"></i><span>Save</span></div>
+            <div class="a" title="Export / share" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: WooCommerce Coffee Shop (saved playground) -->
+      <article class="post" onclick="setState('thread')">
+        <div class="av av-coffee">C</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">Coffee Shop</span>
+            <span class="handle mono">@coffee-shop-staging</span>
+            <span class="dot">·</span><span class="when">3h</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">A stylish WooCommerce coffee shop storefront with custom theme, products, and content. Editing the menu now.</div>
+          <div class="badges">
+            <span class="badge saved"><i data-lucide="bookmark"></i> Saved · OPFS</span>
+            <span class="badge wp">WP 6.6</span>
+            <span class="badge php">PHP 8.3</span>
+            <span class="badge wc">WooCommerce</span>
+          </div>
+          <div class="preview">
+            <div class="thumb th-coffee" style="color:#fff">
+              <div style="text-align:left;width:100%;padding:18px 22px">
+                <div style="font-family:'Inter';font-weight:800;font-size:12px;letter-spacing:.18em;text-transform:uppercase;opacity:.7">EST. 2025</div>
+                <div style="font-family:Georgia,serif;font-style:italic;font-size:36px;font-weight:700;margin-top:6px">Roastery</div>
+                <div style="display:flex;gap:8px;margin-top:14px;font-size:12px;font-weight:600">
+                  <span style="background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px">Espresso $4</span>
+                  <span style="background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px">Cortado $4.50</span>
+                </div>
+              </div>
+            </div>
+            <div class="meta"><b>/shop/</b><span>43 products · 8 orders · last booted 3 hours ago</span></div>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>12 logs</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="git-fork"></i><span>Fork</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting Coffee Shop…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: Playground reposted a featured blueprint -->
+      <article class="post" onclick="setState('explore')">
+        <div class="av av-art">A</div>
+        <div class="body">
+          <div class="repost-label"><i data-lucide="repeat-2"></i> Playground reposted</div>
+          <div class="head">
+            <span class="name">Art Gallery</span>
+            <svg class="verified-svg" viewBox="0 0 22 22" fill="currentColor"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>
+            <span class="handle mono">@blueprint/art-gallery</span>
+            <span class="dot">·</span><span class="when">featured</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">An art gallery created with the Vueo theme. Featured blueprint — boot it instantly to preview.</div>
+          <div class="badges">
+            <span class="badge">Website</span><span class="badge">Personal</span><span class="badge">Vueo theme</span>
+          </div>
+          <div class="preview">
+            <div class="thumb th-art" style="color:#fff">
+              <div style="text-align:left;width:100%;padding:18px 22px">
+                <div style="font-family:Georgia,serif;font-size:30px;font-weight:700">Vueo</div>
+                <div style="font-size:13px;opacity:.8;margin-top:4px">Curated artworks · Spring 2025</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:14px">
+                  <div style="background:rgba(255,255,255,.25);height:28px;border-radius:3px"></div>
+                  <div style="background:rgba(255,255,255,.15);height:28px;border-radius:3px"></div>
+                  <div style="background:rgba(255,255,255,.35);height:28px;border-radius:3px"></div>
+                  <div style="background:rgba(255,255,255,.2);height:28px;border-radius:3px"></div>
+                </div>
+              </div>
+            </div>
+            <div class="meta"><b>art-gallery.blueprint</b><span>43 blueprints in gallery · 1.2k boots this month</span></div>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>89</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="repeat-2"></i><span>231</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting Art Gallery blueprint…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();copyBlueprintUrl()"><i data-lucide="link"></i><span>Copy URL</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: WordPress PR -->
+      <article class="post" onclick="setState('thread')">
+        <div class="av av-pr">PR</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">WordPress PR #5972</span>
+            <span class="handle mono">@wp-trunk-pr</span>
+            <span class="dot">·</span><span class="when">yesterday</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">Booting from a WordPress core PR — "Add support for asynchronous block rendering in the editor." Reviewing changes to <span class="mono">wp-includes/blocks.php</span>.</div>
+          <div class="badges">
+            <span class="badge pr"><i data-lucide="git-pull-request"></i> WP PR #5972</span>
+            <span class="badge wp">trunk</span>
+            <span class="badge php">PHP 8.3</span>
+            <span class="badge saved"><i data-lucide="bookmark"></i> Saved</span>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>4 logs</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="external-link"></i><span>Open PR on GitHub</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting PR #5972…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: Saved playground - Gutenberg dataview experiments -->
+      <article class="post" onclick="setState('thread')">
+        <div class="av av-gb">G</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">Dataview experiments</span>
+            <span class="handle mono">@gb-pr-65211</span>
+            <span class="dot">·</span><span class="when">2d</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">Enable all three Dataview Experiments in Gutenberg. Booted from Gutenberg PR #65211 to test grid variations.</div>
+          <div class="badges">
+            <span class="badge gb"><i data-lucide="rocket"></i> Gutenberg PR</span>
+            <span class="badge wp">WP 6.6</span>
+            <span class="badge php">PHP 8.2</span>
+            <span class="badge"><i data-lucide="flask-conical"></i> Experiments</span>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>22 logs</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="git-fork"></i><span>Fork blueprint</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: Custom site from GitHub -->
+      <article class="post" onclick="setState('thread')">
+        <div class="av av-gh">GH</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">Theme from GitHub</span>
+            <span class="handle mono">@acme/wp-block-theme</span>
+            <span class="dot">·</span><span class="when">4d</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">Loading, activating, and configuring a theme from a GitHub repository — <span class="mono">github.com/acme/wp-block-theme@v0.4.1</span>.</div>
+          <div class="badges">
+            <span class="badge"><i data-lucide="github"></i> From GitHub</span>
+            <span class="badge wp">WP 6.6</span>
+            <span class="badge php">PHP 8.2</span>
+            <span class="badge saved"><i data-lucide="bookmark"></i> Saved</span>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>3 logs</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="git-fork"></i><span>Fork</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: Imported zip -->
+      <article class="post" onclick="setState('thread')">
+        <div class="av av-zip">.Z</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">client-handoff-may-21</span>
+            <span class="handle mono">@imported-zip</span>
+            <span class="dot">·</span><span class="when">1w</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">Imported from <span class="mono">client-handoff-may-21.zip</span> (12.4 MB). Theme + plugins + uploads bundled.</div>
+          <div class="badges">
+            <span class="badge"><i data-lucide="upload-cloud"></i> Imported .zip</span>
+            <span class="badge wp">WP 6.5</span>
+            <span class="badge php">PHP 8.1</span>
+            <span class="badge saved"><i data-lucide="bookmark"></i> Saved</span>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>0</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="repeat-2"></i><span>1</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- POST: blueprint URL boot -->
+      <article class="post" onclick="setState('thread')">
+        <div class="av av-friends">F</div>
+        <div class="body">
+          <div class="head">
+            <span class="name">Feed Reader (Friends)</span>
+            <svg class="verified-svg" viewBox="0 0 22 22" fill="currentColor"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>
+            <span class="handle mono">@blueprint-url</span>
+            <span class="dot">·</span><span class="when">2w</span>
+            <button class="more" onclick="event.stopPropagation()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="text">Booted from a Blueprint URL: <span class="mono">https://playground.wp.net/blueprints/friends.json</span> — read feeds (incl. ActivityPub) via the Friends plugin.</div>
+          <div class="badges">
+            <span class="badge"><i data-lucide="link"></i> Blueprint URL</span>
+            <span class="badge wp">WP 6.6</span>
+            <span class="badge php">PHP 8.2</span>
+            <span class="badge">rss</span><span class="badge">social</span>
+          </div>
+          <div class="actions">
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="message-circle"></i><span>5</span></div>
+            <div class="a" onclick="event.stopPropagation()"><i data-lucide="repeat-2"></i><span>17</span></div>
+            <div class="a boot" onclick="event.stopPropagation();toast('Booting Friends blueprint…','info')"><i data-lucide="play"></i><span>Boot</span></div>
+            <div class="a" onclick="event.stopPropagation();openExport()"><i data-lucide="share-2"></i><span>Export</span></div>
+          </div>
+        </div>
+      </article>
+
+      <div class="legalrow">
+        <a>Terms</a><a>Privacy</a><a>Cookies</a><a>Accessibility</a><span>© 2025 WordPress Playground</span>
+      </div>
+    </section>
+
+    <!-- ============================== STATE: THREAD DETAIL ============================== -->
+    <section class="thread" id="state-thread">
+      <div class="center-header">
+        <div class="center-title" style="padding:10px 8px 10px 4px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="iconbtn" onclick="setState('home')" title="Back"><i data-lucide="arrow-left"></i></button>
+            <h1 style="font-size:18px">Coffee Shop</h1>
+          </div>
+          <div class="header-actions">
+            <button class="iconbtn" title="Refresh iframe" onclick="toast('Reloading iframe…')"><i data-lucide="rotate-cw"></i></button>
+            <button class="iconbtn" title="Save" onclick="toast('Saved.','success')"><i data-lucide="bookmark"></i></button>
+            <button class="iconbtn" title="More" onclick="openExport()"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+        <!-- URL BAR (Refresh + address bar live here for the thread) -->
+        <div class="urlbar">
+          <button class="refresh" title="Refresh iframe" onclick="toast('Reloading iframe…')"><i data-lucide="rotate-cw"></i></button>
+          <form onsubmit="event.preventDefault();toast('Navigated to '+this.q.value)">
+            <i data-lucide="globe"></i>
+            <span class="scheme mono">playground.wordpress.net</span>
+            <input name="q" value="/shop/?orderby=price" aria-label="Address bar" />
+            <button type="submit">Go</button>
+          </form>
+        </div>
+
+        <div class="subtabs" role="tablist" aria-label="Site Manager">
+          <div class="subtab active" data-pane="site" onclick="setPane('site')"><i data-lucide="globe"></i> Site</div>
+          <div class="subtab" data-pane="files" onclick="setPane('files')"><i data-lucide="folder-tree"></i> Files</div>
+          <div class="subtab" data-pane="blueprint" onclick="setPane('blueprint')"><i data-lucide="braces"></i> Blueprint</div>
+          <div class="subtab" data-pane="db" onclick="setPane('db')"><i data-lucide="database"></i> Database</div>
+          <div class="subtab" data-pane="logs" onclick="setPane('logs')"><i data-lucide="terminal"></i> Logs <span style="background:var(--danger);color:#fff;border-radius:999px;padding:0 6px;font-size:10px;margin-left:4px">2</span></div>
+          <div class="subtab" data-pane="settings" onclick="setPane('settings')"><i data-lucide="settings-2"></i> Settings</div>
+        </div>
+      </div>
+
+      <!-- Thread "tweet" (the playground itself as the OP post) -->
+      <div class="thread-meta">
+        <div class="av av-coffee">C</div>
+        <div class="who" style="flex:1">
+          <span class="editable-name" onclick="toast('Edit name…')"><b>Coffee Shop</b><i data-lucide="pencil" style="width:14px;height:14px;color:var(--text-muted)"></i></span>
+          <span class="handle mono">@coffee-shop-staging · saved 3h ago</span>
+          <div class="btns">
+            <button class="pillbtn primary" onclick="toast('Opening /wp-admin','info')"><i data-lucide="layout-dashboard"></i> WP Admin</button>
+            <button class="pillbtn" onclick="toast('Opening /','info')"><i data-lucide="home"></i> Homepage</button>
+            <button class="pillbtn save" onclick="toast('Saved!','success')"><i data-lucide="bookmark"></i> Save</button>
+            <button class="pillbtn" onclick="openExport()"><i data-lucide="share-2"></i> Export…</button>
+            <button class="pillbtn boot" onclick="toast('Rebooting…','info')"><i data-lucide="play"></i> Boot</button>
+          </div>
+        </div>
+        <button class="more" onclick="openExport()"><i data-lucide="more-horizontal"></i></button>
+      </div>
+
+      <!-- PANE: Site (iframe) -->
+      <div class="pane show" data-pane="site">
+        <div class="iframe-card">
+          <div class="chrome">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="url mono">https://playground.wordpress.net/scope:coffee/shop/?orderby=price</span>
+            <span style="margin-left:auto;color:var(--text-muted);display:inline-flex;align-items:center;gap:6px;font-size:12px"><i data-lucide="lock" style="width:12px;height:12px"></i> sandboxed iframe</span>
+          </div>
+          <div class="surface">
+            <div class="wp-bar">
+              <div class="wp-logo">W</div>
+              <span>Coffee Shop</span>
+              <span class="item">Customize</span>
+              <span class="item">+ New</span>
+              <span class="item">Edit Page</span>
+              <span style="margin-left:auto" class="item">Howdy, admin</span>
+            </div>
+            <div class="hero">
+              <div style="font-family:'Inter';font-weight:800;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#6b4423">Single Origin · Est. 2025</div>
+              <h2>Roasted yesterday. Brewed for you.</h2>
+              <p>Discover hand-picked beans from small farms across Ethiopia, Colombia and Indonesia — roasted in small batches and shipped within 48 hours.</p>
+              <div class="grid">
+                <div class="card-mini"><b>Espresso Blend</b>250 g · $18.00 <br><span style="color:#018859;font-weight:700">In stock</span></div>
+                <div class="card-mini"><b>Decaf Colombia</b>250 g · $19.50<br><span style="color:#018859;font-weight:700">In stock</span></div>
+                <div class="card-mini"><b>Ethiopia Yirga</b>250 g · $22.00<br><span style="color:#9a7700;font-weight:700">Low stock</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REPLIES (logs preview) -->
+        <div class="replies-head">
+          <i data-lucide="message-circle"></i> Replies <span style="color:var(--text-muted);font-weight:500;font-size:14px">· php error log</span>
+          <div class="filters">
+            <span class="f active">All</span><span class="f">Errors</span><span class="f">Warn</span><span class="f">Notices</span>
+          </div>
+        </div>
+
+        <article class="reply">
+          <div class="av error">PHP</div>
+          <div>
+            <div class="head"><span class="h">php-fpm</span><span class="when">@php-error · 2 min ago</span><span class="sev error">Error</span></div>
+            <pre>[21-May-2025 14:02:17 UTC] PHP Fatal error:  Uncaught Error: Class "WC_Tax_Calc" not found in /wordpress/wp-content/themes/coffee/inc/checkout.php:42
+Stack trace:
+  #0 /wordpress/wp-content/themes/coffee/functions.php(112): include()
+  #1 [internal function]: include()
+  thrown in /wordpress/wp-content/themes/coffee/inc/checkout.php on line 42</pre>
+            <div class="actions">
+              <div class="a"><i data-lucide="reply"></i><span>Open file</span></div>
+              <div class="a"><i data-lucide="copy"></i><span>Copy</span></div>
+              <div class="a"><i data-lucide="bug"></i><span>Report</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="reply">
+          <div class="av warn">PHP</div>
+          <div>
+            <div class="head"><span class="h">php-fpm</span><span class="when">@php-warning · 5 min ago</span><span class="sev warn">Warning</span></div>
+            <pre>[21-May-2025 13:59:01 UTC] PHP Warning: Undefined array key "shipping_method" in /wordpress/wp-content/plugins/woocommerce/includes/class-wc-cart.php on line 891</pre>
+          </div>
+        </article>
+
+        <article class="reply">
+          <div class="av sql">SQL</div>
+          <div>
+            <div class="head"><span class="h">mysql-emulated</span><span class="when">@sqlite · 8 min ago</span><span class="sev notice">Notice</span></div>
+            <pre>SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE meta_key IN ('_price','_stock_status') AND post_id IN (12,14,17,21,25);</pre>
+          </div>
+        </article>
+
+        <article class="reply">
+          <div class="av wp-cron">WP</div>
+          <div>
+            <div class="head"><span class="h">wp-cron</span><span class="when">@cron · 12 min ago</span><span class="sev notice">Notice</span></div>
+            <pre>Scheduled event "woocommerce_cleanup_personal_data_requests" executed in 142ms.</pre>
+          </div>
+        </article>
+
+        <article class="reply">
+          <div class="av notice">N</div>
+          <div>
+            <div class="head"><span class="h">wp-debug</span><span class="when">@notice · 18 min ago</span><span class="sev notice">Notice</span></div>
+            <pre>do_action() deprecated. Function woocommerce_before_shop_loop deprecated since version 9.0.0!</pre>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- PANE: Files -->
+      <div class="pane" data-pane="files">
+        <div class="split">
+          <div class="tree">
+            <div class="head">/wordpress/ <button><i data-lucide="plus"></i> New file</button></div>
+            <div class="item dir"><i data-lucide="folder" style="width:14px;height:14px"></i> wp-admin/</div>
+            <div class="item dir"><i data-lucide="folder-open" style="width:14px;height:14px"></i> wp-content/</div>
+            <div class="item"><span class="indent"></span><i data-lucide="folder" style="width:14px;height:14px"></i> mu-plugins/</div>
+            <div class="item"><span class="indent"></span><i data-lucide="folder-open" style="width:14px;height:14px"></i> plugins/</div>
+            <div class="item"><span class="indent"></span><span class="indent"></span><i data-lucide="folder" style="width:14px;height:14px"></i> woocommerce/</div>
+            <div class="item"><span class="indent"></span><span class="indent"></span><i data-lucide="folder-open" style="width:14px;height:14px"></i> coffee-extras/</div>
+            <div class="item"><span class="indent"></span><span class="indent"></span><span class="indent"></span><i data-lucide="file" style="width:14px;height:14px"></i> coffee-extras.php</div>
+            <div class="item"><span class="indent"></span><i data-lucide="folder-open" style="width:14px;height:14px"></i> themes/</div>
+            <div class="item active"><span class="indent"></span><span class="indent"></span><i data-lucide="file-code-2" style="width:14px;height:14px"></i> coffee/functions.php</div>
+            <div class="item"><span class="indent"></span><span class="indent"></span><i data-lucide="file" style="width:14px;height:14px"></i> coffee/style.css</div>
+            <div class="item"><span class="indent"></span><span class="indent"></span><i data-lucide="file" style="width:14px;height:14px"></i> coffee/theme.json</div>
+            <div class="item"><span class="indent"></span><i data-lucide="folder" style="width:14px;height:14px"></i> uploads/</div>
+            <div class="item dir"><i data-lucide="folder" style="width:14px;height:14px"></i> wp-includes/</div>
+            <div class="item"><i data-lucide="file" style="width:14px;height:14px"></i> wp-config.php</div>
+            <div class="item"><i data-lucide="file" style="width:14px;height:14px"></i> index.php</div>
+            <div class="item"><i data-lucide="file" style="width:14px;height:14px"></i> .htaccess</div>
+            <div class="head" style="margin-top:6px"><button><i data-lucide="folder-plus"></i> New folder</button></div>
+          </div>
+          <div class="editor">
+            <div class="ln"><span>1</span><span><span class="k">&lt;?php</span></span></div>
+            <div class="ln"><span>2</span><span><span class="c">// Coffee Shop theme — functions.php</span></span></div>
+            <div class="ln"><span>3</span><span></span></div>
+            <div class="ln"><span>4</span><span><span class="k">add_action</span>(<span class="s">'after_setup_theme'</span>, <span class="s">'coffee_setup'</span>);</span></div>
+            <div class="ln"><span>5</span><span><span class="k">function</span> <span class="p">coffee_setup</span>() {</span></div>
+            <div class="ln"><span>6</span><span>    <span class="k">add_theme_support</span>(<span class="s">'wp-block-styles'</span>);</span></div>
+            <div class="ln"><span>7</span><span>    <span class="k">add_theme_support</span>(<span class="s">'editor-styles'</span>);</span></div>
+            <div class="ln"><span>8</span><span>    <span class="k">add_theme_support</span>(<span class="s">'woocommerce'</span>);</span></div>
+            <div class="ln"><span>9</span><span>    <span class="k">register_nav_menus</span>([</span></div>
+            <div class="ln"><span>10</span><span>        <span class="s">'primary'</span> =&gt; <span class="k">__</span>(<span class="s">'Primary'</span>, <span class="s">'coffee'</span>),</span></div>
+            <div class="ln"><span>11</span><span>        <span class="s">'footer'</span>  =&gt; <span class="k">__</span>(<span class="s">'Footer'</span>,  <span class="s">'coffee'</span>),</span></div>
+            <div class="ln"><span>12</span><span>    ]);</span></div>
+            <div class="ln"><span>13</span><span>}</span></div>
+            <div class="ln"><span>14</span><span></span></div>
+            <div class="ln"><span>15</span><span><span class="c">// Customize WooCommerce loop columns</span></span></div>
+            <div class="ln"><span>16</span><span><span class="k">add_filter</span>(<span class="s">'loop_shop_columns'</span>, <span class="k">fn</span>() =&gt; <span class="n">3</span>);</span></div>
+            <div class="ln"><span>17</span><span><span class="k">add_filter</span>(<span class="s">'loop_shop_per_page'</span>, <span class="k">fn</span>() =&gt; <span class="n">12</span>);</span></div>
+            <div class="ln"><span>18</span><span></span></div>
+            <div class="ln"><span>19</span><span><span class="k">require_once</span> <span class="k">__DIR__</span> . <span class="s">'/inc/checkout.php'</span>;</span></div>
+            <div class="ln"><span>20</span><span><span class="k">require_once</span> <span class="k">__DIR__</span> . <span class="s">'/inc/menu.php'</span>;</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANE: Blueprint -->
+      <div class="pane" data-pane="blueprint">
+        <div style="padding:14px 16px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)">
+          <button class="pillbtn" onclick="toast('Copied blueprint link to clipboard','success')"><i data-lucide="link"></i> Copy link to blueprint</button>
+          <button class="pillbtn" onclick="toast('Downloading bundle.zip…','info')"><i data-lucide="download"></i> Download bundle</button>
+          <button class="pillbtn boot" onclick="toast('Re-running blueprint…','info')"><i data-lucide="play"></i> Run Blueprint</button>
+        </div>
+        <div class="split">
+          <div class="tree">
+            <div class="head">Blueprint files</div>
+            <div class="item active"><i data-lucide="braces" style="width:14px;height:14px"></i> blueprint.json</div>
+            <div class="item"><i data-lucide="file" style="width:14px;height:14px"></i> products.xml</div>
+            <div class="item"><i data-lucide="file" style="width:14px;height:14px"></i> sample-data.sql</div>
+            <div class="item"><i data-lucide="folder" style="width:14px;height:14px"></i> theme/</div>
+            <div class="item"><span class="indent"></span><i data-lucide="file" style="width:14px;height:14px"></i> style.css</div>
+            <div class="item"><span class="indent"></span><i data-lucide="file" style="width:14px;height:14px"></i> functions.php</div>
+          </div>
+          <div class="editor">
+            <div class="ln"><span>1</span><span>{</span></div>
+            <div class="ln"><span>2</span><span>  <span class="s">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,</span></div>
+            <div class="ln"><span>3</span><span>  <span class="s">"preferredVersions"</span>: { <span class="s">"php"</span>: <span class="s">"8.3"</span>, <span class="s">"wp"</span>: <span class="s">"6.6"</span> },</span></div>
+            <div class="ln"><span>4</span><span>  <span class="s">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],</span></div>
+            <div class="ln"><span>5</span><span>  <span class="s">"features"</span>: { <span class="s">"networking"</span>: <span class="k">true</span> },</span></div>
+            <div class="ln"><span>6</span><span>  <span class="s">"login"</span>: <span class="k">true</span>,</span></div>
+            <div class="ln"><span>7</span><span>  <span class="s">"steps"</span>: [</span></div>
+            <div class="ln"><span>8</span><span>    { <span class="s">"step"</span>: <span class="s">"installPlugin"</span>,</span></div>
+            <div class="ln"><span>9</span><span>      <span class="s">"pluginData"</span>: { <span class="s">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="s">"slug"</span>: <span class="s">"woocommerce"</span> }},</span></div>
+            <div class="ln"><span>10</span><span>    { <span class="s">"step"</span>: <span class="s">"installTheme"</span>,</span></div>
+            <div class="ln"><span>11</span><span>      <span class="s">"themeData"</span>: { <span class="s">"resource"</span>: <span class="s">"url"</span>, <span class="s">"url"</span>: <span class="s">"https://github.com/wp/coffee/zipball/main"</span> }},</span></div>
+            <div class="ln"><span>12</span><span>    { <span class="s">"step"</span>: <span class="s">"runPHP"</span>,</span></div>
+            <div class="ln"><span>13</span><span>      <span class="s">"code"</span>: <span class="s">"&lt;?php require '/wordpress/wp-load.php'; wp_update_post([...]);"</span> },</span></div>
+            <div class="ln"><span>14</span><span>    { <span class="s">"step"</span>: <span class="s">"importWxr"</span>, <span class="s">"file"</span>: { <span class="s">"resource"</span>: <span class="s">"vfs"</span>, <span class="s">"path"</span>: <span class="s">"/blueprint/products.xml"</span> }},</span></div>
+            <div class="ln"><span>15</span><span>    { <span class="s">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="s">"options"</span>: { <span class="s">"blogname"</span>: <span class="s">"Roastery"</span>, <span class="s">"permalink_structure"</span>: <span class="s">"/%postname%/"</span> }}</span></div>
+            <div class="ln"><span>16</span><span>  ]</span></div>
+            <div class="ln"><span>17</span><span>}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANE: Database -->
+      <div class="pane" data-pane="db">
+        <div class="db-pane">
+          <div class="db-notice">
+            <i data-lucide="flask-conical" style="flex-shrink:0;color:#9a7700"></i>
+            <div><b>Database management is an early access feature.</b> Things may change. Issues? <a>Open a ticket on the GitHub tracker</a>.</div>
+          </div>
+          <div class="db-toolbar">
+            <select><option>wp_posts</option><option>wp_postmeta</option><option>wp_options</option><option>wp_users</option><option>wp_woocommerce_orders</option></select>
+            <input placeholder="SELECT * FROM wp_posts WHERE post_status='publish' LIMIT 25" />
+            <button class="pillbtn boot"><i data-lucide="play"></i> Run</button>
+            <button class="pillbtn"><i data-lucide="plus"></i> New row</button>
+          </div>
+          <table class="db">
+            <thead><tr><th>ID</th><th>post_title</th><th>post_type</th><th>post_status</th><th>post_date</th></tr></thead>
+            <tbody>
+              <tr><td>12</td><td>Espresso Blend 250g</td><td>product</td><td>publish</td><td>2025-05-19 09:14:11</td></tr>
+              <tr><td>14</td><td>Decaf Colombia 250g</td><td>product</td><td>publish</td><td>2025-05-19 09:16:02</td></tr>
+              <tr><td>17</td><td>Ethiopia Yirga 250g</td><td>product</td><td>publish</td><td>2025-05-19 09:17:48</td></tr>
+              <tr><td>21</td><td>Brew guides</td><td>page</td><td>publish</td><td>2025-05-20 08:00:00</td></tr>
+              <tr><td>25</td><td>Subscriptions</td><td>page</td><td>draft</td><td>2025-05-20 08:42:14</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PANE: Logs (full-pane variant — same items as replies preview) -->
+      <div class="pane" data-pane="logs">
+        <div class="replies-head">
+          <i data-lucide="terminal"></i> php error log
+          <div class="filters">
+            <span class="f active">All (12)</span><span class="f">Errors (2)</span><span class="f">Warn (3)</span><span class="f">Notices (7)</span>
+          </div>
+        </div>
+        <div style="padding:10px 16px;border-bottom:1px solid var(--line)">
+          <div class="urlbar" style="border:none;padding:0">
+            <form>
+              <i data-lucide="search"></i>
+              <input placeholder="Search logs (regex ok)…  e.g. WC_Tax_Calc" />
+            </form>
+          </div>
+        </div>
+
+        <article class="reply"><div class="av error">PHP</div><div>
+          <div class="head"><span class="h">php-fpm</span><span class="when">@php-error · 14:02:17</span><span class="sev error">Error</span></div>
+          <pre>PHP Fatal error: Uncaught Error: Class "WC_Tax_Calc" not found in /wordpress/wp-content/themes/coffee/inc/checkout.php:42</pre>
+        </div></article>
+        <article class="reply"><div class="av warn">PHP</div><div>
+          <div class="head"><span class="h">php-fpm</span><span class="when">@php-warning · 13:59:01</span><span class="sev warn">Warning</span></div>
+          <pre>PHP Warning: Undefined array key "shipping_method" in .../includes/class-wc-cart.php on line 891</pre>
+        </div></article>
+        <article class="reply"><div class="av notice">N</div><div>
+          <div class="head"><span class="h">wp-debug</span><span class="when">@notice · 13:48:22</span><span class="sev notice">Notice</span></div>
+          <pre>do_action() deprecated. Function woocommerce_before_shop_loop deprecated since 9.0.0.</pre>
+        </div></article>
+        <article class="reply"><div class="av sql">SQL</div><div>
+          <div class="head"><span class="h">mysql-emulated</span><span class="when">@sqlite · 13:46:09</span><span class="sev notice">Notice</span></div>
+          <pre>EXPLAIN QUERY PLAN: SCAN wp_postmeta USING INDEX wp_postmeta_meta_key</pre>
+        </div></article>
+      </div>
+
+      <!-- PANE: Settings (Site-Manager Settings tab; mirrors the popover) -->
+      <div class="pane" data-pane="settings">
+        <div style="padding:14px 16px">
+          <div class="db-notice" style="background:var(--brand-soft);color:var(--brand)">
+            <i data-lucide="info" style="flex-shrink:0"></i>
+            <div><b>This is an Unsaved Playground.</b> Your changes will be lost on page refresh. <a href="#" onclick="event.preventDefault();toast('Saved!','success')"><b>Save site locally</b></a>.</div>
+          </div>
+          <h3 style="text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-size:13px;margin:14px 0 8px;font-weight:700">Runtime</h3>
+          <div class="field"><label>WordPress version</label><select><option>6.6 (latest)</option><option>6.5</option><option>6.4</option><option>nightly</option><option>beta</option></select></div>
+          <div class="field"><label>PHP version</label><select><option>8.3</option><option>8.2 (default)</option><option>8.1</option><option>8.0</option><option>7.4</option></select></div>
+          <div class="field"><label>Language</label><select><option>en-US</option><option>ja</option><option>de-DE</option><option>fr-FR</option></select></div>
+          <h3 style="text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-size:13px;margin:14px 0 8px;font-weight:700">Features</h3>
+          <div class="field"><label>Networking <span style="display:block;color:var(--text-muted);font-weight:400;font-size:12px">Allow outbound HTTP from PHP (fopen, wp_remote_get)</span></label><div class="toggle on"></div></div>
+          <div class="field"><label>Multisite</label><div class="toggle"></div></div>
+          <div class="field"><label>Persist to OPFS <span style="display:block;color:var(--text-muted);font-weight:400;font-size:12px">Write changes through to browser storage</span></label><div class="toggle on"></div></div>
+          <div class="danger-row">
+            <div><b>Apply Settings & Reset Playground</b><br><span style="opacity:.85">Destructive — wipes the running site and replays the blueprint.</span></div>
+            <button class="pillbtn danger" onclick="toast('Reset cancelled (demo)','info')"><i data-lucide="rotate-ccw"></i> Apply & Reset</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================== STATE: EXPLORE / BLUEPRINTS ============================== -->
+    <section class="feed" id="state-explore" style="display:none">
+      <div class="center-header">
+        <div class="center-title" style="padding:10px 8px 10px 4px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="iconbtn" onclick="setState('home')"><i data-lucide="arrow-left"></i></button>
+            <h1>Explore blueprints</h1>
+          </div>
+          <button class="iconbtn"><i data-lucide="sliders-horizontal"></i></button>
+        </div>
+        <div style="padding:0 16px 10px"><div class="urlbar" style="border:none;padding:0"><form><i data-lucide="search"></i><input placeholder="Search 43 blueprints — theme, name, tag…" /></form></div></div>
+        <div class="explore-toolbar">
+          <span class="chip active">All</span>
+          <span class="chip">Featured</span>
+          <span class="chip">Website</span>
+          <span class="chip">Personal</span>
+          <span class="chip">Content</span>
+          <span class="chip">Themes</span>
+          <span class="chip">Gutenberg</span>
+          <span class="chip">Experiments</span>
+          <span class="chip">WooCommerce</span>
+          <span class="chip">News</span>
+        </div>
+      </div>
+
+      <div class="gallery" id="gallery"></div>
+    </section>
+
+    <!-- ============================== STATE: BOOTING ============================== -->
+    <section class="feed" id="state-loading" style="display:none">
+      <div class="center-header">
+        <div class="center-title" style="padding:10px 8px 10px 4px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="iconbtn" onclick="setState('home')"><i data-lucide="arrow-left"></i></button>
+            <h1>Booting Coffee Shop…</h1>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div style="background:var(--brand-soft);color:var(--brand);padding:14px;border-radius:14px;display:flex;align-items:center;gap:12px">
+          <i data-lucide="loader" style="animation:spin 1s linear infinite;width:18px;height:18px"></i>
+          <div style="flex:1">
+            <b>Replaying blueprint…</b>
+            <div style="margin-top:4px;font-size:13px">Step 3 of 5 · <span class="mono">installTheme(github:wp/coffee)</span></div>
+            <div style="margin-top:8px;height:6px;background:rgba(56,88,233,.2);border-radius:999px;overflow:hidden"><div style="width:62%;height:100%;background:var(--brand);border-radius:999px"></div></div>
+          </div>
+          <button class="pillbtn">Cancel</button>
+        </div>
+      </div>
+      <div class="skeleton-post"><div class="sk-av"></div><div style="flex:1"><div class="sk-bar short"></div><div class="sk-bar long"></div><div class="sk-bar long"></div></div></div>
+      <div class="skeleton-post"><div class="sk-av"></div><div style="flex:1"><div class="sk-bar short"></div><div class="sk-bar long"></div></div></div>
+      <div class="skeleton-post"><div class="sk-av"></div><div style="flex:1"><div class="sk-bar short"></div><div class="sk-bar long"></div><div class="sk-bar long"></div></div></div>
+    </section>
+
+    <!-- ============================== STATE: MOBILE PREVIEW (just visualizes the 390px slice) ============================== -->
+    <section class="feed" id="state-mobile" style="display:none">
+      <div class="center-header">
+        <div class="center-title" style="padding:10px 8px 10px 4px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="iconbtn" onclick="setState('home')"><i data-lucide="arrow-left"></i></button>
+            <h1>Mobile preview (390 × 844)</h1>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;background:linear-gradient(180deg,#f7f9fa,#eef1f3 80%);min-height:780px">
+        <div style="width:390px;height:780px;border:1px solid var(--line-strong);border-radius:36px;background:#fff;overflow:hidden;box-shadow:0 20px 50px rgba(15,20,25,.15);display:flex;flex-direction:column">
+          <!-- Mobile status bar -->
+          <div style="background:#fff;padding:14px 22px 6px;display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#0f1419">
+            <span>9:41</span><span>WP</span><span>100%</span>
+          </div>
+          <!-- mobile header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--line)">
+            <div class="me" style="padding:4px;margin:0;flex:0"><div class="avatar" style="width:32px;height:32px;font-size:12px">AZ</div></div>
+            <div class="mark" style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#3858e9,#7856ff);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px">W</div>
+            <i data-lucide="settings-2" style="width:22px;height:22px;color:var(--text-muted)"></i>
+          </div>
+          <!-- mobile tabbar -->
+          <div class="tabbar"><div class="tab active">For you</div><div class="tab">Blueprints</div><div class="tab">Activity</div></div>
+          <!-- one mobile post -->
+          <div style="flex:1;overflow-y:auto">
+            <article class="post unsaved-pin" style="padding:10px 14px">
+              <div class="av av-wp" style="width:38px;height:38px;font-size:14px">W</div>
+              <div class="body">
+                <div class="pinned-label" style="font-size:11px"><i data-lucide="pin" style="width:12px;height:12px"></i> Pinned · Current</div>
+                <div class="head"><span class="name">Unsaved Playground</span><span class="handle mono" style="font-size:12px">@unsaved</span></div>
+                <div class="text" style="font-size:14px">Tap Save before refreshing to keep your changes.</div>
+                <div class="badges"><span class="badge unsaved">Unsaved</span><span class="badge wp">WP 6.5</span><span class="badge php">PHP 8.2</span></div>
+                <div class="actions" style="max-width:none"><div class="a"><i data-lucide="rotate-cw"></i></div><div class="a"><i data-lucide="message-circle"></i></div><div class="a boot"><i data-lucide="bookmark"></i><span>Save</span></div><div class="a"><i data-lucide="share-2"></i></div></div>
+              </div>
+            </article>
+            <article class="post" style="padding:10px 14px">
+              <div class="av av-coffee" style="width:38px;height:38px;font-size:14px">C</div>
+              <div class="body">
+                <div class="head"><span class="name">Coffee Shop</span><span class="handle mono" style="font-size:12px">@coffee-shop</span></div>
+                <div class="text" style="font-size:14px">WooCommerce storefront — editing the menu now.</div>
+                <div class="badges"><span class="badge saved">Saved</span><span class="badge wc">Woo</span></div>
+              </div>
+            </article>
+            <article class="post" style="padding:10px 14px">
+              <div class="av av-pr" style="width:38px;height:38px;font-size:13px">PR</div>
+              <div class="body">
+                <div class="head"><span class="name">WP PR #5972</span><span class="handle mono" style="font-size:12px">@wp-trunk</span></div>
+                <div class="text" style="font-size:14px">Async block rendering in the editor.</div>
+                <div class="badges"><span class="badge pr">PR</span><span class="badge wp">trunk</span></div>
+              </div>
+            </article>
+          </div>
+          <!-- mobile bottom tab bar -->
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);padding:8px 0 14px;background:rgba(255,255,255,.96)">
+            <div style="display:grid;place-items:center;color:var(--brand)"><i data-lucide="home"></i></div>
+            <div style="display:grid;place-items:center;color:var(--text-muted)"><i data-lucide="compass"></i></div>
+            <div style="display:grid;place-items:center"><div style="background:var(--brand);color:#fff;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;box-shadow:0 4px 10px rgba(56,88,233,.3)"><i data-lucide="plus"></i></div></div>
+            <div style="display:grid;place-items:center;color:var(--text-muted);position:relative"><i data-lucide="bell"></i><span style="position:absolute;top:-2px;right:30%;background:var(--danger);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:0 5px">2</span></div>
+            <div style="display:grid;place-items:center;color:var(--text-muted)"><i data-lucide="user"></i></div>
+          </div>
+        </div>
+        <div style="color:var(--text-muted);font-size:13px;text-align:center;max-width:360px">On phone breakpoints, the left rail collapses to a bottom tab bar; the right rail becomes pull-to-refresh banners.</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================== RIGHT RAIL ============================== -->
+  <aside class="rightrail" aria-label="Side panels">
+    <div class="search">
+      <div class="input"><i data-lucide="search"></i><input placeholder="Search playgrounds & blueprints" /></div>
+    </div>
+
+    <!-- Quick Settings card -->
+    <div class="card settings-card">
+      <div class="ch">Quick settings</div>
+      <div class="row" onclick="openSettings()"><div class="ctx">Runtime</div><div class="h">WP 6.5 · PHP 8.2</div><div class="meta">Change ›</div></div>
+      <div class="row" onclick="openSettings()"><div class="ctx">Locale</div><div class="h">English (US)</div><div class="meta">Change ›</div></div>
+      <div class="row with-action"><div class="who"><b>Network</b><span>Outbound HTTP allowed</span></div><div class="toggle on"></div></div>
+      <div class="row with-action"><div class="who"><b>Multisite</b><span>Off</span></div><div class="toggle"></div></div>
+      <div class="seemore" onclick="openSettings()">Open full settings</div>
+    </div>
+
+    <!-- Your Playgrounds card -->
+    <div class="card">
+      <div class="ch">Your Playgrounds</div>
+      <div class="row with-action">
+        <div class="avatar av-coffee">C</div>
+        <div class="who"><b>Coffee Shop</b><span>3h · WP 6.6 · PHP 8.3</span></div>
+        <button class="followbtn" onclick="toast('Booting Coffee Shop…','info')">Boot</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-pr">PR</div>
+        <div class="who"><b>WP PR #5972</b><span>1d · trunk · PHP 8.3</span></div>
+        <button class="followbtn" onclick="toast('Booting PR #5972','info')">Boot</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-gb">G</div>
+        <div class="who"><b>Dataview Exp.</b><span>2d · WP 6.6 · PHP 8.2</span></div>
+        <button class="followbtn" onclick="toast('Booting…','info')">Boot</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-gh">GH</div>
+        <div class="who"><b>acme/block-theme</b><span>4d · WP 6.6 · PHP 8.2</span></div>
+        <button class="followbtn" onclick="toast('Booting…','info')">Boot</button>
+      </div>
+      <div class="seemore">Show all 7</div>
+    </div>
+
+    <!-- Trending blueprints -->
+    <div class="card">
+      <div class="ch">Trending blueprints</div>
+      <div class="row" onclick="setState('explore')">
+        <div class="ctx">Trending in WooCommerce · #1</div>
+        <div class="h">Coffee Shop</div>
+        <div class="meta">2.1k boots</div>
+      </div>
+      <div class="row" onclick="setState('explore')">
+        <div class="ctx">Trending · #2</div>
+        <div class="h">Art Gallery</div>
+        <div class="meta">1.8k boots</div>
+      </div>
+      <div class="row" onclick="setState('explore')">
+        <div class="ctx">Trending in News · #3</div>
+        <div class="h">Gaming News</div>
+        <div class="meta">1.2k boots</div>
+      </div>
+      <div class="row" onclick="setState('explore')">
+        <div class="ctx">Trending · #4</div>
+        <div class="h">Non-profit Organization</div>
+        <div class="meta">974 boots</div>
+      </div>
+      <div class="row" onclick="setState('explore')">
+        <div class="ctx">Trending · #5</div>
+        <div class="h">Feed Reader (Friends)</div>
+        <div class="meta">812 boots</div>
+      </div>
+      <div class="seemore" onclick="setState('explore')">View all 43 blueprints</div>
+    </div>
+
+    <!-- Who to follow == GitHub PR feeds & repos -->
+    <div class="card">
+      <div class="ch">Boot from upstream</div>
+      <div class="row with-action">
+        <div class="avatar av-pr">PR</div>
+        <div class="who"><b>WordPress core</b><span>@WordPress/wordpress-develop · 41 open PRs</span></div>
+        <button class="followbtn" onclick="openCompose('wppr')">Browse</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-gb">G</div>
+        <div class="who"><b>Gutenberg</b><span>@WordPress/gutenberg · 218 open PRs</span></div>
+        <button class="followbtn" onclick="openCompose('gbpr')">Browse</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-gh">GH</div>
+        <div class="who"><b>Any GitHub repo</b><span>theme / plugin / wp-content</span></div>
+        <button class="followbtn" onclick="openCompose('gh')">Paste</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-zip">Z</div>
+        <div class="who"><b>Import .zip</b><span>Previously exported playground</span></div>
+        <button class="followbtn" onclick="openCompose('zip')">Upload</button>
+      </div>
+      <div class="row with-action">
+        <div class="avatar av-friends">B</div>
+        <div class="who"><b>Blueprint URL</b><span>Paste any blueprint JSON URL</span></div>
+        <button class="followbtn" onclick="openCompose('url')">Paste</button>
+      </div>
+    </div>
+
+    <div class="legalrow">
+      <a>Terms</a><a>Privacy</a><a>Cookies</a><a>Accessibility</a><span>© 2025 WP Playground</span>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ============================== TOASTS ============================== -->
+<div class="toasts" id="toasts"></div>
+
+<!-- ============================== COMPOSE / LAUNCHER MODAL ============================== -->
+<div class="scrim" id="composeScrim" onclick="if(event.target===this)closeCompose()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="compTitle">
+    <div class="topbar">
+      <button class="close" onclick="closeCompose()" aria-label="Close"><i data-lucide="x"></i></button>
+      <h2 id="compTitle">New Playground</h2>
+      <button class="draft">Drafts (1)</button>
+    </div>
+    <div class="compose-grid">
+      <div class="av">AZ</div>
+      <div>
+        <button class="audience"><i data-lucide="globe" style="width:14px;height:14px"></i> Browser-local (OPFS) · only you <i data-lucide="chevron-down" style="width:14px;height:14px"></i></button>
+        <div class="compose-input" id="composeInput" contenteditable="true" data-placeholder="What's the playground about?">{ "preferredVersions": { "wp": "6.6", "php": "8.3" }, "steps": [] }</div>
+        <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">No code? Pick a starter below.</div>
+      </div>
+    </div>
+    <div class="compose-tabs" id="composeTabs">
+      <button class="ctab active" data-mode="vanilla"><i data-lucide="sparkles"></i> Vanilla WordPress</button>
+      <button class="ctab" data-mode="wppr"><i data-lucide="git-pull-request"></i> WordPress PR</button>
+      <button class="ctab" data-mode="gbpr"><i data-lucide="rocket"></i> Gutenberg PR</button>
+      <button class="ctab" data-mode="gh"><i data-lucide="github"></i> From GitHub</button>
+      <button class="ctab" data-mode="url"><i data-lucide="link"></i> Blueprint URL</button>
+      <button class="ctab" data-mode="zip"><i data-lucide="upload-cloud"></i> Import .zip</button>
+      <button class="ctab" data-mode="featured"><i data-lucide="grid-3x3"></i> Featured blueprint</button>
+    </div>
+
+    <div id="composeMode" style="padding:4px 16px 4px 76px">
+      <div data-pane="vanilla" class="cpane">
+        <div style="font-size:14px;color:var(--text);background:var(--bg-elev);padding:12px 14px;border-radius:12px">Boots a fresh WordPress with the runtime selected in <a onclick="openSettings()">Quick settings</a>. <b>WP 6.5 · PHP 8.2 · networking on.</b></div>
+      </div>
+      <div data-pane="wppr" class="cpane" style="display:none">
+        <input type="text" placeholder="PR number or full GitHub URL (e.g. 5972 or https://github.com/WordPress/wordpress-develop/pull/5972)" style="width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;font:inherit;font-size:14px" />
+      </div>
+      <div data-pane="gbpr" class="cpane" style="display:none">
+        <input type="text" placeholder="Gutenberg PR number or URL (e.g. 65211)" style="width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;font:inherit;font-size:14px" />
+      </div>
+      <div data-pane="gh" class="cpane" style="display:none">
+        <input type="text" placeholder="github.com/owner/repo[@ref]  — auto-detects theme / plugin / wp-content" style="width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;font:inherit;font-size:14px" />
+      </div>
+      <div data-pane="url" class="cpane" style="display:none">
+        <input type="text" placeholder="https://example.com/blueprint.json" style="width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;font:inherit;font-size:14px" />
+      </div>
+      <div data-pane="zip" class="cpane" style="display:none">
+        <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;border:2px dashed var(--line-strong);border-radius:12px;color:var(--text-muted);cursor:pointer">
+          <i data-lucide="upload-cloud" style="width:28px;height:28px;color:var(--brand)"></i>
+          <b style="color:var(--text)">Drop a .zip here, or click to browse</b>
+          <span>Previously exported playground bundles · up to 200 MB</span>
+        </label>
+      </div>
+      <div data-pane="featured" class="cpane" style="display:none">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+          <button class="pillbtn" onclick="closeCompose();toast('Booting Art Gallery…','info')"><span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#ff8a80,#d72b8a)"></span> Art Gallery</button>
+          <button class="pillbtn" onclick="closeCompose();toast('Booting Coffee Shop…','info')"><span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#6b4423,#a06340)"></span> Coffee Shop</button>
+          <button class="pillbtn" onclick="closeCompose();toast('Booting Feed Reader (Friends)…','info')"><span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#ff6a00,#ffb3c1)"></span> Feed Reader (Friends)</button>
+          <button class="pillbtn" onclick="closeCompose();toast('Booting Gaming News…','info')"><span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#0f1419,#3858e9)"></span> Gaming News</button>
+          <button class="pillbtn" onclick="closeCompose();toast('Booting Non-profit…','info')"><span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#018859,#3858e9)"></span> Non-profit Org</button>
+          <button class="pillbtn" onclick="closeCompose();setState('explore')"><i data-lucide="more-horizontal"></i> View all 43</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="compose-foot">
+      <div class="icons">
+        <button class="iconbtn" title="Attach"><i data-lucide="paperclip"></i></button>
+        <button class="iconbtn" title="Quick settings" onclick="openSettings()"><i data-lucide="settings-2"></i></button>
+        <button class="iconbtn" title="Schedule"><i data-lucide="calendar"></i></button>
+        <button class="iconbtn" title="Tag"><i data-lucide="hash"></i></button>
+      </div>
+      <button class="post-btn" onclick="closeCompose();setState('loading');setTimeout(()=>{setState('thread');toast('Playground ready','success')},1400)">Post Playground</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SETTINGS MODAL ============================== -->
+<div class="scrim" id="settingsScrim" onclick="if(event.target===this)closeSettings()">
+  <div class="modal settings-modal">
+    <div class="topbar">
+      <button class="close" onclick="closeSettings()"><i data-lucide="x"></i></button>
+      <h2>Edit Playground settings</h2>
+    </div>
+    <div class="body">
+      <div class="db-notice" style="background:var(--brand-soft);color:var(--brand);margin-bottom:12px">
+        <i data-lucide="info" style="flex-shrink:0"></i>
+        <div><b>This is an Unsaved Playground.</b> Your changes will be lost on page refresh. <a href="#" onclick="event.preventDefault();toast('Saved!','success');closeSettings()"><b>Save site locally</b></a>.</div>
+      </div>
+      <h3>Runtime</h3>
+      <div class="field"><label>WordPress version</label><select><option>6.6 (latest)</option><option>6.5</option><option>6.4</option><option>nightly</option><option>beta</option></select></div>
+      <div class="field"><label>PHP version</label><select><option>8.3</option><option selected>8.2 (default)</option><option>8.1</option><option>8.0</option><option>7.4</option></select></div>
+      <div class="field"><label>Language</label><select><option>en-US</option><option>ja</option><option>de-DE</option><option>fr-FR</option></select></div>
+      <h3>Features</h3>
+      <div class="field"><label>Networking</label><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="field"><label>Multisite</label><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      <div class="danger-row">
+        <div><b>Apply Settings & Reset Playground</b><br><span style="opacity:.85">Destructive — wipes the running site and replays the blueprint.</span></div>
+        <button class="pillbtn danger" onclick="closeSettings();toast('Reset cancelled (demo)','info')">Apply & Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== "MORE / EXPORT" MODAL ============================== -->
+<div class="scrim" id="exportScrim" onclick="if(event.target===this)closeExport()">
+  <div class="modal" style="max-width:420px">
+    <div class="topbar">
+      <button class="close" onclick="closeExport()"><i data-lucide="x"></i></button>
+      <h2>Additional actions</h2>
+    </div>
+    <div style="padding:8px 8px 14px">
+      <button class="row with-action" style="width:100%;padding:14px 16px;text-align:left" onclick="closeExport();toast('Opening GitHub PR composer…','info')">
+        <span class="avatar av-pr" style="width:36px;height:36px;font-size:13px;border-radius:10px;display:grid;place-items:center"><i data-lucide="git-pull-request" style="color:#fff"></i></span>
+        <span class="who"><b>Export to GitHub PR</b><span>Theme, plugin, or wp-content as a Pull Request</span></span>
+      </button>
+      <button class="row with-action" style="width:100%;padding:14px 16px;text-align:left" onclick="closeExport();toast('Preparing download…','info')">
+        <span class="avatar av-zip" style="width:36px;height:36px;font-size:13px;border-radius:10px;display:grid;place-items:center"><i data-lucide="download" style="color:#fff"></i></span>
+        <span class="who"><b>Download .zip</b><span>Current playground as a bundle</span></span>
+      </button>
+      <button class="row with-action" style="width:100%;padding:14px 16px;text-align:left" onclick="closeExport();toast('Copied blueprint link','success')">
+        <span class="avatar" style="background:linear-gradient(135deg,#0073aa,#3858e9);width:36px;height:36px;font-size:13px;border-radius:10px;display:grid;place-items:center"><i data-lucide="link" style="color:#fff"></i></span>
+        <span class="who"><b>Copy link to blueprint</b><span>Shareable URL anyone can boot</span></span>
+      </button>
+      <button class="row with-action" style="width:100%;padding:14px 16px;text-align:left" onclick="closeExport();toast('Pinned to top','success')">
+        <span class="avatar" style="background:linear-gradient(135deg,#9a7700,#ff6a00);width:36px;height:36px;font-size:13px;border-radius:10px;display:grid;place-items:center"><i data-lucide="pin" style="color:#fff"></i></span>
+        <span class="who"><b>Pin to home</b><span>Keep this playground at the top of the feed</span></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<!-- ============================== JS ============================== -->
+<script>
+  // Lucide icons
+  document.addEventListener('DOMContentLoaded', ()=> {
+    if (window.lucide) lucide.createIcons();
+    renderGallery();
+    setTimeout(()=>{ toast('Welcome back, @local-browser-opfs','info') }, 600);
+  });
+
+  // ---------- Blueprints data (all 43) ----------
+  const BLUEPRINTS = [
+    { n:1,  t:'Art Gallery',                 d:'An art gallery created with the Vueo theme.', tg:['Website','Personal'], th:'th-art', featured:true },
+    { n:2,  t:'Coffee Shop',                 d:'A stylish WooCommerce coffee shop storefront with custom theme, products, and content.', tg:['WooCommerce','Store'], th:'th-coffee', featured:true },
+    { n:3,  t:'Feed Reader (Friends)',       d:'Read feeds (incl. ActivityPub) via the Friends plugin.', tg:['rss','social','web'], th:'th-friends', featured:true },
+    { n:4,  t:'Gaming News',                 d:'A gaming news site created with the Spiel theme.', tg:['Website','News'], th:'th-news', featured:true },
+    { n:5,  t:'Non-profit Organization',     d:'A non-profit site created with the Koinonia theme.', tg:['Website','Organization'], th:'th-non', featured:true },
+    { n:6,  t:'Personal Blog',               d:'A personal blog created with the Substrata theme.', tg:['Website','Personal','Blog'], th:'th-blog' },
+    { n:7,  t:'Personal Resume',             d:'A resume site created with the Readymade theme.', tg:['Website','Personal'], th:'th-resume' },
+    { n:8,  t:'Photography Portfolio',       d:'A portfolio created with the Grammer theme.', tg:['Website','Personal','Photography'], th:'th-photo' },
+    { n:9,  t:'Skincare Blog',               d:'A skincare blog created with the Piel theme.', tg:['Website','News','Blog'], th:'th-skin' },
+    { n:10, t:'University Website',          d:'A university website created with the Kentwood theme.', tg:['Website','Education','Organization'], th:'th-edu' },
+    { n:11, t:'Create Block Theme',          d:'Install Create Block Theme and start editing right away.', tg:['Editor','theme'], th:'th-cbt' },
+    { n:12, t:'New user for the blog',       d:'Update user meta data on first run.', tg:['meta'], th:'th-color' },
+    { n:13, t:'Custom Post Type: Books',     d:'Add a custom post type to playground.', tg:['Content','CPT'], th:'th-cpt' },
+    { n:14, t:'Twenty Twenty-Five Demo',     d:'Demo content for the Twenty-Twenty-Five default theme.', tg:['Themes','default'], th:'th-2025' },
+    { n:15, t:'Display Admin Notice',        d:'Add a tiny mu-plugin and display an admin notice.', tg:['Admin notices'], th:'th-debug' },
+    { n:16, t:'Dataview Experiments',        d:'Enable multiple Experiments within Gutenberg.', tg:['Gutenberg','Experiments'], th:'th-gb' },
+    { n:17, t:'Fancy Dashboard Widget',      d:'Display stats about users, posts and comments.', tg:['widget'], th:'th-color' },
+    { n:18, t:'Grid Variations Experiment',  d:'Toggle a Gutenberg Experiments feature on.', tg:['Gutenberg','Experiments'], th:'th-gb' },
+    { n:19, t:'Gutenberg Guidelines Exp.',   d:'Enable Gutenberg Guidelines experiment.', tg:['Gutenberg','Experiments'], th:'th-gb' },
+    { n:20, t:'Theme Starter Content',       d:'Install a theme with starter content (Twenty-Twenty-One).', tg:['Themes','Starter Content'], th:'th-default' },
+    { n:21, t:'Standalone starter content',  d:'Use a stand-alone starter content file and import it.', tg:['Themes','Starter Content'], th:'th-default' },
+    { n:22, t:'WordPress language packs',    d:'Install and activate the latest Japanese translation pack.', tg:['core'], th:'th-color' },
+    { n:23, t:'Install plugin from gist',    d:'Install/activate a WordPress plugin from a .php file in a gist.', tg:['plugins'], th:'th-cpt' },
+    { n:24, t:'Latest Gutenberg plugin',     d:'A preview of the latest Gutenberg plugin.', tg:['plugins'], th:'th-gb' },
+    { n:25, t:'Theme from GitHub',           d:'Typical steps for a theme load/activate/configure.', tg:['theme'], th:'th-cbt' },
+    { n:26, t:'Login as an editor',          d:'Test as an editor rather than an administrator.', tg:['User Role'], th:'th-default' },
+    { n:27, t:'Markdown & Trac Editor',      d:'Edit Markdown/Trac formatting in the block editor (blocky-formats).', tg:['block-editor'], th:'th-cbt' },
+    { n:28, t:'Minimal WooCommerce',         d:'WooCommerce + flat-rate shipping + sample products + direct bank transfer.', tg:['woocommerce','shipping','flat_rate'], th:'th-wc' },
+    { n:29, t:'My WordPress',                d:'Welcome experience for persistent WordPress Playground instances.', tg:['Playground','Onboarding'], th:'th-mywp' },
+    { n:30, t:'Playground Welcome Landing',  d:'Landing page for the WordPress Playground.', tg:['meta'], th:'th-mywp' },
+    { n:31, t:'Pretty permalinks',           d:'Set the permalink structure to pretty permalinks.', tg:['Settings'], th:'th-debug' },
+    { n:32, t:'Reset & import (with logs)',  d:'Resets default data before importing custom content; logs each step.', tg:['reset','log','debug'], th:'th-debug' },
+    { n:33, t:'Serve media from elsewhere',  d:'Redirect uploads requests to an external host.', tg:['Settings'], th:'th-debug' },
+    { n:34, t:'Set admin color scheme',      d:'Set admin color scheme to Modern via updateUserMeta step.', tg:['user meta'], th:'th-color' },
+    { n:35, t:'Showcase plugin',             d:'Showcase a custom plugin with media and content imported as WXR.', tg:['plugin','demo','media'], th:'th-cpt' },
+    { n:36, t:'Stylish Press',               d:'A Woo store with custom theme, content, and products.', tg:['Woocommerce','Site'], th:'th-stylish' },
+    { n:37, t:'Theme Tester',                d:'Add content and plugins to explore a theme.', tg:['themes','content'], th:'th-content' },
+    { n:38, t:'WPGraphQL IDE',               d:'Loads WordPress with WPGraphQL active and the IDE page.', tg:['API','wpgraphql'], th:'th-graph' },
+    { n:39, t:'wp-cli: add posts',           d:'Add posts via a wp-cli command.', tg:['Content','wpcli'], th:'th-content' },
+    { n:40, t:'wp-cli: post with image',     d:'Create a post with block markup and featured image via wp-cli.', tg:['Content','wpcli'], th:'th-content' },
+    { n:41, t:'Weather Shortcode Plugin',    d:'Connect weather API and show data as a shortcode. Requires OpenWeatherMap key.', tg:['shortcode','weather'], th:'th-shortcode' },
+    { n:42, t:'WooCommerce product feed',    d:'Create a WooCommerce product and export an XML/CSV product feed.', tg:['WooCommerce','Content'], th:'th-feed' },
+    { n:43, t:'WordPress Beta',              d:'Test the latest WordPress Beta/RC with theme test data and debugging plugins.', tg:['Testing'], th:'th-beta' },
+  ];
+
+  function renderGallery(){
+    const root = document.getElementById('gallery');
+    root.innerHTML = '';
+    BLUEPRINTS.forEach((b,i)=>{
+      const card = document.createElement('div');
+      card.className = 'bp';
+      card.onclick = ()=>{ closeCompose(); setState('loading'); setTimeout(()=>{ setState('thread'); toast(`Boot: ${b.t}`,'success') }, 1100); };
+      const tall = (i % 5 === 0) ? 'tall' : '';
+      card.innerHTML = `
+        <div class="thumb ${b.th} ${tall}">
+          <span style="position:absolute;top:8px;left:10px;font-size:11px;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:999px;font-weight:700">#${b.n}</span>
+          <span style="text-shadow:0 1px 4px rgba(0,0,0,.25);font-family:Georgia,serif;font-style:italic;font-weight:700">${b.t.split(' ').slice(0,2).join(' ')}</span>
+          <span style="position:absolute;bottom:8px;right:10px;font-size:11px;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:999px;font-weight:600">${b.featured?'Featured':'Boot'}</span>
+        </div>
+        <div class="body">
+          <b>${b.t}</b>
+          <span>${b.d}</span>
+          <div class="tags">${b.tg.map(t=>`<span>${t}</span>`).join('')}</div>
+        </div>`;
+      root.appendChild(card);
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ---------- Toast ----------
+  function toast(msg, type){
+    const t = document.createElement('div');
+    t.className = 'toast' + (type? ' '+type : '');
+    t.innerHTML = `<span>${msg}</span><span class="x" onclick="this.parentElement.remove()">×</span>`;
+    document.getElementById('toasts').appendChild(t);
+    setTimeout(()=>t.remove(), 4000);
+  }
+
+  // ---------- State machine ----------
+  const STATES = ['home','thread','explore','loading','mobile'];
+  function setState(name){
+    STATES.forEach(s=>{
+      const el = document.getElementById('state-'+s);
+      if (!el) return;
+      el.style.display = (s===name) ? '' : 'none';
+    });
+    // For thread show its section
+    const threadEl = document.querySelector('.thread');
+    if (name==='thread') threadEl.classList.add('show'); else threadEl.classList.remove('show');
+    // Switcher highlight
+    document.querySelectorAll('.state-switcher button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.state===name);
+    });
+    window.scrollTo({top:0,behavior:'instant'});
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function setPane(name){
+    document.querySelectorAll('.subtab').forEach(s=>s.classList.toggle('active', s.dataset.pane===name));
+    document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('show', p.dataset.pane===name));
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ---------- Modals ----------
+  function openCompose(mode){
+    document.getElementById('composeScrim').classList.add('show');
+    document.querySelectorAll('.state-switcher button').forEach(b=>b.classList.toggle('active', b.dataset.state==='compose'));
+    if (mode) selectComposeMode(mode);
+  }
+  function closeCompose(){
+    document.getElementById('composeScrim').classList.remove('show');
+    document.querySelectorAll('.state-switcher button').forEach(b=>b.classList.toggle('active', b.dataset.state===currentState()));
+  }
+  function currentState(){
+    for(const s of STATES){
+      const el = document.getElementById('state-'+s);
+      if (el && el.style.display!=='none') return s;
+    }
+    return 'home';
+  }
+  function openSettings(){ document.getElementById('settingsScrim').classList.add('show');
+    document.querySelectorAll('.state-switcher button').forEach(b=>b.classList.toggle('active', b.dataset.state==='settings'));
+  }
+  function closeSettings(){ document.getElementById('settingsScrim').classList.remove('show');
+    document.querySelectorAll('.state-switcher button').forEach(b=>b.classList.toggle('active', b.dataset.state===currentState()));
+  }
+  function openExport(){ document.getElementById('exportScrim').classList.add('show'); }
+  function closeExport(){ document.getElementById('exportScrim').classList.remove('show'); }
+  function copyBlueprintUrl(){ toast('Copied blueprint URL','success'); }
+
+  // compose tab switching
+  document.addEventListener('click', (e)=>{
+    const t = e.target.closest('.ctab');
+    if (t){ selectComposeMode(t.dataset.mode); }
+  });
+  function selectComposeMode(mode){
+    document.querySelectorAll('.ctab').forEach(c=>c.classList.toggle('active', c.dataset.mode===mode));
+    document.querySelectorAll('.cpane').forEach(p=>p.style.display = p.dataset.pane===mode ? '' : 'none');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // toggle handlers
+  document.addEventListener('click', (e)=>{
+    const tg = e.target.closest('.toggle');
+    if (tg) tg.classList.toggle('on');
+  });
+  function toggleSort(btn){
+    btn.setAttribute('aria-pressed', btn.getAttribute('aria-pressed')==='true' ? 'false' : 'true');
+  }
+</script>
+</body>
+</html>
