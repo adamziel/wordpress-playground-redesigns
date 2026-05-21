@@ -1,0 +1,1462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Playground · Corkboard — Design #031</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  :root {
+    --cork-1: #c89a64;
+    --cork-2: #a37340;
+    --cork-3: #7e5326;
+    --cork-shadow: rgba(60, 30, 0, 0.35);
+    --tape: #f4e4a8;
+    --tape-edge: #d8c47a;
+    --ink: #2a2017;
+    --ink-soft: #5a4a35;
+    --paper: #fdfaf2;
+    --line: rgba(0,0,0,0.08);
+    --pin-red: #d33b3b;
+    --pin-blue: #2f6fc8;
+    --pin-green: #2e9e57;
+    --pin-yellow: #e6b526;
+
+    --y-yellow: #ffe98a;
+    --y-yellow-edge: #f0d56b;
+    --y-pink: #ffb6c8;
+    --y-pink-edge: #f098b0;
+    --y-mint: #c4f0b8;
+    --y-mint-edge: #a3d495;
+    --y-blue: #b5d8ff;
+    --y-blue-edge: #94beea;
+    --y-peach: #ffd2a8;
+    --y-peach-edge: #ecb786;
+    --y-lilac: #d9c6ff;
+    --y-lilac-edge: #b9a3eb;
+    --y-cream: #f6efd6;
+    --y-cream-edge: #ddd1a8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 18% 22%, rgba(255,255,255,0.06), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(0,0,0,0.18), transparent 60%),
+      repeating-radial-gradient(circle at 12% 32%, var(--cork-1) 0 2px, var(--cork-2) 2px 3.5px, var(--cork-3) 3.5px 5px),
+      var(--cork-2);
+    background-blend-mode: normal, normal, multiply, normal;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(rgba(40,20,0,0.18) 1px, transparent 1.6px),
+      radial-gradient(rgba(255,230,180,0.13) 1px, transparent 1.6px);
+    background-size: 7px 7px, 11px 11px;
+    background-position: 0 0, 3px 5px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---------- top tape rail ---------- */
+  .rail {
+    position: relative;
+    z-index: 10;
+    margin: 18px 22px 0 22px;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, var(--tape) 0%, #f0dc92 100%);
+    box-shadow:
+      0 1px 0 rgba(0,0,0,0.12) inset,
+      0 -1px 0 rgba(255,255,255,0.5) inset,
+      0 8px 18px var(--cork-shadow),
+      0 1px 2px rgba(0,0,0,0.2);
+    transform: rotate(-0.3deg);
+  }
+  .rail::before, .rail::after {
+    content: "";
+    position: absolute;
+    top: -7px;
+    width: 60px; height: 18px;
+    background: rgba(255, 245, 200, 0.75);
+    border: 1px dashed rgba(0,0,0,0.15);
+    transform: rotate(-3deg);
+  }
+  .rail::before { left: -10px; }
+  .rail::after { right: -10px; transform: rotate(2deg); }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border-radius: 4px;
+    font: 500 13px/1 'Inter', sans-serif;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(0,0,0,0.12);
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    transition: transform .12s, background .12s;
+  }
+  .chip:hover { background: rgba(255,255,255,0.85); transform: translateY(-1px); }
+  .chip.icon-only { padding: 7px 9px; }
+  .chip i[data-lucide] { width: 15px; height: 15px; }
+
+  .name-stamp {
+    font-family: 'Caveat', cursive;
+    font-size: 22px;
+    padding: 2px 14px;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.18);
+    border-radius: 3px;
+    color: var(--ink);
+    transform: rotate(-1deg);
+    box-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+    cursor: text;
+  }
+  .name-stamp .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--pin-red);
+    margin-right: 6px; vertical-align: middle;
+    box-shadow: 0 0 0 2px rgba(211,59,59,0.25);
+  }
+
+  .urlbar {
+    display: flex; align-items: center; gap: 6px;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 999px;
+    padding: 5px 10px 5px 12px;
+    font: 500 13px 'JetBrains Mono', monospace;
+    color: var(--ink);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.06);
+  }
+  .urlbar .scheme { color: var(--ink-soft); }
+  .urlbar input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font: inherit; color: inherit; min-width: 0;
+  }
+  .urlbar button {
+    border: 0; background: var(--ink); color: var(--paper);
+    border-radius: 999px; padding: 4px 10px; font: 600 11px 'Inter';
+    cursor: pointer;
+  }
+  .urlbar button:hover { background: #000; }
+
+  .chip.primary {
+    background: var(--pin-red);
+    color: white;
+    border-color: rgba(0,0,0,0.2);
+  }
+  .chip.primary:hover { background: #b32d2d; }
+
+  /* settings popover */
+  .pop { position: relative; }
+  .pop-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 280px;
+    background: var(--paper);
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 8px;
+    box-shadow: 0 12px 26px var(--cork-shadow);
+    padding: 12px;
+    font-size: 13px;
+    z-index: 50;
+    display: none;
+    transform: rotate(-0.5deg);
+  }
+  .pop.open .pop-menu { display: block; }
+  .pop-menu h4 {
+    margin: 0 0 8px; font: 700 12px 'Inter'; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+  }
+  .pop-menu .field { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; align-items: center; margin: 6px 0; }
+  .pop-menu select, .pop-menu input[type="text"] {
+    width: 100%; padding: 4px 7px;
+    border: 1px solid rgba(0,0,0,0.18);
+    border-radius: 4px; background: white; font: 500 12px 'Inter';
+  }
+  .pop-menu .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+  .pop-menu .switch { width: 28px; height: 16px; background: #d0c8b8; border-radius: 99px; position: relative; cursor: pointer; }
+  .pop-menu .switch.on { background: var(--pin-green); }
+  .pop-menu .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: white; border-radius: 50%; transition: left .15s; }
+  .pop-menu .switch.on::after { left: 14px; }
+  .pop-menu .actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.15); }
+  .btn-apply { flex: 1; padding: 6px; background: var(--ink); color: var(--paper); border: 0; border-radius: 4px; font: 600 12px 'Inter'; cursor: pointer; }
+  .btn-reset { padding: 6px 10px; background: transparent; color: var(--pin-red); border: 1px solid var(--pin-red); border-radius: 4px; font: 600 12px 'Inter'; cursor: pointer; }
+  .pop-menu .danger-note { margin-top: 6px; padding: 6px 8px; background: rgba(211,59,59,0.1); border-left: 3px solid var(--pin-red); font: 500 11px 'Inter'; color: #802020; border-radius: 2px; }
+
+  /* ---------- main corkboard ---------- */
+  .board {
+    position: relative;
+    margin: 18px 22px;
+    min-height: 78vh;
+    z-index: 1;
+  }
+
+  .sticky {
+    position: absolute;
+    background: var(--y-yellow);
+    border: 1px solid var(--y-yellow-edge);
+    box-shadow:
+      2px 6px 10px rgba(0,0,0,0.18),
+      -1px -1px 0 rgba(255,255,255,0.4) inset,
+      1px 1px 0 rgba(0,0,0,0.06) inset;
+    padding: 12px 14px 14px;
+    border-radius: 1px 6px 1px 8px;
+    cursor: grab;
+    user-select: none;
+    transition: transform .15s ease, box-shadow .15s ease, z-index 0s;
+  }
+  .sticky:hover {
+    transform: translateY(-2px) rotate(var(--rot, 0deg)) scale(1.01);
+    box-shadow: 3px 10px 18px rgba(0,0,0,0.25);
+    z-index: 5 !important;
+  }
+  .sticky:active { cursor: grabbing; }
+  .sticky.pin::before {
+    content: "";
+    position: absolute;
+    top: -8px; left: 50%;
+    width: 16px; height: 16px;
+    background: radial-gradient(circle at 30% 30%, #ff7373 0%, var(--pin-red) 55%, #871f1f 100%);
+    border-radius: 50%;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.4);
+    transform: translateX(-50%);
+  }
+  .sticky.pin.green::before { background: radial-gradient(circle at 30% 30%, #7eda9b 0%, var(--pin-green) 55%, #195a31 100%); }
+  .sticky.pin.blue::before { background: radial-gradient(circle at 30% 30%, #7ab1ec 0%, var(--pin-blue) 55%, #173e75 100%); }
+  .sticky.pin.yellow::before { background: radial-gradient(circle at 30% 30%, #f8df7f 0%, var(--pin-yellow) 55%, #87690f 100%); }
+
+  .sticky.pink { background: var(--y-pink); border-color: var(--y-pink-edge); }
+  .sticky.mint { background: var(--y-mint); border-color: var(--y-mint-edge); }
+  .sticky.blue { background: var(--y-blue); border-color: var(--y-blue-edge); }
+  .sticky.peach { background: var(--y-peach); border-color: var(--y-peach-edge); }
+  .sticky.lilac { background: var(--y-lilac); border-color: var(--y-lilac-edge); }
+  .sticky.cream { background: var(--y-cream); border-color: var(--y-cream-edge); }
+
+  .sticky h3 {
+    margin: 0 0 4px;
+    font: 700 15px 'Patrick Hand', 'Caveat', cursive;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .sticky p {
+    margin: 0;
+    font: 400 12.5px 'Patrick Hand', cursive;
+    color: var(--ink-soft);
+    line-height: 1.35;
+  }
+  .sticky .tags {
+    margin-top: 8px;
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .sticky .tags span {
+    font: 500 10px 'Inter'; padding: 2px 6px;
+    background: rgba(255,255,255,0.5);
+    border: 1px dashed rgba(0,0,0,0.18);
+    border-radius: 99px;
+    color: var(--ink-soft);
+  }
+
+  /* the running iframe sticky — the centerpiece */
+  .sticky.iframe-sticky {
+    background: white;
+    width: min(60vw, 920px);
+    min-height: 540px;
+    padding: 0;
+    border-radius: 2px 8px 2px 10px;
+    box-shadow:
+      4px 16px 32px rgba(0,0,0,0.32),
+      0 2px 0 rgba(255,255,255,0.5) inset;
+    border-color: rgba(0,0,0,0.12);
+    cursor: default;
+  }
+  .sticky.iframe-sticky:hover { transform: rotate(var(--rot, 0deg)); }
+  .iframe-sticky .iframe-tape {
+    position: absolute;
+    top: -14px; left: 50%;
+    transform: translateX(-50%) rotate(-1.2deg);
+    background: rgba(244, 228, 168, 0.92);
+    border: 1px dashed rgba(0,0,0,0.22);
+    padding: 4px 14px 5px;
+    font: 500 12px 'JetBrains Mono';
+    color: var(--ink);
+    border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    z-index: 2;
+  }
+  .iframe-sticky .iframe-tape .live-dot {
+    display: inline-block; width: 7px; height: 7px; background: var(--pin-green); border-radius: 50%;
+    margin-right: 6px; vertical-align: middle;
+    box-shadow: 0 0 0 2px rgba(46,158,87,0.25);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  .iframe-sticky .frame-tabbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    background: linear-gradient(180deg, #fafaf6, #f0eee5);
+    border-radius: 2px 8px 0 0;
+  }
+  .iframe-sticky .frame-tabbar .dots {
+    display: flex; gap: 5px;
+  }
+  .iframe-sticky .frame-tabbar .dots span { width: 11px; height: 11px; border-radius: 50%; background: #ddd; }
+  .iframe-sticky .frame-tabbar .dots span:nth-child(1) { background: #ff6058; }
+  .iframe-sticky .frame-tabbar .dots span:nth-child(2) { background: #ffbd2e; }
+  .iframe-sticky .frame-tabbar .dots span:nth-child(3) { background: #28ca42; }
+  .iframe-sticky .frame-tabbar .breadcrumb {
+    flex: 1; text-align: center; font: 500 12px 'JetBrains Mono'; color: var(--ink-soft);
+  }
+  .iframe-sticky .paperclip {
+    cursor: pointer; position: relative;
+  }
+  .iframe-sticky .paperclip i[data-lucide] { width: 18px; height: 18px; color: var(--ink-soft); transform: rotate(15deg); }
+
+  .paperclip-menu {
+    position: absolute;
+    top: 28px; right: 0;
+    background: var(--paper);
+    border: 1px solid rgba(0,0,0,0.18);
+    border-radius: 6px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+    width: 240px;
+    padding: 6px;
+    font: 500 12.5px 'Inter';
+    display: none;
+    z-index: 40;
+  }
+  .paperclip.open .paperclip-menu { display: block; }
+  .paperclip-menu a {
+    display: flex; gap: 8px; align-items: center;
+    padding: 7px 9px; border-radius: 4px;
+    color: var(--ink); text-decoration: none; cursor: pointer;
+  }
+  .paperclip-menu a:hover { background: rgba(0,0,0,0.06); }
+  .paperclip-menu a i[data-lucide] { width: 14px; height: 14px; color: var(--ink-soft); }
+  .paperclip-menu .sep { height: 1px; background: rgba(0,0,0,0.1); margin: 4px 2px; }
+
+  .iframe-body {
+    position: relative;
+    padding: 24px 28px 28px;
+    min-height: 480px;
+    background:
+      linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
+    border-radius: 0 0 2px 10px;
+  }
+  .wp-mock-title {
+    font: 700 28px/1.15 'Inter', sans-serif; color: #1d2327; margin: 0 0 10px;
+  }
+  .wp-mock-sub {
+    font: 400 14.5px/1.5 'Inter'; color: #50575e; max-width: 580px;
+  }
+  .wp-mock-cards {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px;
+  }
+  .wp-mock-card {
+    background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; padding: 14px;
+  }
+  .wp-mock-card h4 { margin: 0 0 6px; font: 600 13px 'Inter'; color: #1d2327; }
+  .wp-mock-card p { margin: 0; font: 400 12px 'Inter'; color: #50575e; }
+  .wp-mock-toolbar {
+    margin-top: 22px; padding-top: 14px; border-top: 1px solid #eee;
+    display: flex; gap: 10px; font: 400 12px 'Inter'; color: #50575e;
+  }
+  .wp-mock-toolbar span::before { content: "·"; margin-right: 10px; color: #aaa; }
+  .wp-mock-toolbar span:first-child::before { content: ""; margin: 0; }
+
+  /* loading state */
+  .iframe-body.loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #50575e; gap: 18px;
+  }
+  .iframe-body.loading .ring {
+    width: 56px; height: 56px;
+    border: 4px solid rgba(0,0,0,0.1);
+    border-top-color: var(--pin-red);
+    border-radius: 50%;
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .iframe-body.loading .step {
+    font: 500 13px 'JetBrains Mono', monospace; color: #1d2327;
+  }
+  .iframe-body.loading .step.muted { color: #888; }
+
+  /* ---------- left tray ---------- */
+  .tray {
+    position: absolute;
+    top: 0; left: 0;
+    width: 240px;
+    background: linear-gradient(180deg, #f6efd6, #ecdfaf);
+    border: 1px solid rgba(0,0,0,0.18);
+    border-radius: 8px;
+    padding: 14px;
+    box-shadow: 3px 8px 16px rgba(0,0,0,0.22);
+    transform: rotate(-1.5deg);
+  }
+  .tray h4 {
+    margin: 0 0 8px;
+    font: 700 12px 'Inter';
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tray .note {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    background: white;
+    border: 1px dashed rgba(0,0,0,0.25);
+    border-radius: 3px;
+    font: 500 13px 'Patrick Hand', cursive;
+    color: var(--ink);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transform: rotate(0deg);
+    transition: transform .12s, background .12s;
+  }
+  .tray .note:hover { background: #fff8e6; transform: translateX(2px); }
+  .tray .note i[data-lucide] { width: 15px; height: 15px; color: var(--ink-soft); }
+  .tray .note.upload { border-style: solid; background: #fffbea; }
+
+  /* the "Saved playgrounds" header tape */
+  .section-tape {
+    position: absolute;
+    background: rgba(255,250,220,0.85);
+    border: 1px dashed rgba(0,0,0,0.2);
+    padding: 4px 14px;
+    font: 700 11px 'Inter';
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    box-shadow: 1px 2px 4px rgba(0,0,0,0.18);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ---------- folder (Site Manager) ---------- */
+  .folder {
+    position: fixed;
+    top: 0; right: 0;
+    width: 540px;
+    height: 100vh;
+    z-index: 80;
+    transform: translateX(100%);
+    transition: transform .35s cubic-bezier(.7,.0,.2,1);
+    display: flex;
+  }
+  .folder.open { transform: translateX(0); }
+  .folder-tabs {
+    width: 56px;
+    background: linear-gradient(180deg, #d2b67a, #b89557);
+    border-right: 1px solid rgba(0,0,0,0.2);
+    padding: 18px 0;
+    display: flex; flex-direction: column; gap: 6px;
+    box-shadow: -4px 0 12px rgba(0,0,0,0.2);
+  }
+  .folder-tab {
+    width: 56px; padding: 12px 8px;
+    background: linear-gradient(180deg, #e6cb91, #c6a563);
+    border: 1px solid rgba(0,0,0,0.2);
+    border-right: 0;
+    border-radius: 6px 0 0 6px;
+    margin-left: 6px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font: 600 10px 'Inter';
+    color: var(--ink);
+    transition: background .12s, margin-left .12s;
+  }
+  .folder-tab i[data-lucide] { width: 18px; height: 18px; }
+  .folder-tab:hover { margin-left: 2px; }
+  .folder-tab.active {
+    background: var(--paper);
+    color: var(--ink);
+    margin-left: 0;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+  }
+
+  .folder-body {
+    flex: 1;
+    background: var(--paper);
+    border-left: 1px solid rgba(0,0,0,0.2);
+    box-shadow: -6px 0 24px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .folder-header {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    background: linear-gradient(180deg, #fdf8e8, #f3ebcf);
+  }
+  .folder-title-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .folder-title {
+    flex: 1;
+    font: 700 18px 'Patrick Hand', cursive;
+    background: transparent;
+    border: 1px dashed transparent;
+    border-radius: 3px;
+    padding: 2px 6px;
+    color: var(--ink);
+    outline: none;
+  }
+  .folder-title:hover, .folder-title:focus { border-color: rgba(0,0,0,0.2); }
+  .folder-header .btn {
+    padding: 5px 10px; border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.2);
+    background: white;
+    font: 600 11.5px 'Inter';
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .folder-header .btn:hover { background: #fffcef; }
+  .folder-header .btn i[data-lucide] { width: 13px; height: 13px; }
+  .folder-header .actions { display: flex; gap: 6px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .folder-header .more {
+    position: relative; margin-left: auto;
+  }
+  .more-menu {
+    position: absolute; top: 30px; right: 0;
+    background: white; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px;
+    padding: 5px; min-width: 290px; z-index: 30;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    display: none;
+  }
+  .more.open .more-menu { display: block; }
+  .more-menu a { display: flex; gap: 8px; align-items: flex-start; padding: 8px 9px; cursor: pointer; border-radius: 4px; font: 500 12px 'Inter'; color: var(--ink); }
+  .more-menu a:hover { background: rgba(0,0,0,0.05); }
+  .more-menu a i[data-lucide] { width: 16px; height: 16px; color: var(--ink-soft); margin-top: 1px; }
+  .more-menu a small { display: block; color: var(--ink-soft); font: 400 11px 'Inter'; margin-top: 2px; }
+
+  .folder-close {
+    background: transparent; border: 0; cursor: pointer; color: var(--ink-soft);
+  }
+  .folder-close i[data-lucide] { width: 18px; height: 18px; }
+
+  .folder-pane {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px;
+    display: none;
+  }
+  .folder-pane.active { display: block; }
+
+  .notice {
+    padding: 10px 12px;
+    background: rgba(230,181,38,0.18);
+    border-left: 3px solid var(--pin-yellow);
+    border-radius: 3px;
+    font: 500 12px 'Inter';
+    color: #6b4d05;
+    margin-bottom: 12px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .notice .btn-save-local {
+    margin-left: auto;
+    padding: 4px 10px; background: var(--pin-yellow); color: #3a2900; border: 0;
+    border-radius: 3px; font: 700 11px 'Inter'; cursor: pointer;
+  }
+  .notice.early {
+    background: rgba(47,111,200,0.13);
+    border-left-color: var(--pin-blue);
+    color: #1d3a6b;
+  }
+
+  /* settings pane */
+  .settings-grid {
+    display: grid; grid-template-columns: 110px 1fr; gap: 10px 12px; align-items: center;
+    font-size: 13px;
+  }
+  .settings-grid select, .settings-grid input[type=text] {
+    padding: 6px 9px; border: 1px solid rgba(0,0,0,0.18); border-radius: 4px; background: white; font: 500 12.5px 'Inter';
+  }
+  .settings-grid .row-switch { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+  .settings-actions { margin-top: 18px; display: flex; gap: 8px; padding-top: 14px; border-top: 1px dashed rgba(0,0,0,0.15); }
+  .settings-actions .danger-band {
+    flex: 1; padding: 8px 10px; background: rgba(211,59,59,0.1); border: 1px solid rgba(211,59,59,0.3);
+    border-radius: 4px; font: 500 11px 'Inter'; color: #802020;
+  }
+
+  /* file tree */
+  .file-layout { display: grid; grid-template-columns: 200px 1fr; gap: 10px; height: 100%; }
+  .file-tree { background: #fff; border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; padding: 8px; font: 500 12px 'JetBrains Mono'; max-height: 460px; overflow: auto; }
+  .file-tree-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+  .file-tree-actions button { flex: 1; padding: 4px 6px; border: 1px solid rgba(0,0,0,0.15); background: #fafafa; font: 600 10.5px 'Inter'; border-radius: 3px; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; justify-content: center; }
+  .file-tree-actions button i[data-lucide] { width: 11px; height: 11px; }
+  .file-tree ul { list-style: none; padding-left: 12px; margin: 0; }
+  .file-tree li { padding: 2px 0; color: var(--ink); cursor: pointer; display: flex; gap: 4px; align-items: center; }
+  .file-tree li:hover { color: var(--pin-blue); }
+  .file-tree li i[data-lucide] { width: 13px; height: 13px; color: var(--ink-soft); }
+  .file-tree li.active { color: var(--pin-red); font-weight: 600; }
+  .code-pane { background: #1e1e1e; color: #e6e6e6; border-radius: 4px; padding: 14px 16px; font: 400 12px/1.55 'JetBrains Mono', monospace; overflow: auto; }
+  .code-pane .k { color: #ce9178; }
+  .code-pane .s { color: #b5cea8; }
+  .code-pane .c { color: #6a9955; }
+  .code-pane .p { color: #9cdcfe; }
+
+  /* blueprint pane */
+  .bp-pane-layout { display: grid; grid-template-columns: 180px 1fr; gap: 10px; }
+  .bp-actions { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .bp-actions button { padding: 5px 10px; border: 1px solid rgba(0,0,0,0.2); background: white; border-radius: 4px; font: 600 11.5px 'Inter'; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+  .bp-actions button i[data-lucide] { width: 13px; height: 13px; }
+  .bp-actions button.primary { background: var(--pin-green); color: white; border-color: rgba(0,0,0,0.2); }
+
+  /* db pane */
+  .db-table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; overflow: hidden; }
+  .db-table th { background: #f3ebcf; text-align: left; padding: 6px 9px; font: 700 11px 'Inter'; color: var(--ink); }
+  .db-table td { padding: 6px 9px; border-top: 1px solid rgba(0,0,0,0.06); font: 400 12px 'JetBrains Mono'; color: var(--ink); }
+  .db-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .db-tabs button { padding: 4px 10px; border: 1px solid rgba(0,0,0,0.18); background: white; border-radius: 99px; font: 600 11px 'Inter'; cursor: pointer; }
+  .db-tabs button.active { background: var(--ink); color: var(--paper); }
+
+  /* logs pane */
+  .logs-search { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .logs-search input { flex: 1; padding: 5px 9px; border: 1px solid rgba(0,0,0,0.18); border-radius: 4px; font: 500 12px 'Inter'; }
+  .logs-search select { padding: 5px; border: 1px solid rgba(0,0,0,0.18); border-radius: 4px; background: white; font: 500 11.5px 'Inter'; }
+  .log-list { background: #1e1e1e; color: #ddd; border-radius: 4px; padding: 10px 12px; font: 400 11.5px/1.6 'JetBrains Mono'; max-height: 460px; overflow: auto; }
+  .log-line { display: flex; gap: 8px; padding: 1px 0; }
+  .log-line .lv { font-weight: 700; min-width: 56px; }
+  .log-line.err .lv { color: #f48771; }
+  .log-line.warn .lv { color: #e0c060; }
+  .log-line.info .lv { color: #6cb6ff; }
+  .log-line .ts { color: #777; min-width: 56px; }
+  .log-line .msg { flex: 1; color: #ddd; }
+
+  /* ---------- bottom binder (blueprint gallery) ---------- */
+  .binder {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    transform: translateY(calc(100% - 56px));
+    transition: transform .35s cubic-bezier(.7,.0,.2,1);
+  }
+  .binder.open { transform: translateY(0); }
+  .binder-handle {
+    height: 56px;
+    background: linear-gradient(180deg, #e3c585, #c69e4b);
+    border-top: 1px solid rgba(0,0,0,0.22);
+    box-shadow: 0 -6px 16px rgba(0,0,0,0.25);
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 22px;
+    cursor: pointer;
+  }
+  .binder-handle .grip { display: flex; flex-direction: column; gap: 3px; }
+  .binder-handle .grip span { width: 28px; height: 3px; border-radius: 99px; background: rgba(0,0,0,0.3); }
+  .binder-handle h3 { margin: 0; font: 700 14px 'Inter'; color: var(--ink); display: flex; gap: 8px; align-items: center; }
+  .binder-handle .count { font: 600 11px 'Inter'; padding: 2px 8px; background: rgba(255,255,255,0.6); border-radius: 99px; color: var(--ink-soft); }
+  .binder-handle .open-hint { margin-left: auto; font: 500 11px 'Inter'; color: var(--ink-soft); }
+  .binder-handle .open-hint i[data-lucide] { width: 14px; height: 14px; vertical-align: middle; }
+
+  .binder-body {
+    height: 68vh;
+    background: linear-gradient(180deg, #f5ecc6 0%, #ead9a1 100%);
+    border-top: 1px solid rgba(0,0,0,0.2);
+    padding: 12px 22px 22px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .binder-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .binder-search {
+    flex: 1; min-width: 220px;
+    display: flex; align-items: center; gap: 8px;
+    background: white; border: 1px solid rgba(0,0,0,0.18); border-radius: 99px;
+    padding: 5px 12px; font: 500 12.5px 'Inter';
+  }
+  .binder-search input { flex: 1; border: 0; outline: 0; font: inherit; }
+  .binder-search i[data-lucide] { width: 14px; height: 14px; color: var(--ink-soft); }
+  .cat-tab {
+    padding: 5px 12px; border-radius: 99px 99px 0 0;
+    border: 1px solid rgba(0,0,0,0.18); border-bottom: 0;
+    background: #f0e1ad; font: 600 11.5px 'Inter';
+    color: var(--ink); cursor: pointer;
+    margin-bottom: -1px;
+  }
+  .cat-tab:hover { background: #fff5d6; }
+  .cat-tab.active { background: var(--paper); color: var(--ink); position: relative; z-index: 2; }
+  .cat-row { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid rgba(0,0,0,0.18); margin-bottom: 12px; padding-bottom: 0; }
+
+  .bp-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px 14px;
+    overflow-y: auto;
+    padding: 6px 4px 12px;
+  }
+  .bp-card {
+    background: white;
+    border: 1px solid rgba(0,0,0,0.18);
+    border-radius: 2px 6px 2px 8px;
+    padding: 12px 13px 13px;
+    position: relative;
+    box-shadow: 1px 3px 6px rgba(0,0,0,0.12);
+    cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .bp-card:nth-child(3n+1) { transform: rotate(-0.6deg); }
+  .bp-card:nth-child(3n+2) { transform: rotate(0.4deg); }
+  .bp-card:nth-child(3n+3) { transform: rotate(-0.2deg); }
+  .bp-card:hover { transform: rotate(0deg) translateY(-2px); box-shadow: 2px 8px 14px rgba(0,0,0,0.2); }
+  .bp-card .num {
+    position: absolute; top: -8px; left: 10px;
+    background: var(--pin-red); color: white; font: 700 10px 'Inter';
+    padding: 2px 7px; border-radius: 99px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .bp-card.featured { background: linear-gradient(160deg, #fffbe2, #fff); }
+  .bp-card.featured .num { background: var(--pin-yellow); color: #3a2900; }
+  .bp-card h4 { margin: 0 0 4px; font: 700 14px 'Patrick Hand', cursive; color: var(--ink); padding-right: 14px; }
+  .bp-card p { margin: 0; font: 400 12px 'Inter'; color: var(--ink-soft); line-height: 1.4; min-height: 32px; }
+  .bp-card .tags { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .bp-card .tags span { font: 500 9.5px 'Inter'; padding: 1px 6px; background: rgba(0,0,0,0.06); border-radius: 99px; color: var(--ink-soft); }
+  .bp-card.featured::after {
+    content: "★"; position: absolute; top: 8px; right: 10px; color: var(--pin-yellow); font-size: 14px;
+  }
+
+  /* ---------- toast flags ---------- */
+  .toasts {
+    position: fixed; left: 22px; bottom: 80px;
+    display: flex; flex-direction: column-reverse; gap: 8px;
+    z-index: 70;
+  }
+  .toast {
+    position: relative;
+    background: var(--y-mint);
+    border: 1px solid var(--y-mint-edge);
+    padding: 10px 14px 10px 32px;
+    border-radius: 2px 6px 2px 8px;
+    font: 500 12.5px 'Patrick Hand', cursive;
+    color: var(--ink);
+    box-shadow: 2px 4px 8px rgba(0,0,0,0.18);
+    max-width: 320px;
+    transform: rotate(-1.2deg);
+  }
+  .toast::before {
+    content: "";
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--pin-green); box-shadow: 0 0 0 2px rgba(46,158,87,0.25);
+  }
+  .toast.warn { background: var(--y-peach); border-color: var(--y-peach-edge); }
+  .toast.warn::before { background: var(--pin-yellow); box-shadow: 0 0 0 2px rgba(230,181,38,0.3); }
+  .toast.err { background: var(--y-pink); border-color: var(--y-pink-edge); }
+  .toast.err::before { background: var(--pin-red); box-shadow: 0 0 0 2px rgba(211,59,59,0.25); }
+
+  /* ---------- state switcher ---------- */
+  .state-switch {
+    position: fixed;
+    bottom: 14px; right: 22px;
+    background: var(--paper);
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 99px;
+    padding: 4px;
+    display: flex; gap: 2px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 100;
+    font: 600 11.5px 'Inter';
+  }
+  .state-switch button {
+    padding: 6px 12px; border: 0; background: transparent; cursor: pointer;
+    border-radius: 99px; color: var(--ink-soft);
+  }
+  .state-switch button.active { background: var(--ink); color: var(--paper); }
+
+  /* peeling effect — corner curl on featured */
+  .sticky.curl::after {
+    content: "";
+    position: absolute;
+    right: 0; bottom: 0;
+    width: 18px; height: 18px;
+    background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.12) 50%);
+    border-radius: 0 0 6px 0;
+  }
+
+  /* mobile */
+  @media (max-width: 640px) {
+    .rail { grid-template-columns: 1fr; gap: 6px; transform: none; }
+    .rail .urlbar { grid-row: 2; }
+    .rail .name-stamp { grid-row: 3; align-self: start; }
+    .rail .rail-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rail::before, .rail::after { display: none; }
+
+    .board { margin: 12px; min-height: auto; }
+    .tray, .sticky { position: relative; left: auto !important; top: auto !important; right: auto !important; bottom: auto !important; transform: rotate(-0.5deg) !important; width: auto !important; margin: 10px 0; }
+    .sticky.iframe-sticky { width: 100% !important; min-height: 360px; }
+    .iframe-body { padding: 14px 16px; min-height: 320px; }
+    .wp-mock-cards { grid-template-columns: 1fr; }
+
+    .folder { width: 100%; }
+    .folder-tabs { width: 48px; }
+    .folder-tab { width: 48px; padding: 10px 4px; }
+    .bp-pane-layout, .file-layout { grid-template-columns: 1fr; }
+    .file-tree { max-height: 200px; }
+
+    .binder-body { height: 75vh; padding: 10px 12px 14px; }
+    .bp-grid { grid-template-columns: 1fr 1fr; }
+
+    .state-switch { right: 8px; bottom: 8px; font-size: 10.5px; }
+    .toasts { left: 8px; right: 8px; bottom: 60px; }
+    .toast { max-width: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============= TOP TAPE RAIL ============= -->
+<div class="rail" id="rail">
+  <button class="chip icon-only" title="Refresh" onclick="doRefresh()"><i data-lucide="refresh-cw"></i></button>
+  <button class="chip icon-only" title="Open / Close Site Manager folder" onclick="toggleFolder()"><i data-lucide="folder-open"></i></button>
+
+  <div class="urlbar" role="search">
+    <i data-lucide="globe" style="width:14px;height:14px;color:#777"></i>
+    <span class="scheme">/</span>
+    <input id="addr" type="text" value="wp-admin/edit.php?post_type=page" aria-label="Address path" />
+    <button onclick="submitAddr()">Go</button>
+  </div>
+
+  <div class="name-stamp" title="Playground name"><span class="dot"></span>Coffee Shop Demo</div>
+
+  <button class="chip primary" onclick="save()" title="Save to browser"><i data-lucide="bookmark"></i> Save</button>
+  <button class="chip" onclick="toggleBinder()" title="Saved Playgrounds &amp; blueprints"><i data-lucide="layout-grid"></i> Launcher</button>
+
+  <div class="pop" id="settingsPop">
+    <button class="chip icon-only" onclick="togglePop('settingsPop')" title="Quick settings"><i data-lucide="sliders-horizontal"></i></button>
+    <div class="pop-menu">
+      <h4>Quick settings</h4>
+      <div class="field"><label>WP version</label><select><option>6.6</option><option selected>6.5</option><option>6.4</option><option>nightly</option></select></div>
+      <div class="field"><label>PHP version</label><select><option>8.3</option><option selected>8.2</option><option>8.1</option><option>7.4</option></select></div>
+      <div class="field"><label>Language</label><select><option selected>en_US</option><option>ja</option><option>de_DE</option><option>fr_FR</option></select></div>
+      <div class="toggle-row"><span>Network access</span><span class="switch on" onclick="this.classList.toggle('on')"></span></div>
+      <div class="toggle-row"><span>Multisite</span><span class="switch" onclick="this.classList.toggle('on')"></span></div>
+      <div class="danger-note"><strong>Heads up:</strong> applying these changes resets the playground.</div>
+      <div class="actions">
+        <button class="btn-apply">Apply &amp; reset</button>
+        <button class="btn-reset">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============= MAIN BOARD ============= -->
+<div class="board" id="board">
+
+  <!-- left tray: start a new playground -->
+  <div class="tray" style="top: 12px; left: 6px;">
+    <h4><i data-lucide="package-plus" style="width:14px;height:14px"></i> Pin a new playground</h4>
+    <div class="note" data-launch="vanilla"><i data-lucide="sparkles"></i>Vanilla WordPress</div>
+    <div class="note" data-launch="wp-pr"><i data-lucide="git-pull-request"></i>WordPress PR…</div>
+    <div class="note" data-launch="gb-pr"><i data-lucide="square-pen"></i>Gutenberg PR…</div>
+    <div class="note" data-launch="github"><i data-lucide="github"></i>From GitHub repo…</div>
+    <div class="note" data-launch="blueprint-url"><i data-lucide="link"></i>Blueprint URL…</div>
+    <div class="note upload" data-launch="zip"><i data-lucide="upload"></i>Import .zip</div>
+    <div style="margin-top:10px; padding-top:8px; border-top: 1px dashed rgba(0,0,0,0.2); font: 500 11px 'Inter'; color: var(--ink-soft); text-align:center;">drag a sticky out, or click any tile</div>
+  </div>
+
+  <!-- Section tapes -->
+  <div class="section-tape" style="top: 4px; left: 270px;">Featured blueprints</div>
+  <div class="section-tape" style="top: 4px; left: 600px;">Running now</div>
+  <div class="section-tape" style="top: 380px; left: 270px;">Your playgrounds</div>
+
+  <!-- Featured blueprint stickies (pinned along top) -->
+  <div class="sticky pin red curl" style="top: 28px; left: 268px; width: 200px; --rot: -2.5deg; transform: rotate(-2.5deg);" data-bp="1">
+    <h3>Art Gallery</h3>
+    <p>Vueo theme, gallery showcase with hero, lightbox, and 12 sample works.</p>
+    <div class="tags"><span>Website</span><span>Personal</span></div>
+  </div>
+  <div class="sticky pink pin yellow curl" style="top: 38px; left: 472px; width: 200px; --rot: 1.5deg; transform: rotate(1.5deg);" data-bp="2">
+    <h3>Coffee Shop</h3>
+    <p>WooCommerce storefront — flat-rate shipping &amp; bank transfer.</p>
+    <div class="tags"><span>WooCommerce</span><span>Store</span></div>
+  </div>
+
+  <!-- The running iframe sticky (center) -->
+  <div class="sticky iframe-sticky" id="iframeSticky" style="top: 30px; left: 692px; --rot: 0.6deg; transform: rotate(0.6deg); z-index: 4;">
+    <div class="iframe-tape"><span class="live-dot"></span>playground.wordpress.net &nbsp;·&nbsp; WP 6.5 · PHP 8.2 · en_US</div>
+    <div class="frame-tabbar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="breadcrumb" id="bcrumb">/wp-admin/edit.php?post_type=page</div>
+      <div class="paperclip" id="paperclip">
+        <i data-lucide="paperclip" onclick="togglePaperclip(event)"></i>
+        <div class="paperclip-menu">
+          <a onclick="toast('Opening WP Admin')"><i data-lucide="user-cog"></i>Open WP Admin</a>
+          <a onclick="toast('Going to homepage')"><i data-lucide="home"></i>Open homepage</a>
+          <div class="sep"></div>
+          <a onclick="toast('Preparing GitHub PR…','warn')"><i data-lucide="git-pull-request-arrow"></i>Export to GitHub as Pull Request<small>Push theme, plugin, or wp-content to a repo</small></a>
+          <a onclick="toast('Downloading playground.zip','info')"><i data-lucide="download"></i>Download .zip<small>Snapshot the current playground</small></a>
+          <div class="sep"></div>
+          <a onclick="toast('Copied blueprint link')"><i data-lucide="copy"></i>Copy blueprint link</a>
+          <a onclick="toast('Bundle download started')"><i data-lucide="package"></i>Download blueprint bundle</a>
+        </div>
+      </div>
+    </div>
+    <div class="iframe-body" id="iframeBody">
+      <!-- working state by default -->
+      <h1 class="wp-mock-title">Coffee Shop</h1>
+      <p class="wp-mock-sub">A demo storefront running on WordPress + WooCommerce inside your browser. Edit anything — orders, themes, plugins, even files — your changes live in this sticky until you save it.</p>
+
+      <div class="wp-mock-cards">
+        <div class="wp-mock-card"><h4>House Espresso · $4.50</h4><p>Single origin, roasted Tuesday.</p></div>
+        <div class="wp-mock-card"><h4>Cold Brew · $5.20</h4><p>16h slow drip, served on ice.</p></div>
+        <div class="wp-mock-card"><h4>Drip Bag (×6) · $14.00</h4><p>Travel-friendly takeaway pack.</p></div>
+      </div>
+
+      <div class="wp-mock-toolbar">
+        <span>Theme: Storefront-X</span><span>Plugins: WooCommerce, Stripe</span><span>Posts: 38</span><span>Memory: 27.4 MB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Saved playgrounds row -->
+  <div class="sticky mint pin green" style="top: 410px; left: 268px; width: 220px; --rot: -1.8deg; transform: rotate(-1.8deg);" data-saved="1">
+    <h3>Wedding RSVP site</h3>
+    <p style="font-size:11px; color: var(--ink-soft); font-family:'Inter'; font-weight:500;">Saved 2 days ago · 4.1 MB · WP 6.5</p>
+    <div style="margin-top:8px; height:48px; border-radius:3px; background:
+      linear-gradient(135deg, #f6d4d4 0%, #fff3e0 60%, #d4f1d4 100%);
+      border: 1px solid rgba(0,0,0,0.08);"></div>
+    <div class="tags"><span>Twenty Twenty-Four</span><span>Forminator</span></div>
+  </div>
+  <div class="sticky blue pin blue" style="top: 420px; left: 504px; width: 220px; --rot: 2.5deg; transform: rotate(2.5deg);" data-saved="2">
+    <h3>Friends RSS sandbox</h3>
+    <p style="font-size:11px; color: var(--ink-soft); font-family:'Inter'; font-weight:500;">Saved 5 days ago · 12.7 MB · WP nightly</p>
+    <div style="margin-top:8px; height:48px; border-radius:3px; background:
+      repeating-linear-gradient(45deg, #e0eaff 0 6px, #f6f9ff 6px 12px);
+      border: 1px solid rgba(0,0,0,0.08);"></div>
+    <div class="tags"><span>Friends</span><span>ActivityPub</span></div>
+  </div>
+  <div class="sticky peach pin yellow" style="top: 430px; left: 740px; width: 220px; --rot: -0.8deg; transform: rotate(-0.8deg);" data-saved="3">
+    <h3>Twenty-Twenty-Six tinkering</h3>
+    <p style="font-size:11px; color: var(--ink-soft); font-family:'Inter'; font-weight:500;">Saved 11 days ago · 7.8 MB · PHP 8.3</p>
+    <div style="margin-top:8px; height:48px; border-radius:3px; background:
+      linear-gradient(180deg, #1e1e1e 0%, #404040 100%);
+      border: 1px solid rgba(0,0,0,0.08);"></div>
+    <div class="tags"><span>Theme dev</span><span>Beta</span></div>
+  </div>
+  <div class="sticky lilac pin red" style="top: 588px; left: 268px; width: 220px; --rot: 2.2deg; transform: rotate(2.2deg);" data-saved="4">
+    <h3>Workshop scratch pad</h3>
+    <p style="font-size:11px; color: var(--ink-soft); font-family:'Inter'; font-weight:500;">Saved 3w ago · 2.4 MB · WP 6.4</p>
+    <div style="margin-top:8px; height:48px; border-radius:3px; background:
+      repeating-linear-gradient(0deg, #faf6e6 0 4px, #f4eed0 4px 8px);
+      border: 1px solid rgba(0,0,0,0.08);"></div>
+    <div class="tags"><span>Teaching</span><span>Empty start</span></div>
+  </div>
+
+  <!-- a few more featured blueprint stickies floating -->
+  <div class="sticky cream pin green" style="top: 200px; left: 268px; width: 200px; --rot: 1.2deg; transform: rotate(1.2deg);" data-bp="3">
+    <h3>Feed Reader (Friends)</h3>
+    <p>Read RSS + ActivityPub feeds in WP using the Friends plugin.</p>
+    <div class="tags"><span>rss</span><span>social</span><span>web</span></div>
+  </div>
+  <div class="sticky lilac pin blue" style="top: 210px; left: 478px; width: 200px; --rot: -2deg; transform: rotate(-2deg);" data-bp="4">
+    <h3>Gaming News</h3>
+    <p>Magazine-style news site built with the Spiel theme.</p>
+    <div class="tags"><span>Website</span><span>News</span></div>
+  </div>
+</div>
+
+<!-- ============= SITE MANAGER FOLDER ============= -->
+<div class="folder" id="folder">
+  <div class="folder-tabs">
+    <div class="folder-tab active" data-tab="settings" onclick="folderTab('settings')"><i data-lucide="settings"></i>Set</div>
+    <div class="folder-tab" data-tab="files" onclick="folderTab('files')"><i data-lucide="folder-tree"></i>Files</div>
+    <div class="folder-tab" data-tab="blueprint" onclick="folderTab('blueprint')"><i data-lucide="file-json-2"></i>BP</div>
+    <div class="folder-tab" data-tab="db" onclick="folderTab('db')"><i data-lucide="database"></i>DB</div>
+    <div class="folder-tab" data-tab="logs" onclick="folderTab('logs')"><i data-lucide="scroll-text"></i>Logs</div>
+  </div>
+  <div class="folder-body">
+    <div class="folder-header">
+      <div class="folder-title-row">
+        <input class="folder-title" value="Coffee Shop Demo" />
+        <button class="folder-close" onclick="toggleFolder()" title="Close folder"><i data-lucide="x"></i></button>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="toast('Jumping to WP Admin')"><i data-lucide="user-cog"></i>WP Admin</button>
+        <button class="btn" onclick="toast('Going to homepage')"><i data-lucide="home"></i>Homepage</button>
+        <div class="more" id="folderMore">
+          <button class="btn" onclick="toggleMore()"><i data-lucide="more-horizontal"></i> More</button>
+          <div class="more-menu">
+            <a onclick="toast('Preparing GitHub PR…','warn')"><i data-lucide="git-pull-request-arrow"></i><span>Export to GitHub as PR<small>Push theme, plugin or wp-content to a repository as a pull request.</small></span></a>
+            <a onclick="toast('Downloading playground.zip','info')"><i data-lucide="download"></i><span>Download .zip<small>Snapshot the current playground.</small></span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings pane -->
+    <div class="folder-pane active" id="pane-settings">
+      <div class="notice">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px;color:#8a6914;margin-top:1px"></i>
+        <div>
+          This is an <strong>Unsaved Playground</strong>. Your changes will be lost on page refresh.
+          <button class="btn-save-local" onclick="toast('Saved to browser')">Save site locally</button>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <label>WordPress</label>
+        <select><option>6.6</option><option selected>6.5</option><option>6.4</option><option>nightly</option></select>
+        <label>PHP</label>
+        <select><option>8.3</option><option selected>8.2</option><option>8.1</option><option>7.4</option></select>
+        <label>Language</label>
+        <select><option selected>en_US (English)</option><option>ja (Japanese)</option><option>de_DE (Deutsch)</option><option>fr_FR (Français)</option></select>
+        <label>Storage</label>
+        <select><option selected>Temporary (this tab)</option><option>Browser (OPFS)</option><option>Local directory…</option></select>
+        <label>Network</label>
+        <div class="row-switch"><span class="switch on" onclick="this.classList.toggle('on')"></span>Allow outbound HTTP requests</div>
+        <label>Multisite</label>
+        <div class="row-switch"><span class="switch" onclick="this.classList.toggle('on')"></span>Enable subdirectory multisite</div>
+      </div>
+
+      <div class="settings-actions">
+        <div class="danger-band"><strong>Heads up:</strong> applying these settings resets the playground — your edits will be wiped.</div>
+        <button class="btn-apply">Apply &amp; reset</button>
+        <button class="btn-reset">Reset</button>
+      </div>
+    </div>
+
+    <!-- Files pane -->
+    <div class="folder-pane" id="pane-files">
+      <div class="file-layout">
+        <div class="file-tree">
+          <div class="file-tree-actions">
+            <button><i data-lucide="file-plus"></i>New File</button>
+            <button><i data-lucide="folder-plus"></i>New Folder</button>
+          </div>
+          <ul>
+            <li><i data-lucide="chevron-down"></i><i data-lucide="folder"></i>wordpress</li>
+            <ul>
+              <li><i data-lucide="chevron-right"></i><i data-lucide="folder"></i>wp-admin</li>
+              <li><i data-lucide="chevron-down"></i><i data-lucide="folder"></i>wp-content</li>
+              <ul>
+                <li><i data-lucide="chevron-down"></i><i data-lucide="folder"></i>themes</li>
+                <ul>
+                  <li><i data-lucide="folder"></i>storefront-x</li>
+                  <li><i data-lucide="folder"></i>twentytwentyfive</li>
+                </ul>
+                <li><i data-lucide="chevron-down"></i><i data-lucide="folder"></i>plugins</li>
+                <ul>
+                  <li class="active"><i data-lucide="file-code"></i>woocommerce.php</li>
+                  <li><i data-lucide="folder"></i>stripe</li>
+                </ul>
+                <li><i data-lucide="folder"></i>uploads</li>
+              </ul>
+              <li><i data-lucide="chevron-right"></i><i data-lucide="folder"></i>wp-includes</li>
+              <li><i data-lucide="file-code"></i>wp-config.php</li>
+              <li><i data-lucide="file"></i>.htaccess</li>
+            </ul>
+          </ul>
+        </div>
+        <div class="code-pane"><span class="c">/* wp-content/plugins/woocommerce.php */</span>
+<span class="k">&lt;?php</span>
+<span class="c">/**
+ * Plugin Name: WooCommerce
+ * Description: An eCommerce toolkit for WordPress.
+ * Version:     8.6.0
+ */</span>
+
+<span class="k">if</span> ( ! <span class="p">defined</span>( <span class="s">'ABSPATH'</span> ) ) {
+    <span class="k">exit</span>;
+}
+
+<span class="k">define</span>( <span class="s">'WC_PLUGIN_FILE'</span>, <span class="p">__FILE__</span> );
+<span class="k">require_once</span> __DIR__ . <span class="s">'/includes/class-woocommerce.php'</span>;
+
+<span class="p">add_action</span>( <span class="s">'plugins_loaded'</span>, <span class="k">function</span>() {
+    WC()-&gt;<span class="p">init</span>();
+});
+        </div>
+      </div>
+    </div>
+
+    <!-- Blueprint pane -->
+    <div class="folder-pane" id="pane-blueprint">
+      <div class="bp-actions">
+        <button class="primary"><i data-lucide="play"></i>Run blueprint</button>
+        <button><i data-lucide="copy"></i>Copy link to blueprint</button>
+        <button><i data-lucide="package"></i>Download bundle</button>
+      </div>
+      <div class="bp-pane-layout">
+        <div class="file-tree">
+          <div class="file-tree-actions"><button><i data-lucide="file-plus"></i>New</button></div>
+          <ul>
+            <li class="active"><i data-lucide="file-json-2"></i>blueprint.json</li>
+            <li><i data-lucide="file"></i>README.md</li>
+            <li><i data-lucide="folder"></i>plugins</li>
+            <ul>
+              <li><i data-lucide="file"></i>woocommerce.zip</li>
+              <li><i data-lucide="file"></i>stripe.zip</li>
+            </ul>
+            <li><i data-lucide="folder"></i>content</li>
+            <ul>
+              <li><i data-lucide="file"></i>products.xml</li>
+            </ul>
+          </ul>
+        </div>
+        <div class="code-pane">{
+  <span class="p">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+  <span class="p">"meta"</span>: {
+    <span class="p">"title"</span>: <span class="s">"Coffee Shop"</span>,
+    <span class="p">"description"</span>: <span class="s">"A WooCommerce coffee shop with sample products."</span>
+  },
+  <span class="p">"landingPage"</span>: <span class="s">"/shop/"</span>,
+  <span class="p">"preferredVersions"</span>: {
+    <span class="p">"php"</span>: <span class="s">"8.2"</span>,
+    <span class="p">"wp"</span>: <span class="s">"6.5"</span>
+  },
+  <span class="p">"steps"</span>: [
+    { <span class="p">"step"</span>: <span class="s">"login"</span> },
+    { <span class="p">"step"</span>: <span class="s">"installTheme"</span>,
+      <span class="p">"themeData"</span>: { <span class="p">"resource"</span>: <span class="s">"wordpress.org/themes"</span>, <span class="p">"slug"</span>: <span class="s">"storefront"</span> } },
+    { <span class="p">"step"</span>: <span class="s">"installPlugin"</span>,
+      <span class="p">"pluginData"</span>: { <span class="p">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="p">"slug"</span>: <span class="s">"woocommerce"</span> } },
+    { <span class="p">"step"</span>: <span class="s">"importWxr"</span>,
+      <span class="p">"file"</span>: { <span class="p">"resource"</span>: <span class="s">"url"</span>, <span class="p">"url"</span>: <span class="s">"./content/products.xml"</span> } },
+    { <span class="p">"step"</span>: <span class="s">"setSiteOptions"</span>,
+      <span class="p">"options"</span>: { <span class="p">"blogname"</span>: <span class="s">"Bean &amp; Brew"</span>, <span class="p">"permalink_structure"</span>: <span class="s">"/%postname%/"</span> } }
+  ]
+}
+        </div>
+      </div>
+    </div>
+
+    <!-- DB pane -->
+    <div class="folder-pane" id="pane-db">
+      <div class="notice early">
+        <i data-lucide="info" style="width:16px;height:16px;color:#1d3a6b;margin-top:1px"></i>
+        <div>Database management is an <strong>early access</strong> feature. Report bugs on the <u>GitHub issue tracker</u>.</div>
+      </div>
+      <div class="db-tabs">
+        <button class="active">wp_posts</button>
+        <button>wp_options</button>
+        <button>wp_users</button>
+        <button>wp_woocommerce_orders</button>
+        <button>+ SQL</button>
+      </div>
+      <table class="db-table">
+        <thead><tr><th>ID</th><th>post_title</th><th>post_type</th><th>post_status</th><th>post_date</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Hello world!</td><td>post</td><td>publish</td><td>2026-05-12 09:14</td></tr>
+          <tr><td>2</td><td>Sample Page</td><td>page</td><td>publish</td><td>2026-05-12 09:14</td></tr>
+          <tr><td>14</td><td>Shop</td><td>page</td><td>publish</td><td>2026-05-12 09:15</td></tr>
+          <tr><td>15</td><td>Cart</td><td>page</td><td>publish</td><td>2026-05-12 09:15</td></tr>
+          <tr><td>23</td><td>House Espresso</td><td>product</td><td>publish</td><td>2026-05-13 11:08</td></tr>
+          <tr><td>24</td><td>Cold Brew</td><td>product</td><td>publish</td><td>2026-05-13 11:09</td></tr>
+          <tr><td>25</td><td>Drip Bag</td><td>product</td><td>publish</td><td>2026-05-13 11:10</td></tr>
+          <tr><td>31</td><td>Roast notes — May '26</td><td>post</td><td>draft</td><td>2026-05-19 08:02</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Logs pane -->
+    <div class="folder-pane" id="pane-logs">
+      <div class="logs-search">
+        <input placeholder="Search PHP error log…" />
+        <select><option>All levels</option><option>Errors</option><option>Warnings</option><option>Info</option></select>
+        <button class="btn"><i data-lucide="trash-2"></i></button>
+      </div>
+      <div class="log-list">
+        <div class="log-line info"><span class="ts">14:02:01</span><span class="lv">INFO</span><span class="msg">Booted PHP 8.2.16 with WP 6.5 (en_US)</span></div>
+        <div class="log-line info"><span class="ts">14:02:02</span><span class="lv">INFO</span><span class="msg">Activated theme: storefront-x</span></div>
+        <div class="log-line info"><span class="ts">14:02:02</span><span class="lv">INFO</span><span class="msg">Activated plugin: woocommerce/woocommerce.php</span></div>
+        <div class="log-line warn"><span class="ts">14:02:04</span><span class="lv">WARN</span><span class="msg">PHP Notice: Trying to access array offset on null in /wordpress/wp-content/plugins/woocommerce/includes/wc-cart-functions.php on line 412</span></div>
+        <div class="log-line info"><span class="ts">14:02:05</span><span class="lv">INFO</span><span class="msg">Imported 18 products from /content/products.xml</span></div>
+        <div class="log-line err"><span class="ts">14:02:06</span><span class="lv">ERROR</span><span class="msg">cURL error 6: Could not resolve host: api.stripe.com — network disabled?</span></div>
+        <div class="log-line warn"><span class="ts">14:02:07</span><span class="lv">WARN</span><span class="msg">Deprecated: Function wp_make_link_relative() will be removed in WP 6.7</span></div>
+        <div class="log-line info"><span class="ts">14:04:11</span><span class="lv">INFO</span><span class="msg">User #1 logged in (admin)</span></div>
+        <div class="log-line info"><span class="ts">14:04:12</span><span class="lv">INFO</span><span class="msg">GET /wp-admin/edit.php?post_type=page (200, 41 queries, 211ms)</span></div>
+        <div class="log-line err"><span class="ts">14:05:39</span><span class="lv">ERROR</span><span class="msg">Fatal error: Uncaught TypeError in WC()-&gt;cart-&gt;get_total() at line 87</span></div>
+        <div class="log-line info"><span class="ts">14:06:02</span><span class="lv">INFO</span><span class="msg">Cron event 'wc_cleanup_logs' executed in 18ms</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============= BLUEPRINT BINDER (drawer) ============= -->
+<div class="binder" id="binder">
+  <div class="binder-handle" onclick="toggleBinder()">
+    <div class="grip"><span></span><span></span><span></span></div>
+    <h3><i data-lucide="layout-grid" style="width:14px;height:14px"></i> Saved Playgrounds &amp; Blueprint binder <span class="count">43 cards</span></h3>
+    <div class="open-hint"><span id="binderHint">Click to open</span> <i data-lucide="chevron-up"></i></div>
+  </div>
+  <div class="binder-body">
+    <div class="binder-controls">
+      <div class="binder-search">
+        <i data-lucide="search"></i>
+        <input placeholder="Search 43 blueprints, your playgrounds, file imports…" />
+      </div>
+      <button class="chip" onclick="toast('Pasting blueprint URL…')"><i data-lucide="link"></i>Blueprint URL</button>
+      <button class="chip" onclick="toast('Choose .zip to import')"><i data-lucide="upload"></i>Import .zip</button>
+    </div>
+    <div class="cat-row" id="cats">
+      <div class="cat-tab active">All</div>
+      <div class="cat-tab">Featured</div>
+      <div class="cat-tab">Website</div>
+      <div class="cat-tab">Personal</div>
+      <div class="cat-tab">Content</div>
+      <div class="cat-tab">Themes</div>
+      <div class="cat-tab">Gutenberg</div>
+      <div class="cat-tab">Experiments</div>
+      <div class="cat-tab">WooCommerce</div>
+      <div class="cat-tab">News</div>
+    </div>
+    <div class="bp-grid" id="bpGrid"></div>
+  </div>
+</div>
+
+<!-- ============= TOASTS ============= -->
+<div class="toasts" id="toasts">
+  <div class="toast">Booted WP 6.5 with PHP 8.2 in 1.4 s</div>
+  <div class="toast warn">Network is disabled — Stripe calls will fail</div>
+</div>
+
+<!-- ============= STATE SWITCHER ============= -->
+<div class="state-switch" role="tablist">
+  <button class="active" data-state="working" onclick="setState('working')">Working</button>
+  <button data-state="booting" onclick="setState('booting')">Booting</button>
+  <button data-state="launcher" onclick="setState('launcher')">Launcher</button>
+  <button data-state="manager" onclick="setState('manager')">Manager</button>
+</div>
+
+<script>
+  // ============== blueprint data ==============
+  const BLUEPRINTS = [
+    [1,"Art Gallery","An art gallery created with the Vueo theme.","Website, Personal",true],
+    [2,"Coffee Shop","A stylish WooCommerce coffee shop storefront with custom theme, products, and content.","WooCommerce, Store",true],
+    [3,"Feed Reader with the Friends Plugin","Read feeds (incl. ActivityPub) in Playground via the Friends plugin.","rss, social, web",true],
+    [4,"Gaming News","A gaming news site created with the Spiel theme.","Website, News",true],
+    [5,"Non-profit Organization","A non-profit organization site created with the Koinonia theme.","Website, Organization",true],
+    [6,"Personal Blog","A personal blog site created with the Substrata theme.","Website, Personal, Blog",false],
+    [7,"Personal Resume","A resume site created with the Readymade theme.","Website, Personal",false],
+    [8,"Photography Portfolio","A photography portfolio created with the Grammer theme.","Website, Personal, Photography",false],
+    [9,"Skincare Blog","A skincare blog created with the Piel theme.","Website, News, Blog",false],
+    [10,"University Website","A university website created with the Kentwood theme.","Website, Organization, Education",false],
+    [11,"Create Block Theme","Install Create Block Theme and start editing right away.","Editor, theme",false],
+    [12,"Create a blog user","Update user meta data for a new blog author.","meta",false],
+    [13,"Custom Post Type: Books","Add a books custom post type to the playground.","Content, CPT",false],
+    [14,"Twenty-Twenty-Five demo","Demo content for the Twenty-Twenty-Five default theme.","Themes, default",false],
+    [15,"Display Admin Notice","Add a tiny mu-plugin and display an admin notice.","Admin notices",false],
+    [16,"Dataview Experiments","Enable all three Dataview Experiments in Gutenberg.","Gutenberg, Experiments",false],
+    [17,"Fancy Dashboard Widget","Display statistics about users, posts and comments.","Dashboard",false],
+    [18,"Grid Variations Experiments","Toggle a Gutenberg Experiments feature on.","Gutenberg, Experiments",false],
+    [19,"Gutenberg Guidelines Experiment","Enable Gutenberg Guidelines experiment.","Gutenberg, Experiments",false],
+    [20,"Theme Starter Content","Install a theme with starter content (Twenty-Twenty-One).","Themes, Starter Content",false],
+    [21,"Standalone starter content","Import a stand-alone starter content file via a blueprint step.","Themes, Starter Content",false],
+    [22,"Japanese language pack","Install and activate the latest Japanese translation pack.","core",false],
+    [23,"Plugin from a gist","Install/activate a WordPress plugin from a .php file in a gist.","plugins",false],
+    [24,"Latest Gutenberg","Preview the latest Gutenberg plugin build.","plugins",false],
+    [25,"Theme from a GitHub repo","Load/activate/configure a theme from a GitHub repository.","theme",false],
+    [26,"Login as editor","Test the site as an editor rather than an administrator.","User Role",false],
+    [27,"Markdown / Trac editor","Edit Markdown / Trac formatting in the block editor (blocky-formats).","block-editor",false],
+    [28,"Minimal WooCommerce setup","WooCommerce + flat-rate shipping + sample products + bank transfer.","woocommerce, shipping",false],
+    [29,"My WordPress","Welcome experience for persistent Playground — personalize site name, import RSS.","Playground, Onboarding",false],
+    [30,"Playground Landing Page","Landing page for the WordPress Playground.","meta",false],
+    [31,"Pretty permalinks","Set the permalink structure to /%postname%/.","Settings",false],
+    [32,"Reset & import (with logs)","Reset default data before importing custom content; logs each step.","reset, log, debug",false],
+    [33,"Serve media from another host","Redirect uploads requests to an external host.","Settings",false],
+    [34,"Admin color: Modern","Set admin color scheme to Modern via updateUserMeta step.","user meta",false],
+    [35,"Showcase plugin","Showcase a custom plugin with media and content imported as WXR.","plugin, demo, media",false],
+    [36,"Stylish Press","A Woo store with custom theme, content, and products.","Woocommerce, Site",false],
+    [37,"Theme Tester","Add content and plugins to explore a theme.","themes, content",false],
+    [38,"WPGraphQL playground","Loads WordPress with WPGraphQL active and the WPGraphQL IDE page.","API, wpgraphql",false],
+    [39,"wp-cli: add posts","Add posts via a wp-cli command.","Content, wpcli",false],
+    [40,"wp-cli: post with image","Create a post from text + block markup + featured image via wp-cli.","Content, wpcli",false],
+    [41,"Weather Shortcode","Connect a weather API and show data as a shortcode (requires API key).","plugin, shortcode",false],
+    [42,"WooCommerce product feed","Create a WooCommerce product and export an XML/CSV product feed.","WooCommerce, Content",false],
+    [43,"WordPress Beta","Test the latest WP Beta/RC with theme test data and debug plugins.","Testing",false],
+  ];
+
+  function renderBlueprints() {
+    const grid = document.getElementById("bpGrid");
+    grid.innerHTML = "";
+    BLUEPRINTS.forEach(([n,t,d,tags,featured]) => {
+      const card = document.createElement("div");
+      card.className = "bp-card" + (featured ? " featured" : "");
+      const tagHtml = tags.split(",").map(s => `<span>${s.trim()}</span>`).join("");
+      card.innerHTML = `
+        <div class="num">#${n}</div>
+        <h4>${t}</h4>
+        <p>${d}</p>
+        <div class="tags">${tagHtml}</div>
+      `;
+      card.onclick = () => { toast(`Pinning "${t}" to the corkboard…`); toggleBinder(); };
+      grid.appendChild(card);
+    });
+  }
+  renderBlueprints();
+
+  // ============== drag stickies ==============
+  function makeDraggable(el) {
+    let sx=0, sy=0, ox=0, oy=0, dragging=false, moved=false;
+    const onDown = (e) => {
+      if (e.target.closest(".paperclip, .paperclip-menu, .iframe-tape, .frame-tabbar")) return;
+      const ev = e.touches ? e.touches[0] : e;
+      sx = ev.clientX; sy = ev.clientY;
+      ox = parseFloat(el.style.left || el.offsetLeft);
+      oy = parseFloat(el.style.top || el.offsetTop);
+      dragging = true; moved = false;
+      el.style.zIndex = 30;
+      el.style.cursor = "grabbing";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.addEventListener("touchmove", onMove, {passive: false});
+      document.addEventListener("touchend", onUp);
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const ev = e.touches ? e.touches[0] : e;
+      const dx = ev.clientX - sx;
+      const dy = ev.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+      el.style.left = (ox + dx) + "px";
+      el.style.top = (oy + dy) + "px";
+      if (e.cancelable) e.preventDefault();
+    };
+    const onUp = () => {
+      dragging = false;
+      el.style.cursor = "grab";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
+      if (!moved) {
+        if (el.classList.contains("iframe-sticky")) return;
+        toast(`Peeling "${el.querySelector("h3")?.textContent}" forward…`);
+      }
+    };
+    el.addEventListener("mousedown", onDown);
+    el.addEventListener("touchstart", onDown, {passive: true});
+  }
+  document.querySelectorAll(".sticky").forEach(makeDraggable);
+
+  // ============== rail interactions ==============
+  function togglePop(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle("open");
+    document.addEventListener("click", function close(e){
+      if (!el.contains(e.target)) { el.classList.remove("open"); document.removeEventListener("click", close); }
+    });
+  }
+  function togglePaperclip(e) {
+    e.stopPropagation();
+    document.getElementById("paperclip").classList.toggle("open");
+  }
+  document.addEventListener("click", (e) => {
+    const pc = document.getElementById("paperclip");
+    if (pc && !pc.contains(e.target)) pc.classList.remove("open");
+    const m = document.getElementById("folderMore");
+    if (m && !m.contains(e.target)) m.classList.remove("open");
+  });
+  function toggleMore(){ document.getElementById("folderMore").classList.toggle("open"); }
+
+  function submitAddr() {
+    const v = document.getElementById("addr").value;
+    document.getElementById("bcrumb").textContent = "/" + v.replace(/^\//,"");
+    toast("Navigating to /" + v.replace(/^\//,""));
+  }
+  document.getElementById("addr").addEventListener("keydown", e => { if (e.key === "Enter") submitAddr(); });
+
+  function doRefresh() {
+    setState("booting");
+    setTimeout(() => setState("working"), 1600);
+  }
+  function save() { toast("Saved playground to browser storage"); }
+
+  function toggleFolder() {
+    document.getElementById("folder").classList.toggle("open");
+  }
+  function toggleBinder() {
+    const b = document.getElementById("binder");
+    b.classList.toggle("open");
+    document.getElementById("binderHint").textContent = b.classList.contains("open") ? "Click to close" : "Click to open";
+  }
+  function folderTab(name) {
+    document.querySelectorAll(".folder-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+    document.querySelectorAll(".folder-pane").forEach(p => p.classList.toggle("active", p.id === "pane-"+name));
+  }
+
+  // ============== state demos ==============
+  const body = document.getElementById("iframeBody");
+  const workingHtml = body.innerHTML;
+  const loadingHtml = `
+    <div class="ring"></div>
+    <div class="step">Booting WordPress…</div>
+    <div class="step muted" style="font-size:11px">→ Spinning up PHP 8.2 (WASM)</div>
+    <div class="step muted" style="font-size:11px">→ Mounting SQLite database</div>
+    <div class="step muted" style="font-size:11px">→ Installing Storefront theme</div>
+    <div class="step muted" style="font-size:11px">→ Importing 18 products</div>
+    <div class="step muted" style="font-size:11px">→ Running setSiteOptions</div>
+  `;
+  function setState(name) {
+    document.querySelectorAll(".state-switch button").forEach(b => b.classList.toggle("active", b.dataset.state === name));
+    document.getElementById("folder").classList.toggle("open", name === "manager");
+    document.getElementById("binder").classList.toggle("open", name === "launcher");
+    document.getElementById("binderHint").textContent = name === "launcher" ? "Click to close" : "Click to open";
+    if (name === "booting") {
+      body.classList.add("loading");
+      body.innerHTML = loadingHtml;
+    } else {
+      body.classList.remove("loading");
+      body.innerHTML = workingHtml;
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ============== toast ==============
+  function toast(text, type) {
+    const t = document.createElement("div");
+    t.className = "toast" + (type ? " "+type : "");
+    t.textContent = text;
+    document.getElementById("toasts").appendChild(t);
+    setTimeout(() => { t.style.transition = "opacity .3s"; t.style.opacity = 0; setTimeout(() => t.remove(), 320); }, 3200);
+  }
+
+  // ============== tray quick launchers ==============
+  document.querySelectorAll(".tray .note").forEach(n => {
+    n.onclick = () => {
+      const kind = n.dataset.launch;
+      const label = {
+        "vanilla": "Vanilla WordPress",
+        "wp-pr": "WordPress core PR (paste PR #)",
+        "gb-pr": "Gutenberg PR (paste PR #)",
+        "github": "GitHub repo URL",
+        "blueprint-url": "Blueprint URL",
+        "zip": "Choose .zip to import",
+      }[kind] || kind;
+      toast(`Pinning new sticky · ${label}`);
+    };
+  });
+  // category tabs
+  document.querySelectorAll("#cats .cat-tab").forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll("#cats .cat-tab").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+    };
+  });
+
+  // ============== icons ==============
+  if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>
