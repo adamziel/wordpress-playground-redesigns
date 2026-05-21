@@ -1,0 +1,13 @@
+# V3 Design 012 - Full-size Canvas
+
+## Thesis
+This redesign keeps the useful part of the Figma metaphor without turning Playground into a busy design tool. The user works on one selected Playground frame at a time; the live WordPress iframe is the dominant object, surrounded by sparse browser chrome, a compact launcher surface, a contextual inspector, minimap/fit controls, and a first-class full-size site mode. The visual language is immersive and site-first: edge-docked translucent controls sit over a neutral canvas, but the running WordPress site remains the credible center.
+
+## Remix, Merge, Remove
+I remixed the original Figma-like layers/assets/inspector structure into a quieter selected-frame model. The Saved Playgrounds launcher becomes an edge sheet with all current start routes, full blueprint gallery search/filtering, and Your Playgrounds. Route tiles reveal the required input for WordPress PR, Gutenberg PR, GitHub, Blueprint URL, and ZIP import instead of being generic buttons. Site Manager features move into the right inspector tabs: Settings, Files, Blueprint, Database, and Logs. WP Admin, Homepage, Export to GitHub PR, and Download .zip remain visible in the inspector, with WP Admin/Homepage also available from the focused frame bar. The settings popover is retained as a quick peek, but destructive Apply & Reset always routes to the same confirmation dialog.
+
+## Trade-offs
+The canvas model adds spatial context and saved-frame affordances, but it can become distracting if every canvas tool is always visible. This version deliberately avoids broad tool palettes and uses only the minimap and zoom/fit controls as persistent canvas furniture. The launcher opens over the site because discovery matters, but full-size mode removes it and the inspector entirely while keeping Save, URL, WP Admin, Homepage, and exit controls reachable. On mobile, the inspector and launcher become bottom sheets; this preserves feature coverage but makes deep file/database work less comfortable than desktop.
+
+## Self-Critique And Revision Note
+Against the V3 insights, the main risks were button clutter, generic start tiles, and trapping the iframe in a small card. I revised toward a single selected frame, route-specific input states, a large destructive confirmation with save-first escape, and an explicit Focus Site mode. One remaining weakness is that the quick settings popover still duplicates fields from the inspector because the current product requires that trigger; the mitigation is that both surfaces use the same destructive confirmation and the inspector is presented as the canonical editing home.
