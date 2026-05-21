@@ -1,0 +1,13 @@
+# V3 Design 047 - Saved Tabs Workspace
+
+## Thesis
+This design uses tabs as the single navigation primitive for WordPress Playground. The first viewport is the live Site tab: a usable browser-like shell with a real iframe, path input, Refresh, Save, WP Admin, Homepage, and Focus Site. Every management surface is a peer tab rather than a drawer, sidebar, popover, or modal stack. The assigned variation is saved identity rigor, so the design treats "Unsaved Playground" as an object with consequences: it has a warning chip, a progress state while saving to local browser storage, a saved row after completion, and a dedicated Saved tab for resume, rename, delete, reload, and reset outcomes.
+
+## Remix / Merge / Remove
+The Saved Playgrounds launcher becomes the Start tab, with all six current launch routes and concrete inputs for WordPress PR, Gutenberg PR/branch, GitHub repo, Blueprint URL, and a real ZIP file input. The full 43-item blueprint browser becomes the Blueprints tab with search and category filters. The Site Manager becomes direct tabs for Settings, Files, Blueprint, Database, Logs, and Export, which keeps Database and Logs first-class instead of hiding them under "More." The toolbar Settings and Tools buttons do not open separate surfaces; they activate the relevant tabs. The destructive Apply & Reset flow lives only in Settings, with Cancel, Save first, typed RESET, progress, and final toast/boot state.
+
+## Trade-offs
+Tabs make ownership clear, but they force serial work: a user cannot inspect Logs and edit a file side by side. This direction accepts that cost in exchange for removing the current product's mix of top toolbar, left sidebar, right launcher, popover settings, and floating menus. Overflow is handled through a scrollable tab strip on desktop and a bottom tab rail on mobile, which is predictable but still less powerful than a split inspector. The compensation is a Focus Site mode that restores the iframe to full size while preserving Save, path submit, Refresh, WP Admin, Homepage, and Exit.
+
+## Self-Critique / Revision Note
+After checking `v3/INSIGHTS.md` and the V3 audits, I revised the first pass around artifact fidelity and consequence states: the site is a real `iframe srcdoc`, Import .zip is a real file input, route tiles are forms, Save updates the active identity and Your Playgrounds row, and reset shows both destructive copy and a booting/final state. I also kept the Database tab scoped to the current early-access browser instead of adding Adminer, phpMyAdmin, or direct database download actions. The remaining weakness is inherent to tabs-only: power users lose simultaneous site-plus-tool editing, so this design relies heavily on fast tab switching and the full-size Site focus mode.
