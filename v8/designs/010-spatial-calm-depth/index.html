@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spatial Calm Depth - WordPress Playground V8</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18201d;
+      --muted: #5f6b65;
+      --quiet: #7b8580;
+      --line: rgba(28, 38, 34, .13);
+      --line-strong: rgba(28, 38, 34, .23);
+      --paper: #f5f3ed;
+      --canvas: #eeefe8;
+      --surface: rgba(255, 255, 252, .78);
+      --surface-strong: rgba(255, 255, 252, .94);
+      --sage: #466f60;
+      --blue: #356da8;
+      --clay: #a15f43;
+      --amber: #9a6b18;
+      --red: #b2423d;
+      --good: #217249;
+      --z0: 0px;
+      --z1: 8px;
+      --z2: 22px;
+      --z3: 48px;
+      --rail-w: 66px;
+      --top-h: 46px;
+      --pane-w: min(430px, calc(100vw - 128px));
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body {
+      background:
+        linear-gradient(90deg, rgba(28,38,34,.045) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(28,38,34,.035) 1px, transparent 1px),
+        linear-gradient(145deg, #f8f6f0 0%, #ecefe7 58%, #f2efe8 100%);
+      background-size: 42px 42px, 42px 42px, auto;
+      color: var(--ink);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid rgba(53, 109, 168, .72);
+      outline-offset: 2px;
+    }
+
+    .app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      perspective: 1400px;
+      transform-style: preserve-3d;
+    }
+
+    .quiet-rail {
+      position: fixed;
+      z-index: 30;
+      left: 14px;
+      top: 14px;
+      bottom: 14px;
+      width: var(--rail-w);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(252, 252, 248, .72);
+      backdrop-filter: blur(var(--z1)) saturate(1.06);
+      box-shadow: 0 12px 30px rgba(28, 38, 34, .11);
+      display: grid;
+      grid-template-rows: 54px 1fr 74px;
+      justify-items: center;
+      padding: 8px 0;
+      transform: translateZ(16px);
+    }
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(28,38,34,.16);
+      background: #fffdf8;
+      color: #1f3930;
+      font-weight: 760;
+      box-shadow: inset 0 0 0 5px rgba(70,111,96,.09);
+    }
+    .rail-actions {
+      display: grid;
+      gap: 10px;
+      align-self: start;
+      margin-top: 12px;
+    }
+    .rail-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #4f5c56;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    .rail-button:hover, .rail-button.active {
+      background: rgba(255,255,252,.86);
+      border-color: var(--line);
+      box-shadow: 0 8px 18px rgba(28,38,34,.09);
+      color: var(--ink);
+    }
+    .rail-button svg, .icon svg { width: 19px; height: 19px; stroke-width: 1.9; }
+    .rail-button::after {
+      content: attr(aria-label);
+      position: absolute;
+      left: 54px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #17201d;
+      color: white;
+      padding: 5px 7px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .14s ease;
+    }
+    .rail-button:hover::after { opacity: 1; }
+    .tier-tag {
+      align-self: end;
+      writing-mode: vertical-rl;
+      font-size: 10px;
+      color: rgba(28,38,34,.48);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .top-chrome {
+      position: fixed;
+      z-index: 20;
+      top: 14px;
+      left: calc(var(--rail-w) + 28px);
+      right: 14px;
+      height: var(--top-h);
+      display: grid;
+      grid-template-columns: 36px minmax(160px, 1fr) 82px 36px;
+      gap: 8px;
+      align-items: center;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,252,.68);
+      backdrop-filter: blur(var(--z1)) saturate(1.05);
+      box-shadow: 0 14px 36px rgba(28,38,34,.10);
+      transform: translateZ(18px);
+    }
+    .chrome-button, .save-button, .small-action, .segment, .tab, .reset-action, .go-button {
+      min-height: 34px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,252,.74);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 10px;
+      color: #27332f;
+    }
+    .chrome-button { width: 36px; padding: 0; min-height: 34px; }
+    .chrome-button:hover, .save-button:hover, .small-action:hover, .segment:hover, .tab:hover, .reset-action:hover, .go-button:hover {
+      background: #fffef9;
+      border-color: var(--line-strong);
+    }
+    .address {
+      min-width: 0;
+      height: 34px;
+      display: grid;
+      grid-template-columns: 20px 1fr 30px;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(255,255,252,.84);
+      padding-left: 9px;
+      color: var(--muted);
+    }
+    .address input {
+      min-width: 0;
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+    }
+    .go-button {
+      width: 27px;
+      min-height: 27px;
+      padding: 0;
+      margin-right: 2px;
+      color: var(--blue);
+    }
+    .save-button[data-state="unsaved"] { color: var(--amber); }
+    .save-button[data-state="saving"] { color: var(--blue); }
+    .save-button[data-state="saved"] { color: var(--good); }
+
+    .viewport {
+      position: fixed;
+      z-index: 1;
+      left: calc(var(--rail-w) + 28px);
+      right: 14px;
+      top: calc(var(--top-h) + 26px);
+      bottom: 14px;
+      border: 1px solid rgba(28,38,34,.16);
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 30px 90px rgba(28,38,34,.16);
+      transition: left .26s ease, filter .26s ease, transform .26s ease;
+      transform: translateZ(0);
+    }
+    .viewport iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+    body.pane-open .viewport {
+      left: calc(var(--rail-w) + var(--pane-w) + 40px);
+      filter: blur(.9px) saturate(.98);
+      transform: translateZ(-18px) translateX(6px);
+    }
+    body.focus-mode .quiet-rail, body.focus-mode .pane {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateZ(0) translateY(-8px);
+    }
+    body.focus-mode .viewport {
+      left: 14px;
+      top: calc(var(--top-h) + 26px);
+      right: 14px;
+      bottom: 14px;
+      filter: none;
+      transform: translateZ(0);
+    }
+
+    .sites-widget {
+      position: fixed;
+      z-index: 40;
+      right: 28px;
+      bottom: 28px;
+      width: min(332px, calc(100vw - 116px));
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 28px;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      padding: 11px 12px;
+      border: 1px solid rgba(255,255,252,.78);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255,255,252,.88), rgba(244,246,239,.72)),
+        linear-gradient(135deg, rgba(70,111,96,.14), rgba(53,109,168,.10));
+      backdrop-filter: blur(var(--z1)) saturate(1.1);
+      box-shadow: 0 18px 54px rgba(28,38,34,.18), inset 0 1px 0 rgba(255,255,255,.92);
+      transform: translateZ(28px);
+    }
+    .site-orbit {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #fffef8;
+      border: 1px solid rgba(28,38,34,.16);
+      position: relative;
+      box-shadow: inset 0 0 0 7px rgba(70,111,96,.10), 0 9px 18px rgba(70,111,96,.14);
+    }
+    .site-orbit::before, .site-orbit::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      inset: 9px;
+      border: 1px solid rgba(53,109,168,.22);
+    }
+    .site-orbit::after {
+      inset: 17px;
+      background: var(--sage);
+      border: 0;
+      box-shadow: 0 0 0 5px rgba(70,111,96,.13);
+    }
+    .site-name {
+      display: block;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 13px;
+    }
+    .site-meta {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .live-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 0 5px rgba(33,114,73,.14);
+      justify-self: center;
+    }
+
+    .pane {
+      position: fixed;
+      z-index: 25;
+      left: calc(var(--rail-w) + 28px);
+      top: calc(var(--top-h) + 26px);
+      bottom: 14px;
+      width: var(--pane-w);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,252,.78);
+      background: rgba(255,255,252,.78);
+      backdrop-filter: blur(var(--z2)) saturate(1.08);
+      box-shadow: 0 28px 86px rgba(28,38,34,.20), 0 0 0 1px rgba(255,255,255,.44) inset;
+      transform: translateZ(44px) translateX(-16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .23s ease, transform .23s ease;
+      overflow: hidden;
+    }
+    body.pane-open .pane {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateZ(44px) translateX(0);
+    }
+    .pane-inner {
+      height: 100%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .pane-head {
+      padding: 18px 18px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,252,.76), rgba(255,255,252,.46));
+    }
+    .eyebrow {
+      margin: 0 0 5px;
+      color: var(--quiet);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .11em;
+      font-weight: 760;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    .pane-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+    .pane-copy {
+      margin: 7px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+    .pane-scroll {
+      overflow: auto;
+      min-height: 0;
+      padding: 14px 18px 18px;
+    }
+    .segments, .tabs, .manager-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 13px;
+    }
+    .segment, .tab {
+      min-height: 30px;
+      font-size: 12px;
+      background: rgba(255,255,252,.55);
+    }
+    .segment.active, .tab.active {
+      background: #1d2925;
+      color: white;
+      border-color: #1d2925;
+    }
+    .stack { display: grid; gap: 10px; }
+    .row-card, .route-card, .blue-card, .notice, .code-box, .log-line, .data-table {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,252,.66);
+      box-shadow: 0 9px 22px rgba(28,38,34,.06);
+    }
+    .row-card, .route-card, .blue-card {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+    }
+    .row-card strong, .route-card strong, .blue-card strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+    .row-card span, .route-card span, .blue-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.36;
+    }
+    .route-grid, .featured-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .route-card, .blue-card {
+      grid-template-columns: 1fr;
+      align-items: start;
+      min-height: 88px;
+    }
+    .route-card button { justify-self: start; margin-top: 7px; }
+    .blue-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+    .blue-tags i, .pill {
+      font-style: normal;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 7px;
+      background: rgba(255,255,252,.64);
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .notice {
+      padding: 12px;
+      color: #3f4d47;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .notice.warning { border-color: rgba(154,107,24,.30); background: rgba(255,248,226,.72); }
+    .notice.good { border-color: rgba(33,114,73,.25); background: rgba(236,248,239,.76); }
+    .notice.danger { border-color: rgba(178,66,61,.32); background: rgba(255,241,239,.76); }
+    .field-grid { display: grid; gap: 12px; margin-top: 12px; }
+    label.field {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 660;
+    }
+    .field select, .field input, .field textarea, .log-tools input, .library-search input {
+      width: 100%;
+      min-width: 0;
+      height: 36px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,252,.72);
+      color: var(--ink);
+      padding: 0 9px;
+    }
+    .field textarea { min-height: 120px; padding: 9px; resize: vertical; }
+    .toggle-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(255,255,252,.56);
+    }
+    .switch {
+      width: 38px;
+      height: 22px;
+      border-radius: 999px;
+      background: #cdd8d1;
+      position: relative;
+      flex: 0 0 auto;
+    }
+    .switch::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.16);
+    }
+    .split {
+      display: grid;
+      grid-template-columns: 126px minmax(0, 1fr);
+      min-height: 310px;
+      overflow: hidden;
+    }
+    .tree {
+      border-right: 1px solid var(--line);
+      padding: 10px;
+      background: rgba(242,244,237,.65);
+      color: #4a5650;
+      font-size: 12px;
+      line-height: 1.8;
+      white-space: nowrap;
+      overflow: auto;
+    }
+    .editor {
+      padding: 10px;
+      overflow: auto;
+      min-width: 0;
+      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #28342f;
+    }
+    .editor pre { margin: 0; white-space: pre; }
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    .data-table th, .data-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+    }
+    .data-table th {
+      color: var(--quiet);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .log-tools {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .log-line {
+      padding: 10px;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #2d3834;
+    }
+    .log-line b { color: var(--red); }
+    .log-line i { color: var(--blue); font-style: normal; }
+
+    .overlay {
+      position: fixed;
+      z-index: 70;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 22px;
+      background: rgba(239,241,234,.40);
+      backdrop-filter: blur(var(--z3)) saturate(1.08);
+    }
+    .overlay.active { display: grid; }
+    .library-shell, .reset-shell {
+      width: min(1120px, 100%);
+      max-height: min(820px, calc(100vh - 44px));
+      border: 1px solid rgba(255,255,252,.82);
+      border-radius: 8px;
+      background: rgba(255,255,252,.86);
+      box-shadow: 0 38px 120px rgba(28,38,34,.25);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transform: translateZ(74px);
+    }
+    .reset-shell { width: min(620px, 100%); }
+    .library-head, .reset-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+    }
+    .library-head h2, .reset-head h2 { margin: 0; font-size: 24px; letter-spacing: 0; }
+    .library-body {
+      display: grid;
+      grid-template-columns: 206px minmax(0, 1fr);
+      overflow: hidden;
+      min-height: 0;
+    }
+    .category-rail {
+      border-right: 1px solid var(--line);
+      padding: 14px;
+      background: rgba(242,244,237,.70);
+      overflow: auto;
+    }
+    .category-rail button {
+      width: 100%;
+      min-height: 34px;
+      border-radius: 7px;
+      text-align: left;
+      padding: 0 10px;
+      color: #515e58;
+      margin-bottom: 4px;
+    }
+    .category-rail button.active, .category-rail button:hover {
+      background: #fffef9;
+      color: var(--ink);
+      box-shadow: 0 8px 18px rgba(28,38,34,.07);
+    }
+    .library-main {
+      overflow: auto;
+      padding: 14px;
+      min-width: 0;
+    }
+    .library-search {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .gallery-card {
+      min-height: 128px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255,255,252,.84), rgba(247,248,243,.70)),
+        linear-gradient(135deg, rgba(70,111,96,.10), rgba(53,109,168,.08));
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 9px 22px rgba(28,38,34,.06);
+    }
+    .gallery-card strong { display: block; font-size: 13px; margin-bottom: 5px; }
+    .gallery-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.36; }
+    .reset-body { padding: 18px; overflow: auto; }
+    .diff {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 9px;
+      align-items: center;
+      margin: 14px 0;
+    }
+    .diff-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,252,.74);
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .diff-arrow { color: var(--muted); }
+    .reset-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .reset-action.danger {
+      color: white;
+      background: var(--red);
+      border-color: var(--red);
+    }
+    .reset-action:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    .reset-final {
+      display: none;
+      border: 1px solid rgba(33,114,73,.25);
+      border-radius: 8px;
+      background: rgba(236,248,239,.82);
+      color: #284f3d;
+      padding: 13px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .reset-final.active { display: block; }
+
+    .toast {
+      position: fixed;
+      z-index: 90;
+      left: calc(var(--rail-w) + 28px);
+      bottom: 24px;
+      min-width: 250px;
+      max-width: 360px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: rgba(24,32,29,.92);
+      color: white;
+      box-shadow: 0 20px 60px rgba(28,38,34,.22);
+      font-size: 13px;
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .hidden { display: none !important; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+
+    @media (max-width: 760px) {
+      :root { --rail-w: 0px; --top-h: 46px; --pane-w: 100vw; }
+      html, body { overflow: hidden; }
+      .quiet-rail {
+        left: 10px;
+        right: auto;
+        top: auto;
+        bottom: 10px;
+        width: min(calc(100vw - 20px), 370px);
+        height: 58px;
+        grid-template-rows: none;
+        grid-template-columns: 50px 1fr 50px;
+        padding: 6px 8px;
+      }
+      .rail-actions {
+        grid-auto-flow: column;
+        justify-self: center;
+        align-self: center;
+        margin: 0;
+      }
+      .rail-button::after, .tier-tag { display: none; }
+      .top-chrome {
+        left: 10px;
+        right: auto;
+        top: 10px;
+        width: min(calc(100vw - 20px), 370px);
+        grid-template-columns: 34px minmax(0, 1fr) 56px 34px;
+        gap: 6px;
+      }
+      .chrome-button { width: 34px; }
+      .save-button { padding: 0 6px; font-size: 12px; }
+      .viewport {
+        left: 10px;
+        right: auto;
+        top: 66px;
+        bottom: 80px;
+        width: min(calc(100vw - 20px), 370px);
+      }
+      body.pane-open .viewport {
+        left: 10px;
+        transform: translateY(-5vh) scale(.985);
+        filter: blur(.8px) saturate(.98);
+      }
+      .pane {
+        left: 10px;
+        right: auto;
+        top: auto;
+        bottom: 80px;
+        width: min(calc(100vw - 20px), 370px);
+        height: min(618px, calc(100vh - 136px));
+        transform: translateY(16px);
+      }
+      body.pane-open .pane { transform: translateY(0); }
+      .pane-head { padding: 14px 14px 10px; }
+      .pane-title { font-size: 20px; }
+      .pane-scroll { padding: 12px 14px 14px; }
+      .route-grid, .featured-grid, .gallery-grid { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; }
+      .tree {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        max-height: 130px;
+      }
+      .sites-widget {
+        left: 18px;
+        right: auto;
+        bottom: 78px;
+        width: min(calc(100vw - 36px), 354px);
+        min-height: 58px;
+        grid-template-columns: 34px minmax(0, 1fr) 20px;
+        padding: 10px;
+      }
+      body.pane-open .sites-widget {
+        bottom: calc(min(618px, calc(100vh - 136px)) + 88px);
+      }
+      .site-orbit { width: 34px; height: 34px; }
+      .site-orbit::before { inset: 8px; }
+      .site-orbit::after { inset: 14px; }
+      .site-meta { font-size: 11px; }
+      .overlay { padding: 10px; }
+      .library-shell, .reset-shell { max-height: calc(100vh - 20px); }
+      .library-head, .reset-head { padding: 14px; }
+      .library-head h2, .reset-head h2 { font-size: 20px; }
+      .library-body { grid-template-columns: 1fr; }
+      .category-rail {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .category-rail button {
+        width: auto;
+        flex: 0 0 auto;
+        margin-bottom: 0;
+      }
+      .diff { grid-template-columns: 1fr; }
+      .diff-arrow { display: none; }
+      .toast {
+        left: 18px;
+        right: 18px;
+        bottom: 146px;
+        min-width: 0;
+        max-width: none;
+      }
+      body.focus-mode .viewport {
+        left: 10px;
+        width: min(calc(100vw - 20px), 370px);
+        top: 66px;
+        bottom: 10px;
+      }
+      body.focus-mode .sites-widget { bottom: 18px; width: min(calc(100vw - 36px), 354px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" aria-label="WordPress Playground spatial calm prototype">
+    <nav class="quiet-rail" aria-label="Quiet rail">
+      <div class="mark" aria-hidden="true">W</div>
+      <div class="rail-actions">
+        <button class="rail-button" data-open-pane="sites" aria-label="Sites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="M12 12 4.5 7.8M12 12l7.5-4.2M12 12v8.4"/></svg>
+        </button>
+        <button class="rail-button" data-open-pane="manager" aria-label="Manager">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5.5h16M4 12h16M4 18.5h16"/><path d="M8 5.5v13M16 5.5v13"/></svg>
+        </button>
+      </div>
+      <div class="tier-tag">z1 quiet rail</div>
+    </nav>
+
+    <header class="top-chrome" aria-label="Slim browser controls">
+      <button class="chrome-button icon" id="refreshBtn" aria-label="Refresh iframe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 4v7h-7"/></svg>
+      </button>
+      <form class="address" id="addressForm" aria-label="Address bar">
+        <span aria-hidden="true">/</span>
+        <input id="addressInput" value="wp-admin" aria-label="Type a path like /wp-admin">
+        <button class="go-button" aria-label="Submit path">Go</button>
+      </form>
+      <button class="save-button" id="saveBtn" data-state="unsaved" aria-label="Save Playground locally">Save</button>
+      <button class="chrome-button icon" id="focusBtn" aria-label="Fullscreen focus">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M21 16v3a2 2 0 0 1-2 2h-3"/></svg>
+      </button>
+    </header>
+
+    <main class="viewport" aria-label="Live WordPress iframe z0">
+      <iframe id="wpFrame" title="Live WordPress site" srcdoc='<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#18201d;background:#fbfbf7}.bar{height:42px;background:#1d2327;color:white;display:flex;align-items:center;gap:18px;padding:0 18px;font-size:13px}.hero{min-height:58vh;display:grid;grid-template-columns:1fr 1fr;gap:38px;align-items:center;padding:7vw}.hero h1{font-size:clamp(38px,7vw,84px);line-height:.9;margin:0 0 20px}.hero p{font-size:18px;line-height:1.55;color:#57635d}.photo{aspect-ratio:4/3;border-radius:18px;background:linear-gradient(135deg,#bfd8ce,#fff2c8 48%,#b8cce9);box-shadow:0 24px 60px rgba(0,0,0,.12);position:relative;overflow:hidden}.photo:before{content:"";position:absolute;inset:12%;border-radius:14px;background:rgba(255,255,255,.62);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7)}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:0 7vw 7vw}.card{border:1px solid #e1e5dd;border-radius:14px;padding:18px;background:white}.card h2{font-size:18px;margin:0 0 8px}@media(max-width:700px){.hero{grid-template-columns:1fr;padding:28px}.cards{grid-template-columns:1fr;padding:0 28px 28px}.bar{font-size:12px;overflow:hidden}.photo{order:-1}}</style></head><body><div class="bar"><strong>WordPress</strong><span>Home</span><span>Shop</span><span>Cart</span><span>Customize</span></div><section class="hero"><div><h1>Coffee Shop</h1><p>Hello from WordPress Playground. This real iframe is the running browser-hosted WordPress site; the prototype only redesigns the chrome around it.</p></div><div class="photo"></div></section><section class="cards"><article class="card"><h2>Theme demo</h2><p>Twenty Twenty-Five sample content.</p></article><article class="card"><h2>WooCommerce</h2><p>Products, checkout, and settings ready to test.</p></article><article class="card"><h2>Blueprint</h2><p>Reboot this site from a portable JSON recipe.</p></article></section></body></html>'></iframe>
+    </main>
+
+    <button class="sites-widget" id="sitesWidget" aria-label="Sites widget: open Sites">
+      <span class="site-orbit" aria-hidden="true"></span>
+      <span>
+        <span class="site-name" id="siteName">Coffee Shop</span>
+        <span class="site-meta" id="siteMeta">Running - WP 6.8 - PHP 8.3 - unsaved</span>
+      </span>
+      <span class="live-dot" aria-hidden="true"></span>
+    </button>
+
+    <aside class="pane" aria-label="One secondary pane z2">
+      <div class="pane-inner" id="sitesPane">
+        <div class="pane-head">
+          <p class="eyebrow">Sites z2</p>
+          <h1 class="pane-title">Start and resume Playgrounds.</h1>
+          <p class="pane-copy">The launcher is a single Sites surface: saved sites, new routes, featured blueprints, and the z3 Library.</p>
+          <div class="segments" role="tablist" aria-label="Sites sections">
+            <button class="segment active" data-sites-tab="yours">Yours</button>
+            <button class="segment" data-sites-tab="new">New</button>
+            <button class="segment" data-sites-tab="featured">Featured</button>
+          </div>
+        </div>
+        <div class="pane-scroll">
+          <section class="sites-section" data-sites-section="yours">
+            <div class="stack">
+              <article class="row-card"><div><strong>Coffee Shop</strong><span>Saved today - WP 6.8, PHP 8.3, WooCommerce sample store</span></div><button class="small-action resume-site" data-name="Coffee Shop">Resume</button></article>
+              <article class="row-card"><div><strong>Gutenberg Grid PR</strong><span>Saved yesterday - Gutenberg PR #68124 and block editor experiments</span></div><button class="small-action resume-site" data-name="Gutenberg Grid PR">Resume</button></article>
+              <article class="row-card"><div><strong>Theme Tester</strong><span>Saved May 20 - Twenty Twenty-Five child theme work</span></div><button class="small-action resume-site" data-name="Theme Tester">Resume</button></article>
+              <article class="row-card"><div><strong>Unsaved Playground</strong><span>Not saved to browser storage yet</span></div><button class="small-action" id="saveUnsaved">Save</button></article>
+            </div>
+          </section>
+
+          <section class="sites-section hidden" data-sites-section="new">
+            <div class="route-grid">
+              <article class="route-card"><strong>Vanilla WordPress</strong><span>Start a clean browser-hosted WordPress site.</span><button class="small-action boot-route">Start</button></article>
+              <article class="route-card"><strong>WordPress PR</strong><span>Boot from a WordPress core pull request number or URL.</span><button class="small-action boot-route">Paste PR</button></article>
+              <article class="route-card"><strong>Gutenberg PR / branch</strong><span>Test a Gutenberg PR, branch, or plugin build.</span><button class="small-action boot-route">Choose</button></article>
+              <article class="route-card"><strong>From GitHub</strong><span>Load a theme or plugin from a GitHub repo.</span><button class="small-action boot-route">Open</button></article>
+              <article class="route-card"><strong>Blueprint URL</strong><span>Paste any blueprint JSON URL and boot it.</span><button class="small-action boot-route">Paste URL</button></article>
+              <article class="route-card"><strong>Import .zip</strong><span>Upload a previously exported Playground bundle.</span><button class="small-action boot-route">Upload</button></article>
+            </div>
+          </section>
+
+          <section class="sites-section hidden" data-sites-section="featured">
+            <div class="featured-grid">
+              <article class="blue-card"><strong>Art Gallery</strong><span>An art gallery created with the Vueo theme.</span><div class="blue-tags"><i>Website</i><i>Personal</i></div></article>
+              <article class="blue-card"><strong>Coffee Shop</strong><span>A WooCommerce storefront with custom theme and products.</span><div class="blue-tags"><i>WooCommerce</i><i>Store</i></div></article>
+              <article class="blue-card"><strong>Feed Reader with the Friends Plugin</strong><span>Read feeds including ActivityPub in Playground.</span><div class="blue-tags"><i>rss</i><i>social</i></div></article>
+              <article class="blue-card"><strong>Gaming News</strong><span>A gaming news site created with the Spiel theme.</span><div class="blue-tags"><i>Website</i><i>News</i></div></article>
+              <article class="blue-card"><strong>Non-profit Organization</strong><span>A non-profit site created with the Koinonia theme.</span><div class="blue-tags"><i>Website</i><i>Organization</i></div></article>
+            </div>
+            <button class="small-action" id="openLibrary" style="margin-top:12px;">View all 43 blueprints</button>
+          </section>
+        </div>
+      </div>
+
+      <div class="pane-inner hidden" id="managerPane">
+        <div class="pane-head">
+          <p class="eyebrow">Manager z2</p>
+          <h1 class="pane-title">Tools for the running site.</h1>
+          <div class="manager-actions">
+            <button class="small-action" data-path="/">Homepage</button>
+            <button class="small-action" data-path="/wp-admin">WP Admin</button>
+            <button class="small-action">Export to GitHub PR</button>
+            <button class="small-action">Download .zip</button>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Site Manager tabs">
+            <button class="tab active" data-manager-tab="settings">Settings</button>
+            <button class="tab" data-manager-tab="files">Files</button>
+            <button class="tab" data-manager-tab="blueprint">Blueprint</button>
+            <button class="tab" data-manager-tab="database">Database</button>
+            <button class="tab" data-manager-tab="logs">Logs</button>
+          </div>
+        </div>
+        <div class="pane-scroll">
+          <section class="manager-section" data-manager-section="settings">
+            <div class="notice warning">This is an Unsaved Playground. Your changes will be lost on page refresh. <button class="small-action" id="noticeSave">Save site locally</button></div>
+            <div class="field-grid">
+              <label class="field">WordPress version<select><option>6.8 stable</option><option>6.9 beta</option><option>Nightly</option></select></label>
+              <label class="field">PHP version<select><option>8.3</option><option>8.2</option><option>8.1</option></select></label>
+              <label class="field">Language<select><option>English (US)</option><option>Japanese</option><option>Spanish</option></select></label>
+              <label class="field">Network access<select><option>Enabled</option><option>Disabled</option></select></label>
+              <div class="toggle-line"><span>Multisite</span><span class="switch" aria-hidden="true"></span></div>
+            </div>
+            <button class="reset-action danger" id="applyReset" style="margin-top:14px;">Apply Settings & Reset</button>
+          </section>
+
+          <section class="manager-section hidden" data-manager-section="files">
+            <div class="manager-actions" style="margin:0 0 10px;"><button class="small-action">New File</button><button class="small-action">New Folder</button></div>
+            <div class="code-box split">
+              <div class="tree">/wordpress<br>wp-admin/<br>wp-content/<br>&nbsp;&nbsp;plugins/<br>&nbsp;&nbsp;themes/<br>&nbsp;&nbsp;uploads/<br>wp-includes/<br>index.php<br>wp-config.php</div>
+              <div class="editor"><pre>&lt;?php
+/**
+ * Plugin Name: Playground Notice
+ */
+add_action( 'admin_notices', function () {
+    echo '&lt;div class="notice notice-success"&gt;Running in Playground&lt;/div&gt;';
+} );</pre></div>
+            </div>
+          </section>
+
+          <section class="manager-section hidden" data-manager-section="blueprint">
+            <div class="manager-actions" style="margin:0 0 10px;"><button class="small-action">Copy link to blueprint</button><button class="small-action">Download bundle</button><button class="small-action boot-route">Run Blueprint</button></div>
+            <div class="code-box split">
+              <div class="tree">blueprint.json<br>attached-files/<br>&nbsp;&nbsp;products.xml<br>&nbsp;&nbsp;hero.jpg<br>wp-content/<br>&nbsp;&nbsp;mu-plugins/</div>
+              <div class="editor"><pre>{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": { "php": "8.3", "wp": "6.8" },
+  "steps": [
+    { "step": "installPlugin", "pluginZipFile": { "resource": "wordpress.org/plugins", "slug": "woocommerce" } },
+    { "step": "installTheme", "themeZipFile": { "resource": "wordpress.org/themes", "slug": "twentytwentyfive" } },
+    { "step": "importWxr", "file": { "resource": "vfs", "path": "/wordpress/attached-files/products.xml" } },
+    { "step": "setSiteOptions", "options": { "blogname": "Coffee Shop" } }
+  ]
+}</pre></div>
+            </div>
+          </section>
+
+          <section class="manager-section hidden" data-manager-section="database">
+            <div class="notice">Database management is an early access feature. Report issues in the GitHub issue tracker.</div>
+            <table class="data-table" style="margin-top:10px;">
+              <thead><tr><th>Table</th><th>Rows</th><th>Size</th></tr></thead>
+              <tbody><tr><td>wp_posts</td><td>42</td><td>168 KB</td></tr><tr><td>wp_options</td><td>219</td><td>92 KB</td></tr><tr><td>wp_users</td><td>2</td><td>12 KB</td></tr><tr><td>wp_woocommerce_order_items</td><td>18</td><td>24 KB</td></tr></tbody>
+            </table>
+          </section>
+
+          <section class="manager-section hidden" data-manager-section="logs">
+            <div class="log-tools"><input placeholder="Search logs" aria-label="Search logs"><button class="small-action">Clear</button></div>
+            <div class="stack">
+              <div class="log-line"><i>12:41:02</i> GET /wp-admin 200 - 214 ms - 41 queries - 18 MB peak</div>
+              <div class="log-line"><i>12:41:04</i> <b>Deprecated:</b> strftime() in /wp-includes/formatting.php on line 3896</div>
+              <div class="log-line"><i>12:41:08</i> SAVEPOINT before settings reset created</div>
+              <div class="log-line"><i>12:41:12</i> <b>Warning:</b> include() failed opening /wp-content/themes/demo/header.php</div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="overlay" id="libraryOverlay" aria-label="Blueprint Library z3">
+    <div class="library-shell">
+      <div class="library-head">
+        <div><p class="eyebrow">Library z3</p><h2>Blueprint gallery</h2></div>
+        <button class="chrome-button close-overlay" aria-label="Close Library">x</button>
+      </div>
+      <div class="library-body">
+        <nav class="category-rail" aria-label="Blueprint categories">
+          <button class="active">All</button><button>Featured</button><button>Website</button><button>Personal</button><button>Content</button><button>Themes</button><button>Gutenberg</button><button>Experiments</button><button>WooCommerce</button><button>News</button>
+        </nav>
+        <div class="library-main">
+          <div class="library-search"><input id="blueprintSearch" placeholder="Search 43 blueprints" aria-label="Search blueprints"><button class="small-action">Search</button></div>
+          <div class="gallery-grid" id="galleryGrid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="overlay" id="resetOverlay" aria-label="Apply Settings and Reset confirmation z3">
+    <div class="reset-shell">
+      <div class="reset-head">
+        <div><p class="eyebrow">Destructive reset z3</p><h2>Apply settings and reset?</h2></div>
+        <button class="chrome-button close-overlay" aria-label="Close reset">x</button>
+      </div>
+      <div class="reset-body">
+        <div class="notice good">A local snapshot will be kept before the reset starts.</div>
+        <div class="diff">
+          <div class="diff-box"><strong>Current</strong><br>WP 6.8 stable<br>PHP 8.3<br>English (US)</div>
+          <div class="diff-arrow">to</div>
+          <div class="diff-box"><strong>After reset</strong><br>WP 6.9 beta<br>PHP 8.3<br>English (US)</div>
+        </div>
+        <div class="notice danger">Reset wipes the running site state and reboots WordPress with the selected settings.</div>
+        <label class="field" style="margin-top:12px;">Type Coffee Shop to confirm
+          <input id="confirmInput" autocomplete="off" placeholder="Coffee Shop">
+        </label>
+        <div class="reset-final" id="resetFinal"><strong>Reset complete.</strong><br>The Playground rebooted with WP 6.9 beta. The Sites widget and toast both show the final running state.</div>
+        <div class="reset-actions">
+          <button class="reset-action close-overlay">Cancel</button>
+          <button class="reset-action danger" id="confirmReset" disabled>Reset Playground</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Saved locally.</div>
+
+  <script>
+    const body = document.body;
+    const paneButtons = document.querySelectorAll('[data-open-pane]');
+    const sitesPane = document.getElementById('sitesPane');
+    const managerPane = document.getElementById('managerPane');
+    const siteName = document.getElementById('siteName');
+    const siteMeta = document.getElementById('siteMeta');
+    const toast = document.getElementById('toast');
+    const saveBtn = document.getElementById('saveBtn');
+    const galleryGrid = document.getElementById('galleryGrid');
+
+    const blueprints = [
+      ['Art Gallery','An art gallery created with the Vueo theme.','Website, Personal'],
+      ['Coffee Shop','A stylish WooCommerce coffee shop storefront with custom theme, products, and content.','WooCommerce, Store'],
+      ['Feed Reader with the Friends Plugin','Read feeds including ActivityPub in Playground via the Friends plugin.','rss, social, web'],
+      ['Gaming News','A gaming news site created with the Spiel theme.','Website, News'],
+      ['Non-profit Organization','A non-profit organization site created with the Koinonia theme.','Website, Organization'],
+      ['Personal Blog','A personal blog site created with the Substrata theme.','Website, Personal, Blog'],
+      ['Personal Resume','A resume site created with the Readymade theme.','Website, Personal'],
+      ['Photography Portfolio','A photography portfolio created with the Grammer theme.','Website, Personal, Photography'],
+      ['Skincare Blog','A skincare blog created with the Piel theme.','Website, News, Blog'],
+      ['University Website','A university website created with the Kentwood theme.','Website, Organization, Education'],
+      ['Create Block Theme','Install Create Block Theme and start editing right away.','Editor, theme'],
+      ['Creating a new user for the blog','Update user meta data.','meta'],
+      ['Custom Post Type: Books','Add a custom post type to Playground.','Content, CPT'],
+      ['Demo of Twenty-Twenty-Five theme','Demo content for the Twenty-Twenty-Five default theme.','Themes, default'],
+      ['Display Admin Notice','Add a tiny mu-plugin and display an admin notice.','Admin notices'],
+      ['Enable all three Dataview Experiments in Gutenberg','Enable multiple Experiments within the Gutenberg plugin.','Gutenberg, Experiments'],
+      ['Fancy Dashboard Widget','Display statistics about users, posts and comments.','dashboard'],
+      ['Grid Variations Experiments enabled','Toggle a Gutenberg Experiments feature on.','Gutenberg, Experiments'],
+      ['Gutenberg Guidelines Experiment enabled','Enable Gutenberg Guidelines experiment.','Gutenberg, Experiments'],
+      ['Import Theme Starter Content','Install a theme with starter content.','Themes, Starter Content'],
+      ['Import a standalone starter content via a blueprint step','Use a stand-alone starter content file and import it.','Themes, Starter Content'],
+      ['Install WordPress language packs','Install and activate the latest Japanese translation pack.','core'],
+      ['Install plugin from a gist','Install and activate a WordPress plugin from a gist file.','plugins'],
+      ['Latest Gutenberg plugin','A preview of the latest Gutenberg plugin.','plugins'],
+      ['Loading, activating, and configuring a theme from a GitHub repository','Load, activate, and configure a GitHub theme.','theme'],
+      ['Login as an editor','Test as an editor rather than an administrator.','User Role'],
+      ['Markdown and Trac Syntax Editor','Edit Markdown and Trac formatting in the block editor.','block-editor'],
+      ['Minimal WooCommerce Setup with Sample Products, Shipping, and Payment Method','WooCommerce with sample products and payment method.','woocommerce, shipping'],
+      ['My WordPress','A welcome experience for persistent WordPress Playground instances.','Playground, Onboarding'],
+      ['Playground Welcome Landing Page','Landing page for the WordPress Playground.','meta'],
+      ['Pretty permalinks','Set the permalink structure to pretty permalinks.','Settings'],
+      ['Reset data and import content (with logs)','Reset default data before importing custom content; logs each step.','reset, log, debug'],
+      ['Serve media files from another host','Redirect uploads requests to an external host.','Settings'],
+      ['Set the admin color scheme','Set admin color scheme to Modern.','user meta'],
+      ['Showcase plugin','Showcase a custom plugin with media and content imported as WXR.','plugin, demo, media'],
+      ['Stylish Press','A Woo store with custom theme, content, products.','WooCommerce, Site'],
+      ['Theme Tester','Add content and plugins to explore a theme.','themes, content'],
+      ['Use WPGraphQL to query WordPress','Loads WordPress with WPGraphQL active and IDE page.','API, wpgraphql'],
+      ['Use wp-cli command to add posts','Add posts via a wp-cli command.','Content, wpcli'],
+      ['Use wp-cli to add a post with image','Create a post with block markup and featured image.','Content, wpcli'],
+      ['Weather Shortcode Plugin','Connect weather API and show data as a shortcode.','shortcode'],
+      ['WooCommerce product feed','Create a WooCommerce product and export a feed.','WooCommerce, Content'],
+      ['WordPress Beta','Test the latest WordPress Beta or RC with debugging plugins.','Testing']
+    ];
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(window.toastTimer);
+      window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function openPane(name) {
+      body.classList.add('pane-open');
+      paneButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.openPane === name));
+      sitesPane.classList.toggle('hidden', name !== 'sites');
+      managerPane.classList.toggle('hidden', name !== 'manager');
+    }
+
+    paneButtons.forEach(btn => btn.addEventListener('click', () => openPane(btn.dataset.openPane)));
+    document.getElementById('sitesWidget').addEventListener('click', () => openPane('sites'));
+
+    document.querySelectorAll('[data-sites-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-sites-tab]').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('[data-sites-section]').forEach(section => section.classList.toggle('hidden', section.dataset.sitesSection !== btn.dataset.sitesTab));
+      });
+    });
+
+    document.querySelectorAll('[data-manager-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-manager-tab]').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('[data-manager-section]').forEach(section => section.classList.toggle('hidden', section.dataset.managerSection !== btn.dataset.managerTab));
+      });
+    });
+
+    function saveSite(source) {
+      saveBtn.dataset.state = 'saving';
+      saveBtn.textContent = 'Saving';
+      siteMeta.textContent = 'Saving to OPFS - WP 6.8 - PHP 8.3';
+      showToast(source || 'Saving Playground locally...');
+      setTimeout(() => {
+        saveBtn.dataset.state = 'saved';
+        saveBtn.textContent = 'Saved';
+        siteMeta.textContent = 'Running - WP 6.8 - PHP 8.3 - saved locally';
+        showToast('Coffee Shop saved to browser storage.');
+      }, 800);
+    }
+    saveBtn.addEventListener('click', () => saveSite());
+    document.getElementById('noticeSave').addEventListener('click', () => saveSite('Saving from Site Manager notice...'));
+    document.getElementById('saveUnsaved').addEventListener('click', () => saveSite('Saving Unsaved Playground...'));
+
+    document.querySelectorAll('.resume-site').forEach(btn => {
+      btn.addEventListener('click', () => {
+        siteName.textContent = btn.dataset.name;
+        siteMeta.textContent = 'Resumed - WP 6.8 - PHP 8.3 - saved locally';
+        saveBtn.dataset.state = 'saved';
+        saveBtn.textContent = 'Saved';
+        showToast(`${btn.dataset.name} resumed.`);
+      });
+    });
+
+    document.querySelectorAll('.boot-route').forEach(btn => {
+      btn.addEventListener('click', () => {
+        siteMeta.textContent = 'Booting - downloading WordPress and mounting SQLite';
+        saveBtn.dataset.state = 'unsaved';
+        saveBtn.textContent = 'Save';
+        showToast('Booting Playground from selected source...');
+        setTimeout(() => {
+          siteMeta.textContent = 'Running - WP 6.8 - PHP 8.3 - unsaved';
+          showToast('Playground is running.');
+        }, 1100);
+      });
+    });
+
+    document.querySelectorAll('[data-path]').forEach(btn => {
+      btn.addEventListener('click', () => showToast(`Iframe navigated to ${btn.dataset.path}`));
+    });
+    document.getElementById('addressForm').addEventListener('submit', event => {
+      event.preventDefault();
+      showToast(`Iframe navigated to /${document.getElementById('addressInput').value.replace(/^\\//, '')}`);
+    });
+    document.getElementById('refreshBtn').addEventListener('click', () => showToast('Iframe refreshed.'));
+    document.getElementById('focusBtn').addEventListener('click', () => {
+      body.classList.toggle('focus-mode');
+      showToast(body.classList.contains('focus-mode') ? 'Full preview focus on.' : 'Full preview focus off.');
+    });
+
+    function renderGallery(filter = '') {
+      const q = filter.trim().toLowerCase();
+      galleryGrid.innerHTML = blueprints
+        .filter(item => !q || `${item[0]} ${item[1]} ${item[2]}`.toLowerCase().includes(q))
+        .map(item => `<article class="gallery-card"><div><strong>${item[0]}</strong><p>${item[1]}</p></div><div class="blue-tags">${item[2].split(', ').map(tag => `<i>${tag}</i>`).join('')}</div></article>`)
+        .join('');
+    }
+    renderGallery();
+
+    document.getElementById('blueprintSearch').addEventListener('input', event => renderGallery(event.target.value));
+    document.getElementById('openLibrary').addEventListener('click', () => document.getElementById('libraryOverlay').classList.add('active'));
+    document.getElementById('applyReset').addEventListener('click', () => document.getElementById('resetOverlay').classList.add('active'));
+    document.querySelectorAll('.close-overlay').forEach(btn => {
+      btn.addEventListener('click', () => document.querySelectorAll('.overlay').forEach(overlay => overlay.classList.remove('active')));
+    });
+    document.querySelectorAll('.category-rail button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.category-rail button').forEach(b => b.classList.toggle('active', b === btn));
+        renderGallery(btn.textContent === 'All' ? '' : btn.textContent);
+      });
+    });
+
+    const confirmInput = document.getElementById('confirmInput');
+    const confirmReset = document.getElementById('confirmReset');
+    confirmInput.addEventListener('input', () => {
+      confirmReset.disabled = confirmInput.value !== 'Coffee Shop';
+    });
+    confirmReset.addEventListener('click', () => {
+      document.getElementById('resetFinal').classList.add('active');
+      siteMeta.textContent = 'Running - WP 6.9 beta - reset complete';
+      saveBtn.dataset.state = 'unsaved';
+      saveBtn.textContent = 'Save';
+      showToast('Reset complete. WordPress rebooted with the new settings.');
+    });
+  </script>
+</body>
+</html>
