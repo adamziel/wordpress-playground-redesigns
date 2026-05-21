@@ -97,7 +97,7 @@ Hard constraints:
 - Produce a high-fidelity static redesign that works from GitHub Pages at v6/designs/${design_id}/index.html.
 - Prefer one self-contained index.html with inline CSS/JS. Also create v6/designs/${design_id}/meta.json and README.md.
 - Preserve every current feature in DESIGN_BRIEF.md. Do not add product features that are not in the current Playground.
-- The iframe/live WordPress site must remain a central, credible surface, including a full-size/focus/play/preview mode when the layout otherwise favors settings, launcher, tabs, or inspector patterns.
+- The live WordPress site surface must be an actual <iframe> element in index.html, not only a styled div or handmade site mock. A srcdoc iframe is acceptable for a static prototype. It must remain central and credible, including a full-size/focus/play/preview mode when the layout otherwise favors settings, launcher, tabs, or inspector patterns.
 - Make the first viewport an actual usable Playground app screen, not a marketing page.
 - Keep it responsive for 390x844 and 1440x900. Avoid overlapping text, clipped controls, and horizontal overflow.
 

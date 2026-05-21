@@ -36,6 +36,7 @@ assert(typeof meta.summary === 'string' && meta.summary.length >= 40, `${designI
 assert(html.length > 9000, `${designId}: index.html is missing or too small for a high-fidelity design.`);
 assert(/<html[\s>]/i.test(html), `${designId}: index.html must be a complete HTML document.`);
 assert(/viewport/i.test(html), `${designId}: index.html must include responsive viewport metadata.`);
+assert(/<iframe\b/i.test(html), `${designId}: the WordPress site surface must be an actual <iframe>, not only a styled div/mock.`);
 assert(readme.length > 400, `${designId}: README.md must document thesis, remix, and trade-offs.`);
 
 const requiredSignals = [
