@@ -4,6 +4,8 @@ A gallery of 100 alternative redesigns of the WordPress Playground UI ([playgrou
 
 🔗 **Browse the gallery:** https://adamziel.github.io/wordpress-playground-redesigns/
 
+🔗 **Browse the V3 feedback-led gallery:** https://adamziel.github.io/wordpress-playground-redesigns/v3/
+
 ## Constraints every design honors
 
 - **No features added.** Every redesign exposes the same capabilities as the current UI: refresh, address bar, save/load playgrounds, edit settings (WP/PHP/lang/network/multisite), launch from blueprint / GitHub / PR / blueprint URL / .zip, browse 43 blueprints, edit files, edit blueprint JSON, browse DB, view logs, export to GitHub or .zip.
