@@ -1,0 +1,10 @@
+# 068 — Apple TV grid
+
+## Thesis
+WordPress Playground reimagined as a streaming-service home screen. The launcher *is* the front door: a cinematic dark backdrop, a slow-cycling featured hero ("Now Showing"), and horizontal poster shelves — Featured, Continue Watching, Recommended for Theme Authors, Recommended for Plugin Authors, Gutenberg & Experiments, WooCommerce. Pick a tile, press "Boot", and the iframe takes the screen. The chrome melts away while you work and only re-emerges on hover, just like the Apple TV transport bar.
+
+## What I remixed / merged / removed
+The Saved Playgrounds launcher and the Blueprint gallery are merged into one screen — they were always the same thing (a place to start). The five start-a-new options (Vanilla, WP PR, Gutenberg PR, From GitHub, Blueprint URL, Import .zip) become a dedicated "Start New" shelf with iconographic tiles, so a blueprint and a "boot from a PR" both look like content you can pick. Site Manager's five tabs collapse into a bottom-docked transport drawer (Files / Blueprint / Database / Logs / Settings) that slides up like the Apple TV info pane — same affordances, no left sidebar. The three settings entry points collapse to one (the Settings panel inside that drawer). "Additional actions" (Export to GitHub PR, Download .zip) live in a small overflow menu on the toolbar.
+
+## Trade-offs
+A streaming aesthetic is heavy on imagery — I lean on gradient SVG posters and big typography to avoid a giant binary payload, but a real implementation would want curated screenshots. Horizontal-scrolling shelves on mobile rely on swipe, which is great for browsing but slower than a filterable list when you know exactly what you want — a search affordance is kept in the hero. The bottom-docked devtools drawer is one less click than tabs in a sidebar, but it eats vertical pixels on small screens; on mobile it becomes a full-height sheet. Hiding chrome during a working session is a delight but bets that returning users will discover the edge-hover reveal.
