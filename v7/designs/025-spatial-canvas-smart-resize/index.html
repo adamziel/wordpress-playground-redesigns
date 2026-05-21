@@ -1,0 +1,1814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>v7 · 025 — Cartograph · Atlas beside the iframe (SPT + SR)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* ink */
+  --ink-0:#0b0e13;
+  --ink-1:#161a22;
+  --ink-2:#222833;
+  --ink-3:#323a48;
+  --line:#e3e6ec;
+  --line-2:#cfd4dd;
+  --paper:#f6f7fa;
+  --paper-2:#eef0f5;
+  --white:#ffffff;
+  --muted:#5b6473;
+  --muted-2:#838b99;
+  --accent:#1d6cf3;
+  --accent-2:#0c47ad;
+  --green:#1ea860;
+  --amber:#cc7b00;
+  --red:#cc2f3a;
+  --grid-line:rgba(28,33,44,0.06);
+  --grid-dot:rgba(28,33,44,0.18);
+  /* surface tokens */
+  --pane-radius:14px;
+  --chrome-h:40px;
+  --gauge-h:22px;
+  --seam-w:1px;
+  /* smart-resize ratio (driven per panel) */
+  --iframe:60%;
+  --atlas:40%;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper-2);color:var(--ink-0);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:48px 32px 80px}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+
+/* ──────── page rhythm ──────── */
+.page-h{max-width:1440px;margin:0 auto 24px}
+.page-h h1{font-size:24px;font-weight:700;letter-spacing:-0.01em;margin:0 0 4px}
+.page-h .sub{font-size:13px;color:var(--muted);max-width:880px;line-height:1.5}
+.page-h .meta{font-size:11px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;margin-top:6px;text-transform:uppercase;letter-spacing:0.04em}
+.panel-h{max-width:1440px;margin:32px auto 10px;display:flex;align-items:baseline;gap:14px}
+.panel-h .tag{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);background:var(--white);border:1px solid var(--line);padding:3px 8px;border-radius:6px;letter-spacing:0.04em}
+.panel-h .ttl{font-size:14px;font-weight:600;color:var(--ink-1)}
+.panel-h .note{font-size:12px;color:var(--muted);margin-left:auto;font-family:'JetBrains Mono',monospace}
+
+.frame{
+  max-width:1440px;margin:0 auto;
+  background:var(--white);
+  border:1px solid var(--line);
+  border-radius:18px;
+  box-shadow:0 1px 0 rgba(28,33,44,0.02),0 24px 60px -28px rgba(28,33,44,0.18);
+  overflow:hidden;
+  position:relative;
+}
+.frame.desktop{height:900px}
+.frame.boot{height:760px}
+.frame.mobile{width:390px;height:844px;border-radius:36px;margin:0;}
+.mobile-row{max-width:1440px;margin:0 auto;display:flex;gap:32px}
+
+/* ──────── slim DEV top bar ──────── */
+.topbar{
+  height:var(--chrome-h);
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#fafbfd 0%, #f3f5f9 100%);
+  display:flex;align-items:center;gap:8px;
+  padding:0 10px;
+  position:relative;z-index:5;
+}
+.tb-btn{
+  width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);
+  border:1px solid transparent;
+}
+.tb-btn:hover{background:var(--paper);border-color:var(--line)}
+.tb-btn.active{background:var(--white);border-color:var(--line);color:var(--ink-0)}
+.tb-btn svg{width:15px;height:15px}
+.urlpill{
+  flex:1;max-width:520px;height:26px;border-radius:7px;
+  background:var(--paper);border:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;padding:0 10px;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ink-2);
+}
+.urlpill .scheme{color:var(--muted-2)}
+.urlpill .path{color:var(--ink-0)}
+.urlpill .lock svg{width:11px;height:11px;color:var(--green)}
+.urlpill .submit{margin-left:auto;color:var(--muted-2)}
+.name-pill{
+  height:26px;padding:0 10px;border-radius:7px;background:var(--paper);border:1px solid var(--line);
+  display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-1);font-weight:500;
+}
+.name-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.name-pill.unsaved .dot{background:var(--amber)}
+.name-pill.unsaved{color:var(--amber)}
+.name-pill.booting .dot{background:#3a8df7}
+.save-btn{
+  height:26px;padding:0 12px;border-radius:7px;background:var(--ink-0);color:#fff;font-size:11.5px;font-weight:600;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.save-btn svg{width:12px;height:12px}
+.spacer{flex:1}
+
+/* ──────── layout shell ──────── */
+.body{
+  height:calc(100% - var(--chrome-h));
+  position:relative;
+  display:grid;
+  grid-template-columns: var(--iframe) var(--atlas);
+  background:var(--paper-2);
+}
+.pane-iframe{position:relative;overflow:hidden;background:#fff}
+.pane-atlas{position:relative;overflow:hidden;background:#fafbfd;border-left:1px solid var(--line)}
+
+/* ratios driven per panel via style attr or class */
+.body.r-65-35{--iframe:65%;--atlas:35%}
+.body.r-50-50{--iframe:50%;--atlas:50%}
+.body.r-35-65{--iframe:35%;--atlas:65%}
+.body.r-25-75{--iframe:25%;--atlas:75%}
+.body.r-100-0{--iframe:100%;--atlas:0%}
+.body.r-100-0 .pane-atlas{display:none}
+
+/* The receding pane gets a faint scrim — visual depth only, not interactive */
+.body.iframe-focus .pane-atlas .veil{opacity:0.32}
+.body.atlas-focus .pane-iframe .veil{opacity:0.20}
+.veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(246,247,250,0.0) 0,rgba(246,247,250,0.0) 100%);pointer-events:none;opacity:0;transition:opacity .2s}
+.body.iframe-focus .pane-atlas .veil{background:radial-gradient(120% 80% at 50% 40%,rgba(255,255,255,0.0) 0%,rgba(11,14,19,0.18) 100%)}
+.body.atlas-focus .pane-iframe .veil{background:radial-gradient(120% 80% at 50% 40%,rgba(255,255,255,0.0) 0%,rgba(11,14,19,0.12) 100%)}
+
+/* ──────── seam + gauge ──────── */
+.seam{
+  position:absolute;top:0;bottom:0;left:var(--iframe);width:0;
+  z-index:8;pointer-events:none;
+}
+.seam .line{position:absolute;top:0;bottom:0;left:-0.5px;width:1px;background:var(--line);}
+.seam .accent{position:absolute;left:-1.5px;width:3px;height:38px;border-radius:3px;background:var(--accent);top:calc(50% - 19px);box-shadow:0 0 0 4px rgba(29,108,243,0.10)}
+.gauge{
+  position:absolute;top:14px;left:-86px;width:172px;height:var(--gauge-h);
+  background:var(--white);border:1px solid var(--line);border-radius:11px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 8px;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-2);
+  box-shadow:0 4px 12px -6px rgba(28,33,44,0.18);
+  pointer-events:auto;
+}
+.gauge .num{font-weight:600;color:var(--ink-0);letter-spacing:0.02em}
+.gauge .num.dim{color:var(--muted-2);font-weight:400}
+.gauge .arr{color:var(--accent);font-weight:700}
+.gauge .dots{display:flex;gap:3px}
+.gauge .dots i{width:5px;height:5px;border-radius:50%;background:var(--line-2);display:block}
+.gauge .dots i.on{background:var(--accent)}
+.gauge .kbd{font-size:9.5px;color:var(--muted-2)}
+.body.r-100-0 .seam{display:none}
+
+/* ──────── ATLAS canvas (SPT) ──────── */
+.atlas-head{
+  height:36px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--white)
+}
+.atlas-head .title{font-size:11.5px;font-weight:600;color:var(--ink-1);letter-spacing:0.02em}
+.atlas-head .crumb{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.atlas-head .zoom{margin-left:auto;display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted)}
+.atlas-head .zoom-btn{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);background:var(--white)}
+.atlas-head .zoom-btn:hover{background:var(--paper)}
+.atlas-head .filter{height:22px;padding:0 8px;border-radius:6px;border:1px solid var(--line);background:var(--white);font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+
+.canvas{
+  position:absolute;top:36px;left:0;right:0;bottom:0;
+  overflow:hidden;
+  background:
+    radial-gradient(var(--grid-dot) 1px, transparent 1.4px) 0 0 / 24px 24px,
+    linear-gradient(180deg,#fafbfd 0,#f3f5f9 100%);
+}
+.canvas .grid-lines{position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px) 0 0 / 120px 120px,
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px) 0 0 / 120px 120px;
+}
+.canvas .compass{
+  position:absolute;left:10px;bottom:10px;width:54px;height:54px;border-radius:50%;
+  background:var(--white);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 10px -6px rgba(28,33,44,0.2);
+  font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);
+}
+.canvas .compass .arrow{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:14px solid var(--accent);position:absolute;top:8px}
+.canvas .compass .lbl{position:absolute;bottom:6px;font-weight:600;color:var(--ink-2)}
+.canvas .pos{
+  position:absolute;right:10px;bottom:10px;
+  background:var(--white);border:1px solid var(--line);border-radius:8px;
+  padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)
+}
+.canvas .pos b{color:var(--ink-1);font-weight:600}
+.canvas .legend{
+  position:absolute;left:10px;top:10px;
+  background:var(--white);border:1px solid var(--line);border-radius:8px;
+  padding:6px 8px 6px 8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);
+  display:flex;align-items:center;gap:10px;
+}
+.canvas .legend i{width:7px;height:7px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:5px}
+.canvas .legend .running i{background:var(--green)}
+.canvas .legend .paused i{background:var(--muted-2)}
+.canvas .legend .unsaved i{background:var(--amber)}
+
+/* a site tile on the atlas */
+.tile{
+  position:absolute;
+  background:var(--white);border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 1px 0 rgba(28,33,44,0.03),0 8px 18px -10px rgba(28,33,44,0.20);
+  overflow:hidden;
+  cursor:pointer;
+}
+.tile .thumb{height:62px;background:linear-gradient(135deg,#dfe6f0 0,#c4cee0 100%);position:relative;overflow:hidden}
+.tile .thumb.coffee{background:linear-gradient(135deg,#caa07a 0,#7b4c2a 100%)}
+.tile .thumb.art{background:linear-gradient(135deg,#b3c5f5 0,#3a55a8 100%)}
+.tile .thumb.gaming{background:linear-gradient(135deg,#2a2f3a 0,#1a3a78 100%)}
+.tile .thumb.nonprofit{background:linear-gradient(135deg,#dceac0 0,#587a3a 100%)}
+.tile .thumb.beta{background:linear-gradient(135deg,#fef0a8 0,#d49600 100%)}
+.tile .thumb.woocom{background:linear-gradient(135deg,#c9a3e0 0,#7a3aa8 100%)}
+.tile .thumb.gutenberg{background:linear-gradient(135deg,#caf2d8 0,#1ea860 100%)}
+.tile .thumb.docs{background:linear-gradient(135deg,#f5d3c4 0,#cc6b3a 100%)}
+.tile .thumb .ico{position:absolute;top:6px;right:6px;font-size:9px;color:rgba(255,255,255,0.85);font-family:'JetBrains Mono',monospace;background:rgba(0,0,0,0.25);padding:2px 5px;border-radius:5px}
+.tile .meta{padding:7px 8px 8px}
+.tile .meta .nm{font-size:11px;font-weight:600;color:var(--ink-0);line-height:1.15;letter-spacing:-0.01em;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden;text-overflow:ellipsis}
+.tile .meta .st{font-size:9.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace}
+.tile .meta .st i{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.tile .meta .st.paused i{background:var(--muted-2)}
+.tile .meta .st.unsaved i{background:var(--amber)}
+.tile.focused{outline:2px solid var(--accent);outline-offset:1px;z-index:3}
+.tile.focused::after{content:"";position:absolute;inset:-5px;border-radius:14px;box-shadow:0 0 0 1px rgba(29,108,243,0.16);pointer-events:none}
+.tile.small{width:104px}
+.tile.small .thumb{height:48px}
+.tile.small .meta .nm{font-size:10px}
+.tile.small .meta .st{font-size:9px}
+
+/* a “region” chip — categorizes a patch of the atlas */
+.region{
+  position:absolute;
+  border:1px dashed rgba(28,33,44,0.16);
+  border-radius:14px;
+  background:rgba(255,255,255,0.0);
+  pointer-events:none;
+}
+.region .rlbl{
+  position:absolute;top:-9px;left:12px;
+  background:var(--white);
+  font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);
+  padding:1px 6px;border:1px solid var(--line);border-radius:5px;
+}
+.region.featured .rlbl{color:var(--accent);border-color:rgba(29,108,243,0.3)}
+.region.experiments .rlbl{color:var(--amber);border-color:rgba(204,123,0,0.35)}
+
+/* atlas dock — sources & view filters; only present when atlas pane is focused */
+.atlas-dock{
+  position:absolute;left:14px;bottom:14px;right:14px;
+  background:var(--white);border:1px solid var(--line);border-radius:12px;
+  padding:10px 12px;
+  box-shadow:0 8px 22px -10px rgba(28,33,44,0.25);
+  display:grid;grid-template-columns:repeat(6,1fr);gap:8px;
+}
+.atlas-dock .src{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+  font-size:11px;color:var(--ink-1);font-weight:500;
+}
+.atlas-dock .src svg{width:14px;height:14px;color:var(--ink-2)}
+.atlas-dock .src:hover{background:var(--white);border-color:var(--ink-3)}
+
+/* sources are only one row of 6; category chips next to them */
+.atlas-toolbar{
+  position:absolute;top:42px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  z-index:2;
+}
+.atlas-toolbar .search{
+  flex:1;min-width:220px;height:28px;border-radius:8px;background:var(--white);border:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:var(--muted);
+}
+.atlas-toolbar .search svg{width:13px;height:13px}
+.atlas-toolbar .chip{
+  height:24px;padding:0 9px;border-radius:6px;background:var(--white);border:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;font-weight:500;
+}
+.atlas-toolbar .chip.on{background:var(--ink-0);color:#fff;border-color:var(--ink-0)}
+.atlas-toolbar .chip .ct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2)}
+.atlas-toolbar .chip.on .ct{color:rgba(255,255,255,0.7)}
+
+/* mini-atlas (corner widget when atlas pane is collapsed at 100/0 or hidden) */
+.minimap{
+  position:absolute;left:12px;bottom:12px;width:180px;height:124px;
+  background:var(--white);border:1px solid var(--line);border-radius:11px;
+  box-shadow:0 8px 22px -12px rgba(28,33,44,0.25);
+  overflow:hidden;
+  z-index:6;
+}
+.minimap .mhd{height:22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--paper)}
+.minimap .mhd .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.minimap .mhd .nm{font-size:10.5px;font-weight:600;color:var(--ink-1)}
+.minimap .mhd .kbd{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted-2)}
+.minimap .map{position:absolute;left:0;right:0;top:22px;bottom:0;background:radial-gradient(var(--grid-dot) 0.8px,transparent 1.2px) 0 0 / 12px 12px,linear-gradient(180deg,#fafbfd,#f3f5f9)}
+.minimap .map .mtile{position:absolute;width:18px;height:11px;border-radius:2px;background:var(--ink-3)}
+.minimap .map .mtile.coffee{background:#9b6c44}
+.minimap .map .mtile.gaming{background:#1a3a78}
+.minimap .map .mtile.beta{background:#d49600}
+.minimap .map .mtile.gutenberg{background:#1ea860}
+.minimap .map .mtile.woocom{background:#7a3aa8}
+.minimap .map .mtile.docs{background:#cc6b3a}
+.minimap .map .mtile.art{background:#3a55a8}
+.minimap .map .mtile.nonprofit{background:#587a3a}
+.minimap .map .focus{position:absolute;width:28px;height:18px;border:1.5px solid var(--accent);border-radius:3px;box-shadow:0 0 0 3px rgba(29,108,243,0.18)}
+
+/* ──────── iframe pane content (the live WP) ──────── */
+.wp-iframe{position:absolute;inset:0;overflow:hidden;background:#fff}
+.wp-iframe.coffee{background:linear-gradient(180deg,#fff 0,#fdf4ea 60%,#f3e2cb 100%)}
+.wp-iframe.gaming{background:linear-gradient(180deg,#0c1220 0,#1a233c 100%)}
+.wp-iframe.beta{background:linear-gradient(180deg,#fff8e1 0,#fde6a2 100%)}
+.wp-iframe.gutenberg{background:linear-gradient(180deg,#fff 0,#eaf6ee 100%)}
+.wp-iframe.art{background:linear-gradient(180deg,#fff 0,#e8edf7 100%)}
+.wp-iframe.nonprofit{background:linear-gradient(180deg,#fff 0,#eef3e1 100%)}
+.wp-iframe.boot{background:linear-gradient(180deg,#0b0e13 0,#1a2030 100%)}
+
+/* a faked WP page inside the iframe */
+.wp-nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 36px;border-bottom:1px solid rgba(0,0,0,0.06);font-family:'Inter',sans-serif}
+.wp-iframe.gaming .wp-nav{border-bottom-color:rgba(255,255,255,0.06);color:#fff}
+.wp-nav .brand{font-weight:700;letter-spacing:-0.02em;font-size:18px}
+.wp-nav .links{display:flex;gap:18px;font-size:13px;color:var(--ink-2)}
+.wp-iframe.gaming .wp-nav .links{color:#cad3e6}
+.wp-hero{padding:42px 36px 36px;display:flex;gap:32px;align-items:flex-start}
+.wp-hero .hero-img{flex:1;height:300px;border-radius:12px;background:linear-gradient(135deg,#c79665 0,#7c4824 100%);box-shadow:0 18px 40px -20px rgba(124,72,36,0.4)}
+.wp-iframe.gaming .wp-hero .hero-img{background:linear-gradient(135deg,#3a4f7c 0,#16223d 100%)}
+.wp-iframe.art .wp-hero .hero-img{background:linear-gradient(135deg,#a5b9e4 0,#3e5594 100%)}
+.wp-iframe.nonprofit .wp-hero .hero-img{background:linear-gradient(135deg,#bed484 0,#587a3a 100%)}
+.wp-hero .hero-txt{flex:0.9}
+.wp-hero h1{font-family:'Inter',sans-serif;font-weight:700;font-size:38px;letter-spacing:-0.02em;line-height:1.05;margin:0 0 12px;color:var(--ink-0)}
+.wp-iframe.gaming .wp-hero h1{color:#fff}
+.wp-hero p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 16px;max-width:340px}
+.wp-iframe.gaming .wp-hero p{color:#a3acc4}
+.wp-hero .pill-btn{display:inline-block;background:var(--ink-0);color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:8px}
+.wp-iframe.gaming .wp-hero .pill-btn{background:#fff;color:#0c1220}
+.wp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:0 36px 36px}
+.wp-cards .c{background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:10px;padding:16px}
+.wp-iframe.gaming .wp-cards .c{background:#16203a;border-color:rgba(255,255,255,0.06);color:#cad3e6}
+.wp-cards .c h3{font-size:14px;margin:0 0 6px}
+.wp-cards .c p{font-size:12px;color:var(--muted);margin:0}
+.wp-iframe.gaming .wp-cards .c p{color:#7d89a8}
+
+/* corner Sites widget on iframe (shown only when atlas pane is collapsed via mini-atlas) */
+/* By design we DO NOT add a separate "sites widget" in addition to the atlas — the atlas IS the sites surface.
+   The minimap above replaces it when the atlas pane is hidden, preserving "one door" semantics. */
+
+/* ──────── pane variants for site-manager (Settings/Files/Blueprint/Database/Logs) ──────── */
+/* The atlas pane swaps mode when you double-click a tile: it becomes the Site Manager pane for that site, with 5 segmented sub-tabs. */
+.sm-head{
+  height:38px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--white);
+}
+.sm-head .back{
+  height:22px;padding:0 8px;border-radius:6px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-2);background:var(--white);
+}
+.sm-head .back svg{width:11px;height:11px}
+.sm-head .crumb{font-size:11.5px;color:var(--ink-1);font-weight:600;display:flex;align-items:center;gap:6px}
+.sm-head .crumb .sep{color:var(--muted-2);font-weight:400}
+.sm-head .right{margin-left:auto;display:flex;gap:6px}
+.sm-head .right .chip-btn{height:22px;padding:0 8px;border-radius:6px;border:1px solid var(--line);font-size:10.5px;color:var(--ink-2);background:var(--white);display:inline-flex;align-items:center;gap:5px}
+.sm-head .right .chip-btn svg{width:11px;height:11px}
+
+.sm-tabs{
+  height:32px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0;padding:0 8px;background:#fafbfd;
+}
+.sm-tabs .t{
+  height:24px;padding:0 11px;border-radius:6px;font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;font-weight:500
+}
+.sm-tabs .t svg{width:12px;height:12px}
+.sm-tabs .t.on{background:var(--white);color:var(--ink-0);border:1px solid var(--line);box-shadow:0 1px 0 rgba(28,33,44,0.04)}
+.sm-tabs .t .b{background:var(--amber);color:#fff;font-size:9px;padding:0 5px;border-radius:8px;font-family:'JetBrains Mono',monospace}
+
+.sm-body{position:absolute;top:108px;left:0;right:0;bottom:0;overflow:auto}
+.sm-body.with-toolbar{top:108px}
+
+/* settings */
+.settings{padding:14px 14px 14px}
+.settings .section{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--white)}
+.settings .section h4{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--ink-1);display:flex;align-items:center;gap:6px;letter-spacing:0.01em}
+.settings .section h4 .ct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2);font-weight:500}
+.settings .row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:11.5px;color:var(--ink-2)}
+.settings .row label{color:var(--muted)}
+.settings .row .val{font-family:'JetBrains Mono',monospace;color:var(--ink-0);font-size:11px;background:var(--paper);padding:3px 7px;border-radius:5px;border:1px solid var(--line)}
+.settings .row .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--white)}
+.settings .row .seg b{padding:3px 8px;font-size:10.5px;font-weight:500;color:var(--muted)}
+.settings .row .seg b.on{background:var(--ink-0);color:#fff}
+.danger{border:1px solid rgba(204,47,58,0.22);background:#fff6f7}
+.danger h4{color:var(--red)}
+.danger p{font-size:11.5px;color:var(--ink-2);margin:0 0 8px;line-height:1.5}
+
+/* files */
+.files{display:grid;grid-template-columns:180px 1fr;height:100%}
+.files .tree{border-right:1px solid var(--line);background:#fafbfd;padding:8px 6px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-2)}
+.files .tree .row{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:5px;cursor:pointer}
+.files .tree .row:hover{background:var(--white)}
+.files .tree .row.on{background:var(--white);color:var(--ink-0);font-weight:600;border:1px solid var(--line)}
+.files .tree .row svg{width:11px;height:11px;color:var(--muted-2)}
+.files .tree .row .pad{display:inline-block;width:12px}
+.files .editor{position:relative;overflow:auto;background:#fbfcfe}
+.files .editor .ed-head{height:30px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted)}
+.files .editor .ed-head .pip{width:7px;height:7px;border-radius:50%;background:var(--amber)}
+.files .editor pre{margin:0;padding:10px 0 14px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;color:var(--ink-1)}
+.files .editor pre .ln{display:inline-block;width:36px;text-align:right;padding-right:10px;color:var(--muted-2);user-select:none;border-right:1px solid var(--line);margin-right:10px}
+.files .editor pre .k{color:#7a3aa8}.files .editor pre .s{color:#0c47ad}.files .editor pre .c{color:#5b6473;font-style:italic}.files .editor pre .f{color:#1ea860}.files .editor pre .v{color:#cc6b00}
+
+/* blueprint */
+.blueprint{display:grid;grid-template-columns:160px 1fr;height:100%}
+.blueprint .tree{border-right:1px solid var(--line);background:#fafbfd;padding:8px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-2)}
+.blueprint .tree .row{padding:3px 8px;border-radius:5px;display:flex;align-items:center;gap:6px}
+.blueprint .tree .row.on{background:var(--white);color:var(--ink-0);border:1px solid var(--line);font-weight:600}
+.blueprint .json{padding:0;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.blueprint .json .toolbar{height:30px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 10px}
+.blueprint .json .toolbar .b{height:22px;padding:0 9px;border-radius:6px;border:1px solid var(--line);font-size:10.5px;background:var(--white);display:inline-flex;align-items:center;gap:5px;color:var(--ink-1)}
+.blueprint .json .toolbar .b.primary{background:var(--ink-0);color:#fff;border-color:var(--ink-0)}
+.blueprint .json .toolbar .b svg{width:11px;height:11px}
+.blueprint .json pre{margin:0;padding:8px 0 14px}
+.blueprint .json pre .ln{display:inline-block;width:32px;text-align:right;padding-right:10px;color:var(--muted-2);border-right:1px solid var(--line);margin-right:10px}
+.blueprint .json pre .k{color:#7a3aa8}.blueprint .json pre .s{color:#0c47ad}.blueprint .json pre .n{color:#cc6b00}.blueprint .json pre .b{color:#1ea860}
+
+/* database */
+.db{padding:0}
+.db .notice{background:#fff8e1;border:1px solid rgba(204,123,0,0.3);padding:8px 12px;font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.db .notice b{color:var(--amber)}
+.db .tabs{display:flex;border-bottom:1px solid var(--line);padding:0 10px;background:#fafbfd}
+.db .tabs .tb{padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted)}
+.db .tabs .tb.on{color:var(--ink-0);border-bottom:2px solid var(--accent);font-weight:600}
+.db table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11px}
+.db th,.db td{padding:5px 10px;border-bottom:1px solid var(--line);text-align:left;color:var(--ink-2)}
+.db th{background:#f0f2f6;color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.04em}
+.db td.t{color:var(--ink-0)}
+
+/* logs */
+.logs{padding:0;background:#0b0e13;color:#cad3e6;height:100%;display:flex;flex-direction:column;font-family:'JetBrains Mono',monospace;font-size:11px}
+.logs .hd{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #222a3a;background:#0f1320}
+.logs .hd .search{flex:1;height:24px;border-radius:6px;background:#161b2c;border:1px solid #222a3a;display:flex;align-items:center;gap:6px;padding:0 8px;font-size:11px;color:#7d89a8}
+.logs .hd .search svg{width:11px;height:11px;color:#5b6473}
+.logs .hd .lvl{display:flex;gap:4px}
+.logs .hd .lvl .l{height:22px;padding:0 8px;border-radius:5px;border:1px solid #222a3a;font-size:10px;color:#7d89a8;background:#161b2c;display:inline-flex;align-items:center;gap:4px}
+.logs .hd .lvl .l.on{color:#fff;border-color:#3a4a78;background:#1a2342}
+.logs .stream{flex:1;overflow:auto;padding:6px 10px;line-height:1.55}
+.logs .stream .ln{display:flex;gap:10px;padding:2px 0}
+.logs .stream .t{color:#5b6473;flex-shrink:0;width:80px}
+.logs .stream .lv{flex-shrink:0;width:54px;font-weight:600}
+.logs .stream .ln .lv.notice{color:#3a8df7}
+.logs .stream .ln .lv.warn{color:#cc7b00}
+.logs .stream .ln .lv.error{color:#cc2f3a}
+.logs .stream .ln .lv.fatal{color:#cc2f3a;background:rgba(204,47,58,0.12);padding:0 4px;border-radius:3px}
+.logs .stream .msg{color:#cad3e6;flex:1;word-break:break-word}
+.logs .stream .msg .fn{color:#7d89a8}
+
+/* mini-atlas inside the SM pane head (shows you're focused on a tile, can click to return) */
+.sm-mini{
+  position:absolute;right:12px;top:6px;width:74px;height:26px;border:1px solid var(--line);border-radius:5px;background:#fafbfd;overflow:hidden;
+}
+.sm-mini .mtile{position:absolute;width:8px;height:5px;background:var(--ink-3);border-radius:1px}
+.sm-mini .mtile.on{background:var(--accent);outline:1.5px solid rgba(29,108,243,0.4);outline-offset:1px}
+
+/* ──────── boot overlay ──────── */
+.boot-overlay{
+  position:absolute;inset:0;background:rgba(11,14,19,0.78);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#cad3e6;
+  z-index:4;backdrop-filter:blur(10px);
+}
+.boot-overlay h2{font-family:'Inter',sans-serif;font-size:20px;font-weight:600;margin:0 0 16px;letter-spacing:-0.01em;color:#fff}
+.boot-overlay .ring{width:38px;height:38px;border-radius:50%;border:3px solid rgba(255,255,255,0.18);border-top-color:#3a8df7;animation:spin 0.9s linear infinite;margin-bottom:18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.boot-overlay .steps{display:flex;flex-direction:column;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#a3acc4;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:12px 16px;border-radius:9px;min-width:320px}
+.boot-overlay .steps .step{display:flex;align-items:center;gap:8px}
+.boot-overlay .steps .step b{width:14px;display:inline-block;color:#3a8df7}
+.boot-overlay .steps .step.done{color:#7d89a8}
+.boot-overlay .steps .step.done b{color:#1ea860}
+.boot-overlay .steps .step.now{color:#fff}
+.boot-overlay .cancel{margin-top:18px;height:28px;padding:0 14px;border-radius:7px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);font-size:11.5px;color:#cad3e6}
+
+/* ──────── destructive Apply+Reset modal ──────── */
+.modal-back{
+  position:absolute;inset:0;background:rgba(11,14,19,0.62);z-index:20;backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+}
+.modal{
+  width:540px;max-width:88%;background:#fff;border-radius:16px;border:1px solid var(--line);
+  box-shadow:0 30px 80px -20px rgba(11,14,19,0.4);overflow:hidden;
+}
+.modal .hd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.modal .hd .ico{width:30px;height:30px;border-radius:50%;background:#fff1f3;color:var(--red);display:inline-flex;align-items:center;justify-content:center}
+.modal .hd h3{margin:0;font-size:14px;font-weight:600;color:var(--ink-0);letter-spacing:-0.01em}
+.modal .hd .sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.modal .body{padding:14px 20px}
+.modal .diff{background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-2);line-height:1.65;margin-bottom:12px}
+.modal .diff .minus{color:var(--red)}.modal .diff .plus{color:var(--green)}
+.modal .auto{background:#eef6ec;border:1px solid rgba(30,168,96,0.3);border-radius:8px;padding:8px 12px;font-size:11.5px;color:var(--ink-2);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.modal .auto svg{width:14px;height:14px;color:var(--green);flex-shrink:0}
+.modal .auto b{color:var(--green)}
+.modal .typed{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.modal .typed label{font-size:11.5px;color:var(--ink-2);display:block;margin-bottom:6px}
+.modal .typed label code{font-family:'JetBrains Mono',monospace;background:var(--white);border:1px solid var(--line);padding:1px 5px;border-radius:4px;color:var(--ink-0)}
+.modal .typed input{width:100%;height:28px;border-radius:6px;border:1px solid var(--line);background:#fff;padding:0 8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ink-0);outline:none}
+.modal .typed input:focus{border-color:var(--accent)}
+.modal .typed .ok{color:var(--green);font-size:10.5px;display:flex;align-items:center;gap:4px;margin-top:4px}
+.modal .typed .ok svg{width:11px;height:11px}
+.modal .ft{padding:12px 20px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.modal .ft .b{height:30px;padding:0 14px;border-radius:7px;font-size:11.5px;font-weight:500;border:1px solid var(--line);background:var(--white);color:var(--ink-1)}
+.modal .ft .b.red{background:var(--red);color:#fff;border-color:var(--red);font-weight:600}
+.modal .ft .b.red[disabled]{background:#e6c2c6;border-color:#e6c2c6;color:#fff}
+
+/* ──────── overflow / kebab menu ──────── */
+.menu{
+  position:absolute;background:#fff;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 18px 40px -12px rgba(11,14,19,0.18);padding:6px;width:260px;z-index:25;
+}
+.menu .it{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;font-size:11.5px;color:var(--ink-1)}
+.menu .it:hover{background:var(--paper)}
+.menu .it svg{width:13px;height:13px;color:var(--muted)}
+.menu .it .kbd{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2)}
+.menu .sep{height:1px;background:var(--line);margin:4px 6px}
+.menu .ttl{font-size:9.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;padding:4px 10px}
+
+/* ──────── fullscreen exit pill ──────── */
+.fs-exit{
+  position:absolute;top:14px;right:14px;height:28px;padding:0 12px;border-radius:8px;
+  background:rgba(11,14,19,0.8);color:#fff;font-size:11px;display:inline-flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;backdrop-filter:blur(8px);
+  z-index:6;
+}
+.fs-exit kbd{background:rgba(255,255,255,0.18);padding:1px 5px;border-radius:4px;font-size:10px}
+
+/* ──────── toast ──────── */
+.toast{
+  position:absolute;left:14px;bottom:14px;
+  background:var(--ink-0);color:#fff;font-size:11.5px;padding:8px 12px;border-radius:8px;
+  display:inline-flex;align-items:center;gap:8px;font-weight:500;
+  z-index:7;box-shadow:0 12px 30px -10px rgba(11,14,19,0.5);
+}
+.toast svg{width:13px;height:13px;color:var(--green)}
+
+/* ──────── affordance count strip ──────── */
+.count-strip{
+  max-width:1440px;margin:6px auto 0;
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);
+  display:flex;align-items:center;gap:8px;
+  padding:6px 12px;background:var(--white);border:1px solid var(--line);border-radius:8px;
+}
+.count-strip b{color:var(--ink-0);font-weight:700}
+.count-strip .ok{color:var(--green);font-weight:600}
+
+/* ──────── mobile ──────── */
+.mob .topbar{padding:0 10px;height:44px}
+.mob .body{height:calc(100% - 44px - 56px);position:relative}
+.mob .body.r-100-0{height:calc(100% - 44px - 56px)}
+.mob .pane-iframe{position:relative;height:100%}
+.mob .pane-atlas{display:none}
+.mob .body{grid-template-columns:1fr}
+.mob-sheet{
+  position:absolute;left:0;right:0;bottom:0;height:56px;background:var(--white);border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-around;
+  z-index:5;
+}
+.mob-sheet.expanded{height:65%;flex-direction:column;align-items:stretch;justify-content:flex-start;padding-bottom:0}
+.mob-sheet .grip{align-self:center;width:38px;height:4px;border-radius:3px;background:var(--line-2);margin:8px 0 6px;flex-shrink:0}
+.mob-sheet .tabbar{display:flex;align-items:center;justify-content:space-around;border-top:1px solid var(--line);width:100%;height:54px;background:#fafbfd}
+.mob-sheet .tabbar .tb{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--muted);font-weight:500;padding:0 6px}
+.mob-sheet .tabbar .tb svg{width:18px;height:18px}
+.mob-sheet .tabbar .tb.on{color:var(--ink-0)}
+.mob-sheet .tabbar .tb.on svg{color:var(--accent)}
+.mob-canvas{flex:1;position:relative;overflow:hidden;background:radial-gradient(var(--grid-dot) 1px,transparent 1.4px) 0 0 / 24px 24px,linear-gradient(180deg,#fafbfd 0,#f3f5f9 100%)}
+.mob-canvas .tile{transform:scale(0.78);transform-origin:top left}
+.mob-gauge{position:absolute;top:8px;left:50%;transform:translateX(-50%);height:22px;padding:0 10px;background:var(--white);border:1px solid var(--line);border-radius:11px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-2);display:flex;align-items:center;gap:8px;z-index:6}
+.mob-gauge .num{font-weight:600}
+.mob .wp-nav{padding:0 18px;height:48px}
+.mob .wp-hero{flex-direction:column;padding:18px;gap:14px}
+.mob .wp-hero .hero-img{height:160px;width:100%}
+.mob .wp-hero h1{font-size:24px;margin-bottom:8px}
+.mob .wp-hero p{font-size:12.5px;max-width:none;margin-bottom:12px}
+.mob .wp-cards{grid-template-columns:1fr;padding:0 18px 18px}
+
+/* small helpers */
+.kbd-row{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)}
+.kbd-row kbd{background:var(--white);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:9.5px}
+
+/* SVG icon defaults */
+svg{vertical-align:middle;flex-shrink:0}
+
+/* sub-tab note (small text under panels) */
+.cap{
+  max-width:1440px;margin:0 auto;font-size:11.5px;color:var(--muted);
+  padding:8px 4px 0;line-height:1.5;
+}
+.cap b{color:var(--ink-1);font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════ -->
+<!-- Page header -->
+<!-- ════════════════════════════════ -->
+
+<div class="page-h">
+  <h1>v7 · 025 — Cartograph</h1>
+  <div class="sub">Saved playgrounds occupy stable 2D positions on a pannable atlas. That atlas IS the persistent secondary pane of a smart-resize layout — whichever pane you touch grows, the other recedes, snapping to 25/75, 35/65, 50/50, 65/35, or 100/0. The atlas never disappears (except in true fullscreen); the periphery of saved sites stays visible while you work.</div>
+  <div class="meta">SPT + SR · with DEV (slim 40px bar) carrying the rest · 8 idle affordances · one secondary surface · one door per feature</div>
+</div>
+
+<!-- ════════════════════════════════ -->
+<!-- SVG icon defs -->
+<!-- ════════════════════════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- generic strokes -->
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></symbol>
+    <symbol id="i-fwd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-zin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
+    <symbol id="i-zout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v2H5v5H3z"/><path d="M21 3h-7v2h5v5h2z"/><path d="M3 21h7v-2H5v-5H3z"/><path d="M21 21h-7v-2h5v-5h2z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><path d="M6 9v6a3 3 0 0 0 3 3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+    <symbol id="i-zip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-bp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/><polyline points="14 3 21 3 21 10"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+    <symbol id="i-pr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9"/><path d="M21 6h-7a4 4 0 0 0-4 4v8"/></symbol>
+    <symbol id="i-wp" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1a9 9 0 0 1 4 17l-4-11-4 11A9 9 0 0 1 12 3z"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></symbol>
+    <symbol id="i-logs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></symbol>
+  </defs>
+</svg>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL A — IDLE working session at 65/35 (iframe-focus) -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL A</span><span class="ttl">Working session · iframe focus 65/35 · saved · Coffee Shop</span><span class="note">→ touch iframe — atlas recedes, iframe grows</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn" aria-label="Refresh"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn" aria-label="Back"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn" aria-label="Forward"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill">
+      <span class="lock"><svg><use href="#i-lock"/></svg></span>
+      <span class="scheme">https://playground.wordpress.net</span><span class="path">/</span>
+      <span class="submit">⏎</span>
+    </div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop <span style="color:var(--muted-2);margin-left:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px">· WP 6.7 · PHP 8.2</span></div>
+    <div class="spacer"></div>
+    <button class="tb-btn" aria-label="Fullscreen"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn" aria-label="More"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body iframe-focus r-65-35">
+    <!-- iframe pane (left) -->
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand">Stumptown Roasters</div><div class="links"><span>Shop</span><span>Beans</span><span>Brewing</span><span>Visit</span><span>Cart (2)</span></div></div>
+        <div class="wp-hero">
+          <div class="hero-img"></div>
+          <div class="hero-txt">
+            <h1>Roasted in Portland, shipped to your door.</h1>
+            <p>Single-origin and seasonal blends, ground to order. Free shipping on subscriptions over $35.</p>
+            <span class="pill-btn">Shop the roaster</span>
+          </div>
+        </div>
+        <div class="wp-cards">
+          <div class="c"><h3>Espresso Bar</h3><p>House blend, perfect crema, $18/lb.</p></div>
+          <div class="c"><h3>Cold Brew Kit</h3><p>Mason jar + 12oz coarse grind.</p></div>
+          <div class="c"><h3>Subscriptions</h3><p>Save 10% · pause anytime.</p></div>
+        </div>
+      </div>
+      <div class="veil"></div>
+    </div>
+
+    <!-- atlas pane (right) — the SECONDARY surface -->
+    <div class="pane-atlas">
+      <div class="atlas-head">
+        <span class="title">Atlas</span>
+        <span class="crumb">3 saved · 43 blueprints · 6 sources</span>
+        <div class="zoom">
+          <button class="zoom-btn" aria-label="Zoom out"><svg width="11" height="11"><use href="#i-zout"/></svg></button>
+          <span>72%</span>
+          <button class="zoom-btn" aria-label="Zoom in"><svg width="11" height="11"><use href="#i-zin"/></svg></button>
+          <button class="zoom-btn" aria-label="Fit"><svg width="11" height="11"><use href="#i-fit"/></svg></button>
+        </div>
+      </div>
+
+      <div class="canvas">
+        <div class="grid-lines"></div>
+
+        <!-- regions (Featured / Your / Experiments) — overlapping bounding boxes on the spatial canvas -->
+        <div class="region featured" style="left:18px;top:30px;width:260px;height:170px"><span class="rlbl">Your sites</span></div>
+        <div class="region" style="left:14px;top:220px;width:440px;height:160px"><span class="rlbl">Featured blueprints</span></div>
+        <div class="region experiments" style="left:14px;top:392px;width:440px;height:130px"><span class="rlbl">Experiments</span></div>
+
+        <!-- saved playgrounds (focused = Coffee Shop) -->
+        <div class="tile small focused" style="left:34px;top:54px">
+          <div class="thumb coffee"><span class="ico">WP 6.7</span></div>
+          <div class="meta"><div class="nm">Coffee Shop</div><div class="st"><i></i>running · 7m</div></div>
+        </div>
+        <div class="tile small" style="left:150px;top:54px">
+          <div class="thumb gaming"><span class="ico">WP 6.7</span></div>
+          <div class="meta"><div class="nm">Gaming News</div><div class="st paused"><i></i>paused · 2h</div></div>
+        </div>
+        <div class="tile small" style="left:34px;top:128px">
+          <div class="thumb beta"><span class="ico">WP β</span></div>
+          <div class="meta"><div class="nm">WP Beta · 6.8 RC</div><div class="st unsaved"><i></i>unsaved · 14m</div></div>
+        </div>
+
+        <!-- featured blueprints (4 visible, 5 total featured) -->
+        <div class="tile small" style="left:34px;top:248px">
+          <div class="thumb art"><span class="ico">BP</span></div>
+          <div class="meta"><div class="nm">Art Gallery</div><div class="st paused"><i></i>blueprint</div></div>
+        </div>
+        <div class="tile small" style="left:150px;top:248px">
+          <div class="thumb gaming"><span class="ico">BP</span></div>
+          <div class="meta"><div class="nm">Gaming News</div><div class="st paused"><i></i>blueprint</div></div>
+        </div>
+        <div class="tile small" style="left:266px;top:248px">
+          <div class="thumb nonprofit"><span class="ico">BP</span></div>
+          <div class="meta"><div class="nm">Non-profit</div><div class="st paused"><i></i>blueprint</div></div>
+        </div>
+        <div class="tile small" style="left:34px;top:322px">
+          <div class="thumb docs"><span class="ico">BP</span></div>
+          <div class="meta"><div class="nm">Feed Reader</div><div class="st paused"><i></i>blueprint</div></div>
+        </div>
+
+        <!-- experiments -->
+        <div class="tile small" style="left:34px;top:418px">
+          <div class="thumb gutenberg"><span class="ico">GB</span></div>
+          <div class="meta"><div class="nm">Grid Variations</div><div class="st paused"><i></i>experiment</div></div>
+        </div>
+        <div class="tile small" style="left:150px;top:418px">
+          <div class="thumb gutenberg"><span class="ico">GB</span></div>
+          <div class="meta"><div class="nm">Dataview Exp.</div><div class="st paused"><i></i>experiment</div></div>
+        </div>
+        <div class="tile small" style="left:266px;top:418px">
+          <div class="thumb gutenberg"><span class="ico">GB</span></div>
+          <div class="meta"><div class="nm">Guidelines Exp.</div><div class="st paused"><i></i>experiment</div></div>
+        </div>
+
+        <!-- compass + position -->
+        <div class="compass">
+          <div class="arrow"></div><span class="lbl">N</span>
+        </div>
+        <div class="pos">x <b>-410</b> · y <b>+128</b> · z <b>0.72×</b></div>
+        <div class="legend">
+          <span class="running"><i></i>running</span>
+          <span class="paused"><i></i>paused</span>
+          <span class="unsaved"><i></i>unsaved</span>
+        </div>
+
+        <div class="veil"></div>
+      </div>
+    </div>
+
+    <!-- seam + gauge -->
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num">65</span>
+        <span class="arr">◀</span>
+        <span class="dots"><i></i><i class="on"></i><i></i><i></i><i></i></span>
+        <span class="num dim">35</span>
+        <span class="kbd">⌘[</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="count-strip">
+  <b>Idle affordances · 8/8</b>
+  · Refresh (1) · Back/Fwd cluster (2) · URL bar (3) · Name+state pill (4) · Fullscreen (5) · More kebab (6) · Atlas pane (7 — one cluster: zoom, sources, tiles) · Seam gauge (8) ·
+  <span class="ok">PASS</span>
+  · Save button hidden (saved state) · Atlas IS the launcher · no left rail · no right drawer
+</div>
+
+<div class="cap"><b>What the seam gauge tells you:</b> the iframe pane owns 65% of width; the atlas owns 35%. The lit dot (second from left) is the current snap. Press <kbd style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:0 4px">⌘[</kbd> to grow the atlas (next snap left); click anywhere in the atlas pane to grow it via interaction; press <kbd style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:0 4px">F</kbd> for fullscreen. No drag handle — touch grows.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL B — Atlas focus 25/75 — full SPT canvas, 16+ blueprints visible, 6 sources dock, 10 categories, search, 3 saved -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL B</span><span class="ttl">Atlas focus 25/75 · launcher mode · 18 tiles visible, 10 categories, 6 sources</span><span class="note">→ touched the atlas — it grew; iframe yielded</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/</span></div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop <span style="color:var(--muted-2);margin-left:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px">· running</span></div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body atlas-focus r-25-75">
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand" style="font-size:14px">Stumptown</div><div class="links" style="font-size:11px"><span>Shop</span><span>Cart</span></div></div>
+        <div class="wp-hero" style="padding:24px 20px">
+          <div class="hero-img" style="height:140px"></div>
+        </div>
+      </div>
+      <div class="veil"></div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="atlas-head">
+        <span class="title">Atlas · Launcher</span>
+        <span class="crumb">all sites + all blueprints</span>
+        <div class="zoom">
+          <button class="zoom-btn"><svg width="11" height="11"><use href="#i-zout"/></svg></button>
+          <span>100%</span>
+          <button class="zoom-btn"><svg width="11" height="11"><use href="#i-zin"/></svg></button>
+          <button class="zoom-btn"><svg width="11" height="11"><use href="#i-fit"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Search + category chips toolbar -->
+      <div class="atlas-toolbar">
+        <div class="search"><svg><use href="#i-search"/></svg>Search 43 blueprints, 3 saved sites… <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2)">⌘K</span></div>
+        <div class="chip on">All <span class="ct">46</span></div>
+        <div class="chip">Featured <span class="ct">5</span></div>
+        <div class="chip">Website <span class="ct">10</span></div>
+        <div class="chip">Personal <span class="ct">7</span></div>
+        <div class="chip">Content <span class="ct">6</span></div>
+        <div class="chip">Themes <span class="ct">6</span></div>
+        <div class="chip">Gutenberg <span class="ct">4</span></div>
+        <div class="chip">Experiments <span class="ct">3</span></div>
+        <div class="chip">WooCommerce <span class="ct">4</span></div>
+        <div class="chip">News <span class="ct">2</span></div>
+      </div>
+
+      <div class="canvas" style="top:80px;bottom:96px">
+        <div class="grid-lines"></div>
+
+        <!-- Regions: spatial geography of the atlas -->
+        <div class="region featured" style="left:22px;top:18px;width:464px;height:160px"><span class="rlbl">Your sites · 3</span></div>
+        <div class="region" style="left:22px;top:194px;width:704px;height:160px"><span class="rlbl">Featured · 5</span></div>
+        <div class="region" style="left:22px;top:370px;width:464px;height:160px"><span class="rlbl">Themes & content · 9</span></div>
+        <div class="region experiments" style="left:506px;top:194px;width:220px;height:336px"><span class="rlbl">Experiments & Gutenberg · 4</span></div>
+
+        <!-- Saved sites -->
+        <div class="tile small focused" style="left:38px;top:42px"><div class="thumb coffee"><span class="ico">WP 6.7</span></div><div class="meta"><div class="nm">Coffee Shop</div><div class="st"><i></i>running</div></div></div>
+        <div class="tile small" style="left:154px;top:42px"><div class="thumb gaming"><span class="ico">WP 6.7</span></div><div class="meta"><div class="nm">Gaming News</div><div class="st paused"><i></i>paused</div></div></div>
+        <div class="tile small" style="left:270px;top:42px"><div class="thumb beta"><span class="ico">WP β</span></div><div class="meta"><div class="nm">WP Beta · 6.8 RC</div><div class="st unsaved"><i></i>unsaved</div></div></div>
+        <!-- "drop zone" for new save next to the row -->
+        <div class="tile small" style="left:386px;top:42px;background:transparent;border:1.5px dashed var(--line-2);box-shadow:none">
+          <div class="thumb" style="background:transparent;display:flex;align-items:center;justify-content:center;color:var(--muted-2)"><svg width="20" height="20"><use href="#i-plus"/></svg></div>
+          <div class="meta"><div class="nm" style="color:var(--muted-2);font-weight:500">Drop here to save</div><div class="st paused" style="color:var(--muted-2)"><i></i>placeholder</div></div>
+        </div>
+
+        <!-- Featured (5) -->
+        <div class="tile small" style="left:38px;top:220px"><div class="thumb art"><span class="ico">#1</span></div><div class="meta"><div class="nm">Art Gallery</div><div class="st paused"><i></i>Vueo · WP 6.7</div></div></div>
+        <div class="tile small" style="left:154px;top:220px"><div class="thumb coffee"><span class="ico">#2</span></div><div class="meta"><div class="nm">Coffee Shop</div><div class="st paused"><i></i>Woo store</div></div></div>
+        <div class="tile small" style="left:270px;top:220px"><div class="thumb docs"><span class="ico">#3</span></div><div class="meta"><div class="nm">Feed Reader</div><div class="st paused"><i></i>Friends plugin</div></div></div>
+        <div class="tile small" style="left:386px;top:220px"><div class="thumb gaming"><span class="ico">#4</span></div><div class="meta"><div class="nm">Gaming News</div><div class="st paused"><i></i>Spiel theme</div></div></div>
+        <div class="tile small" style="left:38px;top:296px"><div class="thumb nonprofit"><span class="ico">#5</span></div><div class="meta"><div class="nm">Non-profit</div><div class="st paused"><i></i>Koinonia</div></div></div>
+
+        <!-- Themes & content (9 of 14) -->
+        <div class="tile small" style="left:38px;top:396px"><div class="thumb art"><span class="ico">BP</span></div><div class="meta"><div class="nm">Personal Blog</div><div class="st paused"><i></i>Substrata</div></div></div>
+        <div class="tile small" style="left:154px;top:396px"><div class="thumb nonprofit"><span class="ico">BP</span></div><div class="meta"><div class="nm">Personal Resume</div><div class="st paused"><i></i>Readymade</div></div></div>
+        <div class="tile small" style="left:270px;top:396px"><div class="thumb docs"><span class="ico">BP</span></div><div class="meta"><div class="nm">Photo Portfolio</div><div class="st paused"><i></i>Grammer</div></div></div>
+        <div class="tile small" style="left:386px;top:396px"><div class="thumb art"><span class="ico">BP</span></div><div class="meta"><div class="nm">Skincare Blog</div><div class="st paused"><i></i>Piel</div></div></div>
+        <div class="tile small" style="left:38px;top:472px"><div class="thumb gaming"><span class="ico">BP</span></div><div class="meta"><div class="nm">University Site</div><div class="st paused"><i></i>Kentwood</div></div></div>
+        <div class="tile small" style="left:154px;top:472px"><div class="thumb woocom"><span class="ico">Woo</span></div><div class="meta"><div class="nm">Stylish Press</div><div class="st paused"><i></i>Woo store</div></div></div>
+        <div class="tile small" style="left:270px;top:472px"><div class="thumb beta"><span class="ico">BP</span></div><div class="meta"><div class="nm">Twenty Twenty-Five</div><div class="st paused"><i></i>default theme</div></div></div>
+        <div class="tile small" style="left:386px;top:472px"><div class="thumb woocom"><span class="ico">Woo</span></div><div class="meta"><div class="nm">Woo Product Feed</div><div class="st paused"><i></i>WooCommerce</div></div></div>
+
+        <!-- Experiments/Gutenberg (4) -->
+        <div class="tile small" style="left:522px;top:220px"><div class="thumb gutenberg"><span class="ico">GB</span></div><div class="meta"><div class="nm">Latest Gutenberg</div><div class="st paused"><i></i>plugin</div></div></div>
+        <div class="tile small" style="left:522px;top:296px"><div class="thumb gutenberg"><span class="ico">GB</span></div><div class="meta"><div class="nm">Dataview Exp.</div><div class="st paused"><i></i>3 exp on</div></div></div>
+        <div class="tile small" style="left:522px;top:372px"><div class="thumb gutenberg"><span class="ico">GB</span></div><div class="meta"><div class="nm">Grid Variations</div><div class="st paused"><i></i>experiment</div></div></div>
+        <div class="tile small" style="left:522px;top:448px"><div class="thumb gutenberg"><span class="ico">GB</span></div><div class="meta"><div class="nm">Guidelines Exp.</div><div class="st paused"><i></i>experiment</div></div></div>
+        <div class="tile small" style="left:638px;top:220px"><div class="thumb woocom"><span class="ico">Woo</span></div><div class="meta"><div class="nm">Minimal Woo</div><div class="st paused"><i></i>shipping + pay</div></div></div>
+
+        <div class="compass"><div class="arrow"></div><span class="lbl">N</span></div>
+        <div class="pos">x <b>0</b> · y <b>0</b> · z <b>1.0×</b></div>
+      </div>
+
+      <!-- 6 sources dock at the bottom -->
+      <div class="atlas-dock">
+        <button class="src"><svg><use href="#i-wp"/></svg>Vanilla WP</button>
+        <button class="src"><svg><use href="#i-pr"/></svg>WordPress PR</button>
+        <button class="src"><svg><use href="#i-pr"/></svg>Gutenberg PR</button>
+        <button class="src"><svg><use href="#i-git"/></svg>From GitHub</button>
+        <button class="src"><svg><use href="#i-bp"/></svg>Blueprint URL</button>
+        <button class="src"><svg><use href="#i-zip"/></svg>Import .zip</button>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num dim">25</span>
+        <span class="arr">▶</span>
+        <span class="dots"><i class="on"></i><i></i><i></i><i></i><i></i></span>
+        <span class="num">75</span>
+        <span class="kbd">⌘]</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>Atlas-focus state.</b> 18 tiles visible above the fold (3 saved + 5 featured + 8 themes/content + 4 experiments + 1 placeholder save-zone = 21 if you count the dashed). 10 category chips with live counts. 6 source buttons in the dock. Search box with ⌘K hint. The atlas is a *spatial canvas* — tiles have stable positions; regions are bounded patches; pan/zoom reveals more.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL C — Site-Manager mode in the atlas pane (double-click a saved tile → atlas swaps to SM with 5 tabs for that site) -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL C</span><span class="ttl">Atlas swaps to Site Manager mode · Files tab · 50/50</span><span class="note">→ double-clicked Coffee Shop tile · the atlas pane becomes its site-manager</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/wp-content/themes/stumptown/style.css</span></div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop</div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body r-50-50">
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand">Stumptown</div><div class="links"><span>Shop</span><span>Brewing</span><span>Cart</span></div></div>
+        <div class="wp-hero">
+          <div class="hero-img"></div>
+          <div class="hero-txt">
+            <h1 style="font-size:30px">Roasted in Portland.</h1>
+            <p>Live edits to <code style="font-family:'JetBrains Mono',monospace;background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:4px;font-size:12px">style.css</code> appear here on save.</p>
+            <span class="pill-btn">Shop</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane-atlas">
+      <!-- Site-manager head: back-to-atlas button + crumb + mini-atlas anchor -->
+      <div class="sm-head">
+        <button class="back"><svg><use href="#i-map"/></svg>Atlas</button>
+        <span class="crumb">Coffee Shop <span class="sep">/</span> Files <span class="sep">·</span> <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted)">x -410 · y +128</span></span>
+        <div class="right">
+          <button class="chip-btn"><svg><use href="#i-home"/></svg>Home</button>
+          <button class="chip-btn"><svg><use href="#i-user"/></svg>wp-admin</button>
+        </div>
+        <div class="sm-mini" title="this site's position on the atlas">
+          <div class="mtile on" style="left:6px;top:5px"></div>
+          <div class="mtile" style="left:20px;top:5px;background:#1a3a78"></div>
+          <div class="mtile" style="left:34px;top:5px;background:#d49600"></div>
+          <div class="mtile" style="left:6px;top:14px;background:#3a55a8"></div>
+          <div class="mtile" style="left:20px;top:14px;background:#cc6b3a"></div>
+          <div class="mtile" style="left:34px;top:14px;background:#587a3a"></div>
+        </div>
+      </div>
+      <div class="sm-tabs">
+        <button class="t"><svg><use href="#i-settings"/></svg>Settings</button>
+        <button class="t on"><svg><use href="#i-file"/></svg>Files</button>
+        <button class="t"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="t"><svg><use href="#i-db"/></svg>Database</button>
+        <button class="t"><svg><use href="#i-logs"/></svg>Logs <span class="b">2</span></button>
+      </div>
+
+      <div class="sm-body">
+        <div class="files">
+          <div class="tree">
+            <div class="row"><svg><use href="#i-folder"/></svg>wordpress/</div>
+            <div class="row" style="padding-left:18px"><svg><use href="#i-folder"/></svg>wp-admin/</div>
+            <div class="row" style="padding-left:18px"><svg><use href="#i-folder"/></svg>wp-content/</div>
+            <div class="row" style="padding-left:34px"><svg><use href="#i-folder"/></svg>plugins/</div>
+            <div class="row" style="padding-left:50px"><svg><use href="#i-folder"/></svg>woocommerce/</div>
+            <div class="row" style="padding-left:34px"><svg><use href="#i-folder"/></svg>themes/</div>
+            <div class="row" style="padding-left:50px"><svg><use href="#i-folder"/></svg>stumptown/</div>
+            <div class="row on" style="padding-left:66px"><svg><use href="#i-file"/></svg>style.css</div>
+            <div class="row" style="padding-left:66px"><svg><use href="#i-file"/></svg>functions.php</div>
+            <div class="row" style="padding-left:66px"><svg><use href="#i-file"/></svg>theme.json</div>
+            <div class="row" style="padding-left:50px"><svg><use href="#i-folder"/></svg>twentytwentyfive/</div>
+            <div class="row" style="padding-left:34px"><svg><use href="#i-folder"/></svg>uploads/</div>
+            <div class="row" style="padding-left:18px"><svg><use href="#i-folder"/></svg>wp-includes/</div>
+            <div class="row" style="padding-left:18px"><svg><use href="#i-file"/></svg>wp-config.php</div>
+            <div class="row" style="padding-top:8px"><svg><use href="#i-plus"/></svg>New file</div>
+            <div class="row"><svg><use href="#i-plus"/></svg>New folder</div>
+          </div>
+          <div class="editor">
+            <div class="ed-head"><span class="pip"></span>wp-content / themes / stumptown / <b style="color:var(--ink-0)">style.css</b><span style="margin-left:auto">Modified · ⌘S to save</span></div>
+<pre><span class="ln">1</span><span class="c">/* Theme Name: Stumptown · v0.4.0 */</span>
+<span class="ln">2</span>
+<span class="ln">3</span><span class="k">:root</span> {
+<span class="ln">4</span>  <span class="v">--brand</span>: <span class="s">#7c4824</span>;
+<span class="ln">5</span>  <span class="v">--brand-soft</span>: <span class="s">#fdf4ea</span>;
+<span class="ln">6</span>  <span class="v">--ink</span>: <span class="s">#1a120b</span>;
+<span class="ln">7</span>  <span class="v">--type</span>: <span class="s">"Inter", system-ui, sans-serif</span>;
+<span class="ln">8</span>}
+<span class="ln">9</span>
+<span class="ln">10</span><span class="k">body</span> {
+<span class="ln">11</span>  <span class="v">font-family</span>: <span class="v">var</span>(<span class="s">--type</span>);
+<span class="ln">12</span>  <span class="v">background</span>: <span class="v">linear-gradient</span>(<span class="s">180deg</span>, <span class="s">#fff</span>, <span class="v">var</span>(<span class="s">--brand-soft</span>));
+<span class="ln">13</span>  <span class="v">color</span>: <span class="v">var</span>(<span class="s">--ink</span>);
+<span class="ln">14</span>}
+<span class="ln">15</span>
+<span class="ln">16</span><span class="k">.hero h1</span> {
+<span class="ln">17</span>  <span class="v">font-size</span>: <span class="s">clamp</span>(2rem, 4vw, 3.5rem);
+<span class="ln">18</span>  <span class="v">letter-spacing</span>: <span class="s">-0.02em</span>;
+<span class="ln">19</span>  <span class="v">color</span>: <span class="v">var</span>(<span class="s">--brand</span>);
+<span class="ln">20</span>}
+<span class="ln">21</span>
+<span class="ln">22</span><span class="k">.product-card</span> {
+<span class="ln">23</span>  <span class="v">border-radius</span>: <span class="s">12px</span>;
+<span class="ln">24</span>  <span class="v">padding</span>: <span class="s">1.25rem</span>;
+<span class="ln">25</span>}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num">50</span>
+        <span class="arr">━</span>
+        <span class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></span>
+        <span class="num">50</span>
+        <span class="kbd">⌘\</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>Site Manager mode.</b> Double-clicking a saved tile swaps the atlas pane into the 5-tab site manager (<b>Settings · Files · Blueprint · Database · Logs</b>) for that site. The little mini-atlas in the top-right of the pane head shows where this site sits on the canvas with the active tile highlighted; click <b>Atlas</b> to return to the spatial overview. <b>WP Admin</b> and <b>Home</b> are pane-internal chips — not global chrome. <b>Logs</b> shows a "2" badge from the live error count.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL D — Blueprint tab + Additional actions menu open -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL D</span><span class="ttl">Blueprint tab · 35/65 · Additional actions menu open</span><span class="note">→ both Export to GitHub PR and Download .zip visible</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/?p=14</span></div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop</div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn active"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body atlas-focus r-35-65">
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand" style="font-size:14px">Stumptown</div></div>
+      </div>
+      <div class="veil"></div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="sm-head">
+        <button class="back"><svg><use href="#i-map"/></svg>Atlas</button>
+        <span class="crumb">Coffee Shop <span class="sep">/</span> Blueprint</span>
+        <div class="right">
+          <button class="chip-btn"><svg><use href="#i-home"/></svg>Home</button>
+          <button class="chip-btn"><svg><use href="#i-user"/></svg>wp-admin</button>
+        </div>
+      </div>
+      <div class="sm-tabs">
+        <button class="t"><svg><use href="#i-settings"/></svg>Settings</button>
+        <button class="t"><svg><use href="#i-file"/></svg>Files</button>
+        <button class="t on"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="t"><svg><use href="#i-db"/></svg>Database</button>
+        <button class="t"><svg><use href="#i-logs"/></svg>Logs <span class="b">2</span></button>
+      </div>
+
+      <div class="sm-body">
+        <div class="blueprint">
+          <div class="tree">
+            <div class="row on"><svg><use href="#i-file"/></svg>blueprint.json</div>
+            <div class="row" style="padding-left:14px"><svg><use href="#i-file"/></svg>products.csv</div>
+            <div class="row" style="padding-left:14px"><svg><use href="#i-file"/></svg>theme.zip</div>
+            <div class="row"><svg><use href="#i-folder"/></svg>steps/</div>
+            <div class="row" style="padding-left:14px"><svg><use href="#i-file"/></svg>setup.php</div>
+          </div>
+          <div class="json">
+            <div class="toolbar">
+              <button class="b primary"><svg><use href="#i-rocket"/></svg>Run Blueprint</button>
+              <button class="b"><svg><use href="#i-globe"/></svg>Copy link</button>
+              <button class="b"><svg><use href="#i-zip"/></svg>Download bundle</button>
+              <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted)">v1 schema · 9 steps · valid ✓</span>
+            </div>
+<pre style="padding:8px 10px"><span class="ln">1</span><span class="k">{</span>
+<span class="ln">2</span>  <span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+<span class="ln">3</span>  <span class="k">"landingPage"</span>: <span class="s">"/?page_id=2"</span>,
+<span class="ln">4</span>  <span class="k">"preferredVersions"</span>: <span class="k">{</span>
+<span class="ln">5</span>    <span class="k">"php"</span>: <span class="s">"8.2"</span>,
+<span class="ln">6</span>    <span class="k">"wp"</span>: <span class="s">"6.7"</span>
+<span class="ln">7</span>  <span class="k">}</span>,
+<span class="ln">8</span>  <span class="k">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],
+<span class="ln">9</span>  <span class="k">"steps"</span>: [
+<span class="ln">10</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"login"</span>, <span class="k">"username"</span>: <span class="s">"admin"</span> <span class="k">}</span>,
+<span class="ln">11</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"installTheme"</span>, <span class="k">"themeZipFile"</span>: <span class="k">{</span> <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"https://playground.wp.net/themes/stumptown.zip"</span> <span class="k">}</span> <span class="k">}</span>,
+<span class="ln">12</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"activateTheme"</span>, <span class="k">"themeFolderName"</span>: <span class="s">"stumptown"</span> <span class="k">}</span>,
+<span class="ln">13</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"installPlugin"</span>, <span class="k">"pluginZipFile"</span>: <span class="k">{</span> <span class="k">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> <span class="k">}</span> <span class="k">}</span>,
+<span class="ln">14</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"runPHP"</span>, <span class="k">"code"</span>: <span class="s">"&lt;?php require '/wordpress/wp-load.php'; WC_Install::install(); ?&gt;"</span> <span class="k">}</span>,
+<span class="ln">15</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"importWxr"</span>, <span class="k">"file"</span>: <span class="k">{</span> <span class="k">"resource"</span>: <span class="s">"vfs"</span>, <span class="k">"path"</span>: <span class="s">"/blueprint/products.csv"</span> <span class="k">}</span> <span class="k">}</span>,
+<span class="ln">16</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="k">"options"</span>: <span class="k">{</span> <span class="k">"blogname"</span>: <span class="s">"Stumptown Roasters"</span>, <span class="k">"woocommerce_currency"</span>: <span class="s">"USD"</span> <span class="k">}</span> <span class="k">}</span>,
+<span class="ln">17</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"updateUserMeta"</span>, <span class="k">"meta"</span>: <span class="k">{</span> <span class="k">"admin_color"</span>: <span class="s">"modern"</span> <span class="k">}</span>, <span class="k">"userId"</span>: <span class="n">1</span> <span class="k">}</span>,
+<span class="ln">18</span>    <span class="k">{</span> <span class="k">"step"</span>: <span class="s">"wp-cli"</span>, <span class="k">"command"</span>: <span class="s">"wp option update permalink_structure '/%postname%/'"</span> <span class="k">}</span>
+<span class="ln">19</span>  ]
+<span class="ln">20</span><span class="k">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num dim">35</span>
+        <span class="arr">▶</span>
+        <span class="dots"><i></i><i class="on"></i><i></i><i></i><i></i></span>
+        <span class="num">65</span>
+        <span class="kbd">⌘]</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- the additional-actions menu, anchored to the topbar More button -->
+  <div class="menu" style="right:46px;top:46px">
+    <div class="ttl">Coffee Shop · additional actions</div>
+    <div class="it"><svg><use href="#i-edit"/></svg>Rename playground<span class="kbd">R</span></div>
+    <div class="it"><svg><use href="#i-pin"/></svg>Pin to atlas region<span class="kbd">P</span></div>
+    <div class="sep"></div>
+    <div class="ttl">Export</div>
+    <div class="it"><svg><use href="#i-pr"/></svg>Export to GitHub PR…<span class="kbd">⇧⌘E</span></div>
+    <div class="it"><svg><use href="#i-zip"/></svg>Download .zip<span class="kbd">⌘D</span></div>
+    <div class="sep"></div>
+    <div class="it"><svg><use href="#i-camera"/></svg>Auto-snapshot now<span class="kbd">⌘⇧S</span></div>
+    <div class="it" style="color:var(--red)"><svg style="color:var(--red)"><use href="#i-trash"/></svg>Delete playground…</div>
+  </div>
+</div>
+
+<div class="cap"><b>Both export paths in one menu.</b> Export to GitHub PR and Download .zip live only in the kebab menu — no duplication. Real blueprint JSON: 9 steps, login → installTheme → activateTheme → installPlugin (Woo) → runPHP → importWxr → setSiteOptions → updateUserMeta → wp-cli. <b>Run Blueprint · Copy link · Download bundle</b> are pane-internal chips on the JSON toolbar.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL E — Logs tab, dark background, real PHP log lines, 65/35 atlas-focus  -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL E</span><span class="ttl">Logs tab · 35/65 · 4 levels filterable · realistic PHP stream</span><span class="note">→ logs stream live</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/wp-admin/options-general.php</span></div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop</div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body atlas-focus r-35-65">
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand" style="font-size:14px">wp-admin · General</div></div>
+        <div style="padding:24px 32px;color:var(--muted);font-size:13px">
+          <div style="font-weight:600;color:var(--ink-0);margin-bottom:6px">General Settings</div>
+          <p>Site title, tagline, WordPress address, timezone…</p>
+        </div>
+      </div>
+      <div class="veil"></div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="sm-head">
+        <button class="back"><svg><use href="#i-map"/></svg>Atlas</button>
+        <span class="crumb">Coffee Shop <span class="sep">/</span> Logs <span class="sep">·</span> <span style="color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:10.5px">2 warn · 1 error</span></span>
+        <div class="right">
+          <button class="chip-btn"><svg><use href="#i-home"/></svg>Home</button>
+          <button class="chip-btn"><svg><use href="#i-user"/></svg>wp-admin</button>
+        </div>
+      </div>
+      <div class="sm-tabs">
+        <button class="t"><svg><use href="#i-settings"/></svg>Settings</button>
+        <button class="t"><svg><use href="#i-file"/></svg>Files</button>
+        <button class="t"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="t"><svg><use href="#i-db"/></svg>Database</button>
+        <button class="t on"><svg><use href="#i-logs"/></svg>Logs <span class="b">2</span></button>
+      </div>
+
+      <div class="sm-body" style="background:#0b0e13">
+        <div class="logs">
+          <div class="hd">
+            <div class="search"><svg><use href="#i-search"/></svg><span>Search PHP error log…</span></div>
+            <div class="lvl">
+              <button class="l on">All <span style="color:#7d89a8;margin-left:3px">42</span></button>
+              <button class="l">Notice <span style="margin-left:3px">31</span></button>
+              <button class="l on">Warn <span style="margin-left:3px">2</span></button>
+              <button class="l on">Error <span style="margin-left:3px">1</span></button>
+              <button class="l">Fatal <span style="margin-left:3px">0</span></button>
+            </div>
+          </div>
+          <div class="stream">
+            <div class="ln"><span class="t">14:22:01.142</span><span class="lv notice">NOTICE</span><span class="msg">PHP Notice: Undefined index "ssl" in <span class="fn">/wordpress/wp-includes/canonical.php:248</span></span></div>
+            <div class="ln"><span class="t">14:22:01.290</span><span class="lv notice">NOTICE</span><span class="msg">wp_load_alloptions(): 192 autoloaded options · 14.2 KB total · cache hit</span></div>
+            <div class="ln"><span class="t">14:22:01.451</span><span class="lv warn">WARN</span><span class="msg">PHP Deprecated: strftime() is deprecated since 8.1, use IntlDateFormatter or date() in <span class="fn">wp-content/themes/stumptown/inc/dates.php:34</span></span></div>
+            <div class="ln"><span class="t">14:22:01.512</span><span class="lv notice">NOTICE</span><span class="msg">WooCommerce 8.5.2 booted in 218ms · 14 hooks attached</span></div>
+            <div class="ln"><span class="t">14:22:01.668</span><span class="lv notice">NOTICE</span><span class="msg">REST: GET /wp-json/wp/v2/products?per_page=8 → 200 OK · 84ms</span></div>
+            <div class="ln"><span class="t">14:22:01.821</span><span class="lv error">ERROR</span><span class="msg">cURL error 28: Operation timed out after 5001ms (TLS handshake to api.openweathermap.org) — falling back to cached weather payload</span></div>
+            <div class="ln"><span class="t">14:22:01.902</span><span class="lv warn">WARN</span><span class="msg">PHP Warning: Trying to access array offset on value of type null in <span class="fn">wp-content/plugins/woocommerce/includes/class-wc-cart.php:1102</span></span></div>
+            <div class="ln"><span class="t">14:22:02.030</span><span class="lv notice">NOTICE</span><span class="msg">Cron event "wc_admin_daily" scheduled · next run +24h</span></div>
+            <div class="ln"><span class="t">14:22:02.214</span><span class="lv notice">NOTICE</span><span class="msg">SQLite VFS: page cache hit ratio 96.4% · 1.1MB resident</span></div>
+            <div class="ln"><span class="t">14:22:02.388</span><span class="lv notice">NOTICE</span><span class="msg">Block editor: registered 24 core blocks, 9 WooCommerce blocks</span></div>
+            <div class="ln"><span class="t">14:22:02.502</span><span class="lv notice">NOTICE</span><span class="msg">Theme "stumptown" version 0.4.0 activated · 6 patterns registered</span></div>
+            <div class="ln"><span class="t">14:22:02.611</span><span class="lv notice">NOTICE</span><span class="msg">User #1 (admin) authenticated · session token 7c8…ab2</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num dim">35</span>
+        <span class="arr">▶</span>
+        <span class="dots"><i></i><i class="on"></i><i></i><i></i><i></i></span>
+        <span class="num">65</span>
+        <span class="kbd">⌘]</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>One-way logs.</b> The Logs tab is read-only — no input box, no command echo. (Brief's "no dual-channel duplication" DROP respected.) Level filters across the top, real PHP log lines including deprecation warnings, cURL timeouts, cron scheduling, SQLite cache hit ratio, WooCommerce boot timing.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL F — Unsaved playground · save state transition · toast -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL F</span><span class="ttl">Unsaved → saving → saved · 50/50 · save button visible only when unsaved</span><span class="note">→ Save click triggers OPFS write and tile materializes on the atlas</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/</span></div>
+    <div class="name-pill unsaved"><span class="dot"></span>Unsaved Playground <span style="color:var(--muted-2);margin-left:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px">· in memory</span></div>
+    <button class="save-btn"><svg><use href="#i-save"/></svg>Save</button>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body r-50-50">
+    <div class="pane-iframe">
+      <div class="wp-iframe beta">
+        <div class="wp-nav"><div class="brand">WP 6.8 RC1 · Beta tester</div><div class="links"><span>Posts</span><span>Pages</span><span>Plugins</span></div></div>
+        <div class="wp-hero">
+          <div class="hero-img" style="background:linear-gradient(135deg,#fef0a8 0,#d49600 100%)"></div>
+          <div class="hero-txt">
+            <h1>Beta-testing 6.8 RC1</h1>
+            <p>Theme test data is loaded. Save now to keep your edits across refreshes.</p>
+            <span class="pill-btn" style="background:#d49600">Browse posts</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="atlas-head">
+        <span class="title">Atlas</span>
+        <span class="crumb">3 saved · 1 unsaved · pending</span>
+        <div class="zoom">
+          <button class="zoom-btn"><svg width="11" height="11"><use href="#i-zout"/></svg></button>
+          <span>80%</span>
+          <button class="zoom-btn"><svg width="11" height="11"><use href="#i-zin"/></svg></button>
+        </div>
+      </div>
+
+      <div class="canvas">
+        <div class="grid-lines"></div>
+        <div class="region featured" style="left:18px;top:22px;width:380px;height:170px"><span class="rlbl">Your sites · 3 + 1 unsaved</span></div>
+
+        <div class="tile small" style="left:34px;top:46px"><div class="thumb coffee"><span class="ico">WP 6.7</span></div><div class="meta"><div class="nm">Coffee Shop</div><div class="st"><i></i>running</div></div></div>
+        <div class="tile small" style="left:150px;top:46px"><div class="thumb gaming"><span class="ico">WP 6.7</span></div><div class="meta"><div class="nm">Gaming News</div><div class="st paused"><i></i>paused</div></div></div>
+        <div class="tile small" style="left:266px;top:46px"><div class="thumb beta"><span class="ico">WP β</span></div><div class="meta"><div class="nm">WP Beta · 6.8 RC</div><div class="st"><i></i>running</div></div></div>
+
+        <!-- unsaved tile is dashed amber and animated -->
+        <div class="tile small" style="left:34px;top:120px;border:1.5px dashed #cc7b00;background:#fff8e1;outline:0">
+          <div class="thumb beta"><span class="ico" style="background:rgba(204,123,0,0.4)">∅</span></div>
+          <div class="meta">
+            <div class="nm" style="color:#cc7b00">Unsaved Playground</div>
+            <div class="st unsaved"><i></i>not in OPFS · 142 MB</div>
+          </div>
+        </div>
+
+        <!-- inline notice acknowledging the unsaved state -->
+        <div style="position:absolute;left:18px;top:218px;right:18px;background:#fff8e1;border:1px solid rgba(204,123,0,0.3);border-radius:10px;padding:10px 12px;font-size:11.5px;color:var(--ink-2);display:flex;gap:10px;align-items:flex-start">
+          <svg width="14" height="14" style="color:#cc7b00;flex-shrink:0;margin-top:2px"><use href="#i-alert"/></svg>
+          <div>
+            <b style="color:#cc7b00">This is an Unsaved Playground.</b> Your changes (142 MB · 6 plugins · 1 theme · 14 posts) will be lost on page refresh.
+            <button style="display:inline-block;margin-top:6px;background:#cc7b00;color:#fff;font-size:11px;font-weight:600;height:24px;padding:0 10px;border-radius:6px">Save site locally</button>
+          </div>
+        </div>
+
+        <!-- save-state timeline at the bottom -->
+        <div style="position:absolute;left:18px;bottom:18px;right:18px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted)">
+          <div style="font-size:9.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted-2);margin-bottom:6px">save timeline</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:#cc7b00"></span><span>Unsaved · 14:21</span></div>
+            <span style="color:var(--muted-2)">→</span>
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:#3a8df7;animation:pulse 1s infinite alternate"></span><span style="color:var(--ink-0)">Saving "WP Beta · 6.8 RC" · 142 MB</span></div>
+            <span style="color:var(--muted-2)">→</span>
+            <div style="display:flex;align-items:center;gap:6px;color:var(--muted-2)"><span style="width:7px;height:7px;border-radius:50%;background:var(--line-2)"></span><span>Saved</span></div>
+          </div>
+        </div>
+        <style>@keyframes pulse{from{opacity:0.5}to{opacity:1}}</style>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num">50</span>
+        <span class="arr">━</span>
+        <span class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></span>
+        <span class="num">50</span>
+        <span class="kbd">⌘\</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast"><svg><use href="#i-save"/></svg>Saving to browser storage · 142 MB · OPFS</div>
+</div>
+
+<div class="cap"><b>Save embodiment.</b> Save button appears in the top bar <i>only when unsaved</i> (amber name-pill state). The atlas shows a dashed amber tile in your "Your sites" region — it materializes into a solid tile once OPFS commits. A toast confirms write-through. Inline "Save site locally" notice appears in the atlas too (single source of truth — both target the same OPFS call).</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL G — Settings tab + destructive Apply+Reset modal (typed-phrase + diff + auto-snapshot) -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL G</span><span class="ttl">Apply + Reset · destructive · typed-phrase + diff + auto-snapshot</span><span class="note">→ three layers of escalation, not a small red banner</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/wp-admin/</span></div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop</div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body r-50-50">
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand">Stumptown</div></div>
+      </div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="sm-head">
+        <button class="back"><svg><use href="#i-map"/></svg>Atlas</button>
+        <span class="crumb">Coffee Shop <span class="sep">/</span> Settings</span>
+      </div>
+      <div class="sm-tabs">
+        <button class="t on"><svg><use href="#i-settings"/></svg>Settings</button>
+        <button class="t"><svg><use href="#i-file"/></svg>Files</button>
+        <button class="t"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="t"><svg><use href="#i-db"/></svg>Database</button>
+        <button class="t"><svg><use href="#i-logs"/></svg>Logs <span class="b">2</span></button>
+      </div>
+
+      <div class="sm-body">
+        <div class="settings">
+          <div class="section">
+            <h4>Runtime <span class="ct">applied without reset</span></h4>
+            <div class="row"><label>WordPress</label><span class="val">6.7</span></div>
+            <div class="row"><label>PHP</label><span class="val">8.2</span></div>
+            <div class="row"><label>Language</label><span class="val">English (US)</span></div>
+            <div class="row"><label>Network access</label><div class="seg"><b class="on">on</b><b>off</b></div></div>
+            <div class="row"><label>Multisite</label><div class="seg"><b>on</b><b class="on">off</b></div></div>
+          </div>
+
+          <div class="section">
+            <h4>Open in fullscreen <span class="ct">F</span></h4>
+            <div class="row" style="padding:8px 0">
+              <label style="color:var(--ink-2)">Hide the chrome and let the iframe fill the viewport. Press <kbd style="background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 5px;font-family:'JetBrains Mono',monospace;font-size:10px">F</kbd> or <kbd style="background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 5px;font-family:'JetBrains Mono',monospace;font-size:10px">Esc</kbd> to toggle.</label>
+              <button style="background:var(--ink-0);color:#fff;height:28px;padding:0 12px;border-radius:7px;font-size:11.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px"><svg width="13" height="13" style="color:#fff"><use href="#i-full"/></svg>Open fullscreen</button>
+            </div>
+          </div>
+
+          <div class="section danger">
+            <h4><svg width="13" height="13"><use href="#i-alert"/></svg>Apply &amp; Reset playground</h4>
+            <p>Changing the WordPress or PHP version rebuilds the WASM runtime. <b>All site data — posts, users, plugins, uploads — is wiped.</b></p>
+            <button style="background:var(--red);color:#fff;height:28px;padding:0 12px;border-radius:7px;font-size:11.5px;font-weight:600">Apply &amp; Reset…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num">50</span>
+        <span class="arr">━</span>
+        <span class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></span>
+        <span class="num">50</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- destructive modal -->
+  <div class="modal-back">
+    <div class="modal">
+      <div class="hd">
+        <div class="ico"><svg width="15" height="15"><use href="#i-alert"/></svg></div>
+        <div>
+          <h3>Apply runtime changes &amp; reset playground</h3>
+          <div class="sub">This will wipe all site data and rebuild from your blueprint.</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="diff">
+<span class="minus">- WordPress 6.7</span>
+<span class="plus">+ WordPress 6.8 RC1</span>
+
+<span class="minus">- PHP 8.2</span>
+<span class="plus">+ PHP 8.3</span>
+
+  Language: English (US)         <span style="color:var(--muted-2)">(unchanged)</span>
+  Network access: on             <span style="color:var(--muted-2)">(unchanged)</span>
+        </div>
+        <div class="auto"><svg><use href="#i-camera"/></svg><span><b>Auto-snapshot</b> will be saved as <code style="font-family:'JetBrains Mono',monospace;background:rgba(30,168,96,0.12);padding:1px 5px;border-radius:4px">coffee-shop / pre-reset-2026-05-21-1422</code> · restorable from Atlas › Your sites</span></div>
+        <div class="typed">
+          <label>Type <code>coffee-shop</code> to confirm</label>
+          <input type="text" value="coffee-shop" />
+          <div class="ok"><svg><use href="#i-check"/></svg>match</div>
+        </div>
+      </div>
+      <div class="ft">
+        <button class="b">Cancel</button>
+        <button class="b red">Apply &amp; Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>Three escalations stacked.</b> (1) Diff sheet — what's changing, with - / + markers. (2) Auto-snapshot — a labeled restore point materializes in your atlas region. (3) Typed-phrase — must type the site slug. The destructive button is dark red, all-caps weight; this is not a small banner.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL H — Database tab · early-access notice · wp_posts -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL H</span><span class="ttl">Database tab · 50/50 · SQLite browser early-access</span><span class="note">→ wp_posts preview</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/</span></div>
+    <div class="name-pill"><span class="dot"></span>Coffee Shop</div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body r-50-50">
+    <div class="pane-iframe">
+      <div class="wp-iframe coffee">
+        <div class="wp-nav"><div class="brand">Stumptown</div></div>
+      </div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="sm-head">
+        <button class="back"><svg><use href="#i-map"/></svg>Atlas</button>
+        <span class="crumb">Coffee Shop <span class="sep">/</span> Database</span>
+      </div>
+      <div class="sm-tabs">
+        <button class="t"><svg><use href="#i-settings"/></svg>Settings</button>
+        <button class="t"><svg><use href="#i-file"/></svg>Files</button>
+        <button class="t"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="t on"><svg><use href="#i-db"/></svg>Database</button>
+        <button class="t"><svg><use href="#i-logs"/></svg>Logs <span class="b">2</span></button>
+      </div>
+
+      <div class="sm-body">
+        <div class="db">
+          <div class="notice"><svg width="13" height="13" style="color:#cc7b00"><use href="#i-alert"/></svg><span><b>Early access.</b> Database management is experimental. Issues &amp; feedback → <span style="text-decoration:underline">github.com/WordPress/wordpress-playground/issues</span></span></div>
+          <div class="tabs">
+            <button class="tb">wp_options <span style="color:var(--muted-2)">192</span></button>
+            <button class="tb on">wp_posts <span style="color:var(--muted-2)">14</span></button>
+            <button class="tb">wp_postmeta <span style="color:var(--muted-2)">86</span></button>
+            <button class="tb">wp_users <span style="color:var(--muted-2)">1</span></button>
+            <button class="tb">wp_woocommerce_orders <span style="color:var(--muted-2)">2</span></button>
+            <button class="tb">…14 more</button>
+          </div>
+          <table>
+            <thead><tr><th>ID</th><th>post_title</th><th>post_type</th><th>post_status</th><th>post_date</th><th>post_author</th></tr></thead>
+            <tbody>
+              <tr><td class="t">2</td><td class="t">Home</td><td>page</td><td>publish</td><td>2026-05-21 14:18:02</td><td>1</td></tr>
+              <tr><td class="t">4</td><td class="t">Shop</td><td>page</td><td>publish</td><td>2026-05-21 14:18:04</td><td>1</td></tr>
+              <tr><td class="t">8</td><td class="t">House Blend, 12oz</td><td>product</td><td>publish</td><td>2026-05-21 14:18:10</td><td>1</td></tr>
+              <tr><td class="t">9</td><td class="t">Cold Brew Kit</td><td>product</td><td>publish</td><td>2026-05-21 14:18:11</td><td>1</td></tr>
+              <tr><td class="t">10</td><td class="t">Subscription · Monthly</td><td>product</td><td>publish</td><td>2026-05-21 14:18:13</td><td>1</td></tr>
+              <tr><td class="t">12</td><td class="t">Brewing Guide</td><td>post</td><td>publish</td><td>2026-05-21 14:19:00</td><td>1</td></tr>
+              <tr><td class="t">14</td><td class="t">Tasting Notes: Sumatra Lintong</td><td>post</td><td>publish</td><td>2026-05-21 14:19:30</td><td>1</td></tr>
+              <tr><td class="t">15</td><td class="t">Draft: Pour-over guide</td><td>post</td><td>draft</td><td>2026-05-21 14:21:00</td><td>1</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num">50</span>
+        <span class="arr">━</span>
+        <span class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></span>
+        <span class="num">50</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>Database is a tab, not a separate door.</b> Early-access amber notice inline with the table list (matches the brief's required notice text). 5 tables visible + "14 more" overflow.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL I — Booting state · 50/50 · the iframe is the boot screen, the atlas pane shows the blueprint steps -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL I</span><span class="ttl">Booting · 50/50 · iframe loads, atlas shows the blueprint progress</span><span class="note">→ atlas IS the progress monitor</span></div>
+
+<div class="frame boot">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/</span></div>
+    <div class="name-pill booting"><span class="dot"></span>Booting · Stylish Press</div>
+    <div class="spacer"></div>
+    <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body r-50-50">
+    <div class="pane-iframe">
+      <div class="wp-iframe boot" style="display:flex;align-items:center;justify-content:center">
+        <div class="boot-overlay" style="position:relative;inset:auto;background:transparent;backdrop-filter:none">
+          <h2>Booting Stylish Press</h2>
+          <div class="ring"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7d89a8;margin-top:6px">step 5 of 9 · 1.8s elapsed</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane-atlas">
+      <div class="sm-head">
+        <button class="back"><svg><use href="#i-map"/></svg>Atlas</button>
+        <span class="crumb">Stylish Press <span class="sep">/</span> booting…</span>
+      </div>
+      <div class="sm-tabs">
+        <button class="t"><svg><use href="#i-settings"/></svg>Settings</button>
+        <button class="t"><svg><use href="#i-file"/></svg>Files</button>
+        <button class="t on"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="t"><svg><use href="#i-db"/></svg>Database</button>
+        <button class="t"><svg><use href="#i-logs"/></svg>Logs</button>
+      </div>
+
+      <div class="sm-body">
+        <div style="padding:18px 18px">
+          <div style="font-size:13px;font-weight:600;color:var(--ink-0);margin-bottom:14px">Running blueprint <code style="background:var(--paper);border:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:1px 6px;border-radius:5px">stylish-press.json</code></div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11.5px">
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted-2)"><svg width="13" height="13" style="color:var(--green)"><use href="#i-check"/></svg><span>1 · login(admin)</span><span style="margin-left:auto;font-size:10px">12ms</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted-2)"><svg width="13" height="13" style="color:var(--green)"><use href="#i-check"/></svg><span>2 · setSiteOptions(blogname, blogdescription)</span><span style="margin-left:auto;font-size:10px">8ms</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted-2)"><svg width="13" height="13" style="color:var(--green)"><use href="#i-check"/></svg><span>3 · installPlugin(woocommerce)</span><span style="margin-left:auto;font-size:10px">412ms</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted-2)"><svg width="13" height="13" style="color:var(--green)"><use href="#i-check"/></svg><span>4 · installTheme(stylish-press.zip)</span><span style="margin-left:auto;font-size:10px">186ms</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--ink-0);background:var(--paper);padding:6px 10px;border-radius:6px"><div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--accent);border-top-color:transparent;animation:spin 1s linear infinite"></div><span><b>5 · runPHP</b> — WC_Install::install()</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">1.2s</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><svg width="13" height="13" style="color:var(--line-2)"><use href="#i-check"/></svg><span>6 · importWxr(products.csv)</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><svg width="13" height="13" style="color:var(--line-2)"><use href="#i-check"/></svg><span>7 · runPHP — register taxonomies</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><svg width="13" height="13" style="color:var(--line-2)"><use href="#i-check"/></svg><span>8 · wp-cli rewrite flush</span></div>
+            <div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><svg width="13" height="13" style="color:var(--line-2)"><use href="#i-check"/></svg><span>9 · activateTheme(stylish-press)</span></div>
+          </div>
+          <button style="margin-top:16px;border:1px solid var(--line);background:var(--white);height:28px;padding:0 12px;border-radius:7px;font-size:11px;color:var(--ink-2)">Cancel boot</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="seam">
+      <div class="line"></div>
+      <div class="accent"></div>
+      <div class="gauge">
+        <span class="num">50</span>
+        <span class="arr">━</span>
+        <span class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></span>
+        <span class="num">50</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>Booting is informative, not a wall.</b> The iframe pane shows the spinner; the atlas pane shows the actual blueprint steps with timings. This is NOT a console echo of stdout — it's a structured step list (the same JSON from the Blueprint tab, rendered as a progress checklist). No dual-channel duplication.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL J — Fullscreen 100/0 · atlas collapsed · minimap reappears as corner widget -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL J</span><span class="ttl">Fullscreen 100/0 · atlas collapsed · minimap stays as the door back</span><span class="note">→ F or Esc · the minimap is the only chrome</span></div>
+
+<div class="frame desktop">
+  <div class="topbar">
+    <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-back"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-fwd"/></svg></button>
+    <div class="urlpill"><span class="lock"><svg><use href="#i-lock"/></svg></span><span class="scheme">https://playground.wordpress.net</span><span class="path">/?p=14</span></div>
+    <div class="name-pill"><span class="dot"></span>Gaming News</div>
+    <div class="spacer"></div>
+    <button class="tb-btn active"><svg><use href="#i-full"/></svg></button>
+    <button class="tb-btn"><svg><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="body r-100-0">
+    <div class="pane-iframe">
+      <div class="wp-iframe gaming">
+        <div class="wp-nav"><div class="brand">Spiel</div><div class="links"><span>Reviews</span><span>News</span><span>Esports</span><span>Hardware</span><span>Subscribe</span></div></div>
+        <div class="wp-hero">
+          <div class="hero-img"></div>
+          <div class="hero-txt">
+            <h1>The cinematic platformer of the year.</h1>
+            <p>A studio of seven shipped the most ambitious indie of 2026. We sat down with the director.</p>
+            <span class="pill-btn">Read the interview</span>
+          </div>
+        </div>
+        <div class="wp-cards">
+          <div class="c"><h3>Top Stories</h3><p>Six features this week.</p></div>
+          <div class="c"><h3>Reviews</h3><p>32 new scores.</p></div>
+          <div class="c"><h3>Hardware</h3><p>RTX, ROG, Steam Deck OLED.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- minimap as the only chrome over the iframe — the door back to the atlas -->
+    <div class="minimap">
+      <div class="mhd"><span class="dot"></span><span class="nm">Gaming News</span><span class="kbd">⌘M</span></div>
+      <div class="map">
+        <div class="mtile coffee" style="left:14px;top:10px"></div>
+        <div class="mtile" style="left:38px;top:10px;background:#1a3a78"></div>
+        <div class="mtile beta" style="left:62px;top:10px"></div>
+        <div class="mtile art" style="left:14px;top:26px"></div>
+        <div class="mtile gutenberg" style="left:38px;top:26px"></div>
+        <div class="mtile woocom" style="left:62px;top:26px"></div>
+        <div class="mtile docs" style="left:14px;top:42px"></div>
+        <div class="mtile nonprofit" style="left:38px;top:42px"></div>
+        <div class="mtile" style="left:62px;top:42px;background:#7a3aa8"></div>
+        <div class="mtile" style="left:14px;top:58px;background:#cc6b3a"></div>
+        <div class="mtile" style="left:38px;top:58px;background:#cc7b00"></div>
+        <div class="mtile" style="left:62px;top:58px;background:#3a55a8"></div>
+        <div class="mtile" style="left:14px;top:74px;background:#1ea860"></div>
+        <div class="mtile" style="left:38px;top:74px;background:#587a3a"></div>
+        <div class="mtile" style="left:62px;top:74px;background:#9b6c44"></div>
+        <!-- focus rect on Gaming News position -->
+        <div class="focus" style="left:33px;top:5px"></div>
+      </div>
+    </div>
+
+    <div class="fs-exit"><kbd>Esc</kbd> or <kbd>F</kbd> · exit fullscreen</div>
+  </div>
+</div>
+
+<div class="cap"><b>Fullscreen 100/0 · one chrome.</b> The atlas pane is collapsed to 0%; the iframe owns the whole canvas. The bottom-left mini-atlas takes its place as the one-corner, one-cluster door back. <b>This is the only state in which the minimap appears</b> — it replaces the atlas pane, it doesn't sit alongside it (otherwise that would be dual-channel duplication for the same primitive). Press ⌘M or click the minimap to restore the atlas pane.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- PANEL K — Mobile (two phones side by side) -->
+<!-- ════════════════════════════════ -->
+<div class="panel-h"><span class="tag">PANEL K · MOBILE</span><span class="ttl">390 × 844 — atlas is a bottom sheet, SR rotates 90° to vertical, same primitives</span><span class="note">two states: working session + atlas open</span></div>
+
+<div class="mobile-row">
+  <!-- mobile A: working session, sheet collapsed -->
+  <div class="frame mobile mob">
+    <div class="topbar">
+      <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+      <div class="urlpill" style="max-width:none;flex:1"><span class="scheme">playground.wp.net</span><span class="path">/</span></div>
+      <div class="name-pill" style="height:22px;font-size:10.5px;padding:0 7px"><span class="dot"></span>Coffee Shop</div>
+      <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    </div>
+    <div class="body r-100-0">
+      <div class="pane-iframe">
+        <div class="wp-iframe coffee">
+          <div class="wp-nav"><div class="brand">Stumptown</div><div class="links" style="font-size:10px"><span>Shop</span><span>Cart</span></div></div>
+          <div class="wp-hero">
+            <div class="hero-img"></div>
+            <div class="hero-txt">
+              <h1>Roasted in Portland.</h1>
+              <p>Single-origin and seasonal blends.</p>
+              <span class="pill-btn">Shop</span>
+            </div>
+          </div>
+          <div class="wp-cards">
+            <div class="c"><h3>Espresso Bar</h3><p>House blend.</p></div>
+            <div class="c"><h3>Cold Brew Kit</h3><p>Mason jar.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mob-sheet">
+      <div class="tabbar" style="width:100%;height:56px">
+        <button class="tb on"><svg><use href="#i-globe"/></svg>Live</button>
+        <button class="tb"><svg><use href="#i-map"/></svg>Atlas</button>
+        <button class="tb"><svg><use href="#i-bp"/></svg>Blueprint</button>
+        <button class="tb"><svg><use href="#i-logs"/></svg>Logs</button>
+        <button class="tb"><svg><use href="#i-more"/></svg>More</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- mobile B: atlas sheet expanded -->
+  <div class="frame mobile mob">
+    <div class="topbar">
+      <button class="tb-btn"><svg><use href="#i-refresh"/></svg></button>
+      <div class="urlpill" style="max-width:none;flex:1"><span class="scheme">playground.wp.net</span><span class="path">/</span></div>
+      <div class="name-pill" style="height:22px;font-size:10.5px;padding:0 7px"><span class="dot"></span>Coffee Shop</div>
+      <button class="tb-btn"><svg><use href="#i-full"/></svg></button>
+    </div>
+    <div class="body r-100-0">
+      <div class="pane-iframe">
+        <div class="wp-iframe coffee" style="opacity:0.36">
+          <div class="wp-nav"><div class="brand">Stumptown</div></div>
+        </div>
+      </div>
+      <div class="mob-gauge">
+        <span class="num">35</span>
+        <span style="color:var(--accent)">▲</span>
+        <span class="num" style="color:var(--accent)">65</span>
+        <span style="color:var(--muted-2)">↑ drag sheet</span>
+      </div>
+    </div>
+    <div class="mob-sheet expanded" style="height:65%">
+      <div class="grip"></div>
+      <div style="padding:0 14px 8px;font-size:13px;font-weight:600;color:var(--ink-0)">Atlas</div>
+      <div style="padding:0 14px;display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="height:22px;padding:0 8px;border-radius:5px;background:var(--ink-0);color:#fff;font-size:10.5px;display:inline-flex;align-items:center">All <span style="opacity:0.6;margin-left:3px;font-family:'JetBrains Mono',monospace;font-size:9px">46</span></div>
+        <div style="height:22px;padding:0 8px;border-radius:5px;border:1px solid var(--line);background:var(--white);font-size:10.5px;color:var(--ink-2);display:inline-flex;align-items:center">Featured</div>
+        <div style="height:22px;padding:0 8px;border-radius:5px;border:1px solid var(--line);background:var(--white);font-size:10.5px;color:var(--ink-2);display:inline-flex;align-items:center">Themes</div>
+        <div style="height:22px;padding:0 8px;border-radius:5px;border:1px solid var(--line);background:var(--white);font-size:10.5px;color:var(--ink-2);display:inline-flex;align-items:center">Gutenberg</div>
+        <div style="height:22px;padding:0 8px;border-radius:5px;border:1px solid var(--line);background:var(--white);font-size:10.5px;color:var(--ink-2);display:inline-flex;align-items:center">Woo</div>
+      </div>
+      <div class="mob-canvas">
+        <div class="tile small focused" style="left:12px;top:10px"><div class="thumb coffee"><span class="ico">WP</span></div><div class="meta"><div class="nm">Coffee Shop</div><div class="st"><i></i>running</div></div></div>
+        <div class="tile small" style="left:106px;top:10px"><div class="thumb gaming"><span class="ico">WP</span></div><div class="meta"><div class="nm">Gaming News</div><div class="st paused"><i></i>paused</div></div></div>
+        <div class="tile small" style="left:200px;top:10px"><div class="thumb beta"><span class="ico">β</span></div><div class="meta"><div class="nm">WP Beta</div><div class="st unsaved"><i></i>unsaved</div></div></div>
+        <div class="tile small" style="left:12px;top:74px"><div class="thumb art"><span class="ico">BP</span></div><div class="meta"><div class="nm">Art Gallery</div><div class="st paused"><i></i>blueprint</div></div></div>
+        <div class="tile small" style="left:106px;top:74px"><div class="thumb nonprofit"><span class="ico">BP</span></div><div class="meta"><div class="nm">Non-profit</div><div class="st paused"><i></i>blueprint</div></div></div>
+        <div class="tile small" style="left:200px;top:74px"><div class="thumb docs"><span class="ico">BP</span></div><div class="meta"><div class="nm">Feed Reader</div><div class="st paused"><i></i>blueprint</div></div></div>
+        <div class="tile small" style="left:12px;top:138px"><div class="thumb gutenberg"><span class="ico">GB</span></div><div class="meta"><div class="nm">Gutenberg</div><div class="st paused"><i></i>plugin</div></div></div>
+        <div class="tile small" style="left:106px;top:138px"><div class="thumb woocom"><span class="ico">Woo</span></div><div class="meta"><div class="nm">Stylish Press</div><div class="st paused"><i></i>store</div></div></div>
+        <div class="tile small" style="left:200px;top:138px"><div class="thumb gaming"><span class="ico">BP</span></div><div class="meta"><div class="nm">University</div><div class="st paused"><i></i>theme</div></div></div>
+      </div>
+      <div style="padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line)">
+        <button style="height:22px;padding:0 7px;font-size:10px;border:1px solid var(--line);background:var(--paper);border-radius:5px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10"><use href="#i-wp"/></svg>Vanilla</button>
+        <button style="height:22px;padding:0 7px;font-size:10px;border:1px solid var(--line);background:var(--paper);border-radius:5px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10"><use href="#i-pr"/></svg>WP PR</button>
+        <button style="height:22px;padding:0 7px;font-size:10px;border:1px solid var(--line);background:var(--paper);border-radius:5px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10"><use href="#i-pr"/></svg>GB PR</button>
+        <button style="height:22px;padding:0 7px;font-size:10px;border:1px solid var(--line);background:var(--paper);border-radius:5px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10"><use href="#i-git"/></svg>GitHub</button>
+        <button style="height:22px;padding:0 7px;font-size:10px;border:1px solid var(--line);background:var(--paper);border-radius:5px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10"><use href="#i-bp"/></svg>BP URL</button>
+        <button style="height:22px;padding:0 7px;font-size:10px;border:1px solid var(--line);background:var(--paper);border-radius:5px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10"><use href="#i-zip"/></svg>.zip</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cap"><b>Mobile = wider-phone desktop.</b> The SR seam rotates 90° to horizontal; the atlas becomes a bottom sheet at two detents (collapsed tab-bar / expanded 65% with full mini-canvas). The mini-canvas preserves spatial position — Coffee Shop is still top-left where it sits in the desktop atlas. Same five categories, same six sources, same momentum gauge. Drag the grip up to grow the atlas; drag down to grow the iframe. Identical IA, two different gestures.</div>
+
+<!-- ════════════════════════════════ -->
+<!-- Closing notes / brief checklist -->
+<!-- ════════════════════════════════ -->
+<div class="page-h" style="margin-top:48px">
+  <h1 style="font-size:18px">Feature coverage (every v1 §2 item)</h1>
+  <div class="sub" style="max-width:1080px">
+    Refresh · address bar · playground name · Save (visible only when unsaved · Panel F) · Saved Playgrounds (Panel A atlas, Panel B launcher mode) · Open/Close Site Manager (double-click a tile · Panel C) · Edit Playground settings (Panel G Settings tab) · 6 sources (Panel B dock) · 5 featured + 43-card gallery (Panel B canvas with categorized regions) · search (Panel B toolbar) · 10 category filters (Panel B toolbar) · Your Playgrounds (Panel A/B "Your sites" region · 3+ saved) · 5 Site-Manager tabs (Panels C/D/E/G/H) · editable title + WP Admin + Homepage (pane head chips Panels C/D/E) · Additional actions: Export to GitHub PR + Download .zip (Panel D menu) · Apply &amp; Reset destructive (Panel G modal · typed-phrase + diff + auto-snapshot) · File browser + editor + New File/Folder (Panel C) · Blueprint JSON + Copy link + Download bundle + Run Blueprint (Panel D) · Database SQLite + early-access notice (Panel H) · Logs with search + level filters (Panel E) · Save site locally inline notice (Panel F) · Toast region (Panel F) · Booting state (Panel I) · Mobile (Panel K)
+  </div>
+</div>
+
+</body>
+</html>
