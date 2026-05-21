@@ -1,0 +1,1817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>v6 design 003 - Sites Widget Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+:root {
+  --primary: #3b82f6;
+  --primary-2: #2563eb;
+  --secondary: #8b5cf6;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --ink: #111827;
+  --ink-2: #374151;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --line: #dfe4ec;
+  --line-2: #edf1f6;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --surface-3: #eef3f8;
+  --cream: #fbfaf7;
+  --shadow-1: 0 1px 2px rgba(17, 24, 39, .06), 0 1px 6px rgba(17, 24, 39, .04);
+  --shadow-2: 0 20px 50px rgba(17, 24, 39, .16), 0 4px 14px rgba(17, 24, 39, .08);
+  --shadow-3: 0 36px 90px rgba(17, 24, 39, .22), 0 10px 28px rgba(17, 24, 39, .12);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --serif: "Playfair Display", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --panel-w: 424px;
+  --top-h: 58px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: var(--serif);
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgba(17, 24, 39, .025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(17, 24, 39, .025) 1px, transparent 1px),
+    #f4f6f9;
+  background-size: 28px 28px;
+  overflow: hidden;
+}
+button, input, select, textarea {
+  font: inherit;
+}
+button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.mono, .btn, .chip, .tab, .field, select, input, textarea, .metric, .route-label {
+  font-family: var(--mono);
+  letter-spacing: 0;
+}
+.app {
+  height: 100vh;
+  min-height: 640px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 0 1fr;
+  transition: grid-template-columns .26s ease;
+  overflow: hidden;
+}
+.app.panel-open { grid-template-columns: var(--panel-w) 1fr; }
+.app.site-focus.panel-open { grid-template-columns: 96px 1fr; }
+.app.fullscreen {
+  grid-template-columns: 0 1fr;
+  background: #fff;
+}
+
+.topbar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  height: var(--top-h);
+  display: grid;
+  grid-template-columns: minmax(286px, 374px) 1fr auto;
+  gap: var(--space-3);
+  z-index: 40;
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.sites-widget {
+  height: var(--top-h);
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid rgba(17, 24, 39, .12);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(18px);
+}
+.wp-dot {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  background: #111827;
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: 27px;
+  line-height: 1;
+  box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px #111827;
+}
+.widget-copy { min-width: 0; }
+.widget-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget-sub {
+  margin-top: 1px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--warning);
+  box-shadow: 0 0 0 4px rgba(217, 119, 6, .14);
+  flex: 0 0 auto;
+}
+.status-pip.saved {
+  background: var(--success);
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, .14);
+}
+.widget-actions { display: flex; gap: var(--space-2); align-items: center; }
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  border: 1px solid transparent;
+}
+.icon-btn:hover, .icon-btn.active {
+  background: var(--surface-3);
+  border-color: var(--line);
+}
+.icon-btn svg { width: 17px; height: 17px; }
+.btn {
+  min-height: 34px;
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, .24);
+}
+.btn.dark {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+.btn.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.btn.ghost { background: transparent; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn svg { width: 15px; height: 15px; }
+
+.address-capsule {
+  min-width: 0;
+  height: var(--top-h);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(17, 24, 39, .12);
+  box-shadow: var(--shadow-1);
+  backdrop-filter: blur(18px);
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+}
+.address-field {
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.address-field input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.mode-label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.top-actions {
+  height: var(--top-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(17, 24, 39, .12);
+  box-shadow: var(--shadow-1);
+  backdrop-filter: blur(18px);
+}
+.top-actions .btn { height: 38px; }
+.mobile-focus-btn { display: none; }
+
+.secondary {
+  position: relative;
+  z-index: 20;
+  padding: calc(var(--top-h) + 24px) var(--space-3) var(--space-3) var(--space-3);
+  min-width: 0;
+  transform: translateX(-100%);
+  opacity: 0;
+  transition: transform .26s ease, opacity .2s ease;
+  pointer-events: none;
+}
+.panel-open .secondary {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.site-focus.panel-open .secondary {
+  transform: translateX(-328px);
+}
+.panel {
+  height: calc(100vh - var(--top-h) - 36px);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, .95);
+  border: 1px solid rgba(17, 24, 39, .12);
+  box-shadow: var(--shadow-3);
+  backdrop-filter: blur(22px);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  overflow: hidden;
+}
+.panel-head {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.panel-kicker {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.panel h1, .panel h2, .sheet h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+.panel-description {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.42;
+  margin-top: 4px;
+}
+.tabs {
+  padding: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.tab {
+  height: 38px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tab.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+.tab svg { width: 15px; height: 15px; }
+.panel-body {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+.panel-body::-webkit-scrollbar, .site-stage::-webkit-scrollbar { width: 10px; height: 10px; }
+.panel-body::-webkit-scrollbar-thumb, .site-stage::-webkit-scrollbar-thumb { background: #c9d1dd; border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+.section { display: none; }
+.section.active { display: block; }
+.subtabs, .manager-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.chip {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chip.active {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.chip.warning {
+  color: #8a4d00;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.subsection, .manager-view { display: none; }
+.subsection.active, .manager-view.active { display: block; }
+
+.map-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.map-card {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  min-height: 78px;
+}
+.map-card b {
+  display: block;
+  font-size: 16px;
+  line-height: 1.15;
+}
+.map-card span {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.notice {
+  border-left: 4px solid var(--primary);
+  background: #eff6ff;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-4);
+  color: #1e3a8a;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.notice.warning {
+  border-left-color: var(--warning);
+  background: #fffbeb;
+  color: #7c2d12;
+}
+.notice.danger {
+  border-left-color: var(--danger);
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.route-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+.route-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+}
+.route-card-head {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+.route-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--primary);
+}
+.route-icon svg { width: 19px; height: 19px; }
+.route-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.route-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.route-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+}
+.field, select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  padding: 0 var(--space-3);
+  color: var(--ink);
+  font-size: 12px;
+}
+.dropzone {
+  min-height: 66px;
+  border: 1px dashed #b7c1d0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: center;
+  padding: var(--space-3);
+}
+.saved-list {
+  display: grid;
+  gap: var(--space-2);
+}
+.saved-item {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+.saved-title {
+  font-weight: 700;
+  font-size: 17px;
+}
+.saved-meta {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.featured-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.blueprint-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+  min-width: 0;
+  box-shadow: var(--shadow-1);
+}
+.thumb {
+  height: 94px;
+  background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+  position: relative;
+  overflow: hidden;
+}
+.thumb.art { background: linear-gradient(135deg, #7c5b25, #d5b074 45%, #1e4c56); }
+.thumb.coffee { background: linear-gradient(135deg, #3c1361, #8b5cf6 38%, #ffb45c 39%, #db7c2f); }
+.thumb.feed { background: linear-gradient(135deg, #f8fafc, #e5e7eb 40%, #4f46e5 41%, #f8fafc 48%); }
+.thumb.game { background: linear-gradient(135deg, #020617, #7f1d1d 42%, #f97316); }
+.thumb.nonprofit { background: linear-gradient(135deg, #431407, #92400e 40%, #fef3c7); }
+.thumb.personal { background: linear-gradient(135deg, #4c0519, #9f1239 55%, #fecdd3); }
+.thumb.theme { background: linear-gradient(135deg, #111827, #3b82f6 45%, #f9fafb); }
+.thumb.woo { background: linear-gradient(135deg, #581c87, #8b5cf6 48%, #f0abfc); }
+.thumb::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, .55);
+}
+.thumb::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .72);
+}
+.blueprint-card-body { padding: var(--space-3); }
+.blueprint-card h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 17px;
+  line-height: 1.15;
+}
+.blueprint-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.tag-row {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+.tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.gallery-tools {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.filter-row {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.blueprint-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.manager-head {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+.manager-head .btn { flex: 1; }
+.settings-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+.setting-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+}
+.setting-row label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.checks {
+  display: grid;
+  gap: var(--space-2);
+  font-family: var(--mono);
+  color: var(--ink-2);
+  font-size: 12px;
+  margin: var(--space-3) 0 var(--space-4);
+}
+.checks label { display: flex; align-items: center; gap: var(--space-2); }
+.checks input { accent-color: var(--primary); }
+.file-layout, .blueprint-editor {
+  display: grid;
+  grid-template-columns: 142px 1fr;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 392px;
+}
+.file-tree {
+  background: var(--surface-2);
+  border-right: 1px solid var(--line);
+  padding: var(--space-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  overflow: auto;
+}
+.tree-row {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  padding: 0 6px;
+}
+.tree-row.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.editor {
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: var(--space-3);
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.62;
+}
+.editor .line { display: block; white-space: pre; }
+.editor .num { color: #64748b; display: inline-block; width: 24px; user-select: none; }
+.editor .key { color: #93c5fd; }
+.editor .str { color: #fde68a; }
+.db-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: var(--space-3);
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+.metric {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-size: 11px;
+  color: var(--muted);
+}
+.metric b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.log-viewer {
+  display: grid;
+  gap: var(--space-3);
+}
+.log-lines {
+  background: #111827;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  color: #e5e7eb;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  max-height: 390px;
+  overflow: auto;
+}
+.log-lines p { margin: 0 0 var(--space-3); }
+.log-lines b { color: #fca5a5; }
+.export-options {
+  display: grid;
+  gap: var(--space-3);
+}
+.export-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--surface);
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+.export-card h3 { margin: 0 0 var(--space-2); font-size: 20px; }
+.export-card p { margin: 0 0 var(--space-3); color: var(--muted); line-height: 1.42; font-size: 14px; }
+
+.site-area {
+  min-width: 0;
+  padding: calc(var(--top-h) + 24px) var(--space-3) var(--space-3) var(--space-3);
+  position: relative;
+  transition: padding .26s ease;
+}
+.fullscreen .site-area { padding: 0; }
+.fullscreen .topbar, .fullscreen .secondary, .fullscreen .ratio-seam { display: none; }
+.site-frame {
+  height: calc(100vh - var(--top-h) - 36px);
+  border-radius: var(--radius-md);
+  background: #fff;
+  border: 1px solid rgba(17, 24, 39, .12);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  position: relative;
+}
+.fullscreen .site-frame {
+  height: 100vh;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+.site-stage {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background: #fff;
+}
+.wp-adminbar {
+  height: 32px;
+  background: #1d2327;
+  color: #f0f0f1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.wp-adminbar span { white-space: nowrap; }
+.wp-shell {
+  min-height: 820px;
+  background: #fff;
+  color: #111;
+  font-family: Arial, sans-serif;
+}
+.wp-nav {
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 52px;
+}
+.wp-nav h2 {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+.wp-menu {
+  display: flex;
+  gap: 24px;
+  font-size: 17px;
+}
+.wp-hero {
+  display: grid;
+  grid-template-columns: minmax(330px, 560px) minmax(420px, 1fr);
+  gap: 48px;
+  align-items: center;
+  padding: 108px 52px 80px 160px;
+}
+.wp-copy h1 {
+  margin: 0 0 24px;
+  font-family: Georgia, serif;
+  font-size: clamp(44px, 4.2vw, 70px);
+  line-height: 1.12;
+  font-weight: 400;
+}
+.wp-copy h1 a { color: #3858e9; text-decoration: none; }
+.wp-copy p {
+  margin: 0 0 20px;
+  max-width: 560px;
+  font-size: 24px;
+  line-height: 1.42;
+}
+.wp-copy mark { background: #fff09a; padding: 0 2px; }
+.wp-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 432px;
+  height: 54px;
+  background: #3858e9;
+  color: #fff;
+  font-weight: 700;
+  margin-top: 6px;
+}
+.wp-art {
+  min-height: 560px;
+  position: relative;
+  overflow: hidden;
+}
+.wp-orbit {
+  width: min(760px, 58vw);
+  aspect-ratio: 1;
+  border: 66px solid #33e977;
+  border-radius: 50%;
+  position: absolute;
+  left: 4%;
+  top: 48px;
+}
+.wp-orbit::after {
+  content: "W";
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border: 18px solid #18181b;
+  border-radius: 50%;
+  left: 50%;
+  top: -120px;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  font-family: Georgia, serif;
+  font-size: 240px;
+  font-weight: 700;
+  color: #18181b;
+  line-height: 1;
+}
+.wp-orbit::before {
+  content: "";
+  position: absolute;
+  left: 11%;
+  right: 11%;
+  top: 42%;
+  height: 40%;
+  border-top: 58px solid #33e977;
+  border-bottom: 58px solid #33e977;
+  border-radius: 50%;
+}
+
+.ratio-seam {
+  position: fixed;
+  top: calc(var(--top-h) + 24px);
+  bottom: var(--space-3);
+  left: calc(var(--panel-w) + 3px);
+  z-index: 18;
+  width: 26px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: left .26s ease;
+  pointer-events: none;
+}
+.panel-open .ratio-seam { display: flex; }
+.site-focus.panel-open .ratio-seam { left: 92px; }
+.gauge {
+  width: 20px;
+  min-height: 178px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .88);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  align-items: center;
+  justify-items: center;
+  padding: 7px 0;
+}
+.gauge-dot {
+  width: 8px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.gauge span {
+  writing-mode: vertical-rl;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.teaching-pulse {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 6;
+  max-width: 320px;
+  border-radius: var(--radius-md);
+  background: rgba(17, 24, 39, .86);
+  color: #fff;
+  padding: var(--space-3);
+  box-shadow: var(--shadow-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.teaching-pulse b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 17px;
+  margin-bottom: 2px;
+}
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: rgba(255, 255, 255, .88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+.app.loading .loading-overlay { display: flex; }
+.loader-card {
+  width: min(360px, calc(100% - 32px));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  padding: var(--space-5);
+}
+.loader-ring {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--primary);
+  margin: 0 auto var(--space-3);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.exit-fullscreen {
+  position: fixed;
+  z-index: 70;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: var(--space-2);
+  align-items: center;
+  background: rgba(17, 24, 39, .88);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-2);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.fullscreen .exit-fullscreen { display: inline-flex; }
+.toast-region {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 80;
+  display: grid;
+  gap: var(--space-2);
+}
+.toast {
+  border-radius: var(--radius-md);
+  background: #111827;
+  color: #fff;
+  box-shadow: var(--shadow-2);
+  padding: 11px 13px;
+  min-width: 250px;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  animation: toastIn .18s ease;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(17, 24, 39, .35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  backdrop-filter: blur(4px);
+}
+.sheet-backdrop.open { display: flex; }
+.sheet {
+  width: min(440px, 100%);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid rgba(17, 24, 39, .14);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-5);
+}
+.sheet p { color: var(--muted); line-height: 1.48; }
+.sheet-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+
+@media (max-width: 760px) {
+  body { overflow: hidden; }
+  .app, .app.panel-open, .app.site-focus.panel-open {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    min-height: 100vh;
+  }
+  .topbar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    max-width: calc(100vw - 16px);
+    overflow: hidden;
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "widget"
+      "address";
+    gap: var(--space-2);
+  }
+  .sites-widget {
+    grid-area: widget;
+    min-width: 0;
+    height: 56px;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    width: 100%;
+    min-width: 0;
+  }
+  .wp-dot { width: 40px; height: 40px; font-size: 25px; }
+  .widget-title { font-size: 15px; }
+  .widget-sub { font-size: 10px; }
+  .widget-actions .btn { display: none; }
+  .address-capsule {
+    grid-area: address;
+    height: 48px;
+    grid-template-columns: auto 1fr auto;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+    padding-right: 48px;
+  }
+  .address-capsule #focusBtn {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    background: var(--surface-3);
+    border-color: var(--line);
+    display: grid;
+    z-index: 3;
+  }
+  .address-capsule::after {
+    content: "F";
+    position: absolute;
+    right: 11px;
+    top: 11px;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-sm);
+    display: grid;
+    place-items: center;
+    background: #111827;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .address-capsule .mode-label { display: none; }
+  .top-actions {
+    display: none;
+  }
+  .top-actions .btn {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+  .top-actions .btn span { display: none; }
+  .mobile-focus-btn {
+    display: grid;
+    position: fixed;
+    top: 84px;
+    right: 14px;
+    z-index: 90;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-md);
+    place-items: center;
+    background: #111827;
+    color: #fff;
+    box-shadow: var(--shadow-1);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .secondary {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    z-index: 50;
+    padding: 0 8px 8px;
+    transform: translateY(100%);
+    opacity: 1;
+    overflow: hidden;
+  }
+  .panel-open .secondary {
+    transform: translateY(0);
+  }
+  .site-focus.panel-open .secondary {
+    transform: translateY(calc(100% - 92px));
+  }
+  .panel {
+    height: min(74vh, 640px);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    width: 100%;
+    min-width: 0;
+  }
+  .panel-head, .panel-body, .tabs, .route-card, .saved-item { min-width: 0; }
+  .panel-head { padding: var(--space-3); }
+  .panel h1, .panel h2 { font-size: 21px; }
+  .panel-description { display: none; }
+  .tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tab { font-size: 0; }
+  .tab svg { width: 17px; height: 17px; }
+  .panel-body { padding: var(--space-3); }
+  .map-strip, .featured-row, .blueprint-grid, .metric-grid { grid-template-columns: 1fr; }
+  .route-card-head { grid-template-columns: 34px 1fr; }
+  .route-card-head .btn { grid-column: 1 / -1; }
+  .route-form { grid-template-columns: 1fr; }
+  .setting-row { grid-template-columns: 1fr; gap: 4px; }
+  .file-layout, .blueprint-editor { grid-template-columns: 112px 1fr; min-height: 338px; }
+  .manager-head { display: grid; grid-template-columns: 1fr 1fr; }
+  .site-area {
+    padding: 122px 8px 8px;
+  }
+  .site-frame {
+    height: calc(100vh - 130px);
+    border-radius: var(--radius-md);
+  }
+  .wp-adminbar {
+    height: 32px;
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+    overflow: hidden;
+  }
+  .wp-adminbar span:nth-child(n+4) { display: none; }
+  .wp-nav {
+    height: 74px;
+    padding: 0 24px;
+  }
+  .wp-menu { display: none; }
+  .wp-hero {
+    display: block;
+    padding: 62px 24px 40px;
+  }
+  .wp-copy h1 { font-size: 42px; }
+  .wp-copy p { font-size: 20px; }
+  .wp-cta { min-width: 0; width: 100%; }
+  .wp-art {
+    height: 360px;
+    min-height: 360px;
+    margin-top: 32px;
+  }
+  .wp-orbit {
+    width: 500px;
+    left: 6%;
+    top: 30px;
+    border-width: 44px;
+  }
+  .wp-orbit::after {
+    width: 226px;
+    height: 226px;
+    top: -78px;
+    font-size: 160px;
+    border-width: 13px;
+  }
+  .wp-orbit::before {
+    border-top-width: 40px;
+    border-bottom-width: 40px;
+  }
+  .ratio-seam {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: calc(min(74vh, 640px) - 2px);
+    width: auto;
+    height: 24px;
+  }
+  .site-focus.panel-open .ratio-seam { left: 8px; }
+  .gauge {
+    width: 178px;
+    min-height: 20px;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: 1fr;
+    padding: 0 7px;
+  }
+  .gauge-dot { width: 34px; height: 8px; }
+  .gauge span { writing-mode: horizontal-tb; }
+  .teaching-pulse {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+  .toast-region { left: 8px; right: 8px; bottom: 8px; }
+  .toast { min-width: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app panel-open" id="app">
+  <div class="topbar">
+    <div class="sites-widget" id="widgetToggle" role="button" tabindex="0" aria-label="Open Sites widget">
+      <div class="wp-dot">W</div>
+      <div class="widget-copy">
+        <div class="widget-title"><span class="status-pip" id="savePip"></span><span id="playgroundName">Unsaved Playground</span></div>
+        <div class="widget-sub" id="widgetSub">Canonical door: sites, manager, blueprints, exports</div>
+      </div>
+      <div class="widget-actions">
+        <button class="btn primary" id="saveBtn" type="button"><i data-lucide="save"></i>Save</button>
+        <span class="icon-btn active"><i data-lucide="panel-left-open"></i></span>
+      </div>
+    </div>
+
+    <div class="address-capsule">
+      <button class="icon-btn" id="refreshBtn" title="Refresh iframe"><i data-lucide="rotate-cw"></i></button>
+      <label class="address-field">
+        <i data-lucide="lock-keyhole"></i>
+        <input value="/hello-from-playground/" aria-label="WordPress path">
+      </label>
+      <span class="mode-label" id="ratioLabel">Manager 32 / Site 68</span>
+      <button class="icon-btn" id="focusBtn" title="Shift focus"><i data-lucide="move-horizontal"></i></button>
+    </div>
+
+    <button class="mobile-focus-btn" id="mobileFullscreenBtn" title="Focus site">F</button>
+
+    <div class="top-actions">
+      <button class="btn dark" id="fullscreenBtn"><i data-lucide="maximize-2"></i><span>Focus site</span></button>
+    </div>
+  </div>
+
+  <aside class="secondary" aria-label="Sites widget expanded">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-kicker">Sites widget map</div>
+          <h1 id="panelTitle">One door, three rooms</h1>
+          <div class="panel-description">Launch, resume, inspect, reset, export. The widget is the only persistent door.</div>
+        </div>
+        <button class="icon-btn" id="closePanel"><i data-lucide="x"></i></button>
+      </div>
+      <nav class="tabs" aria-label="Primary widget rooms">
+        <button class="tab active" data-open="sites"><i data-lucide="layout-grid"></i>Sites</button>
+        <button class="tab" data-open="manager"><i data-lucide="wrench"></i>Manager</button>
+        <button class="tab" data-open="export"><i data-lucide="package-up"></i>Export</button>
+      </nav>
+      <div class="panel-body">
+        <section class="section active" id="section-sites">
+          <div class="map-strip">
+            <button class="map-card" data-sites-sub="start"><b>Start</b><span>six boot routes</span></button>
+            <button class="map-card" data-sites-sub="blueprints"><b>Blueprints</b><span>featured plus 43</span></button>
+            <button class="map-card" data-sites-sub="saved"><b>Saved</b><span>local browser storage</span></button>
+          </div>
+          <div class="subtabs">
+            <button class="chip active" data-sites-sub="start">Start routes</button>
+            <button class="chip" data-sites-sub="blueprints">Blueprint gallery</button>
+            <button class="chip" data-sites-sub="saved">Your Playgrounds</button>
+          </div>
+
+          <div class="subsection active" id="sites-start">
+            <div class="notice">Route-specific inputs stay in the Sites widget, so starting, importing, and blueprint discovery never split into separate launchers.</div>
+            <div class="route-grid">
+              <div class="route-card">
+                <div class="route-card-head">
+                  <div class="route-icon"><i data-lucide="badge"></i></div>
+                  <div><div class="route-label">Plain session</div><div class="route-title">Vanilla WordPress</div></div>
+                  <button class="btn primary bootBtn">Start</button>
+                </div>
+              </div>
+              <div class="route-card">
+                <div class="route-card-head">
+                  <div class="route-icon"><i data-lucide="git-pull-request"></i></div>
+                  <div><div class="route-label">Core patch</div><div class="route-title">WordPress PR</div></div>
+                  <button class="btn bootBtn">Boot PR</button>
+                </div>
+                <div class="route-form"><input class="field" value="https://github.com/WordPress/wordpress-develop/pull/8123"><button class="btn primary bootBtn">Run</button></div>
+              </div>
+              <div class="route-card">
+                <div class="route-card-head">
+                  <div class="route-icon"><i data-lucide="git-branch"></i></div>
+                  <div><div class="route-label">Editor branch</div><div class="route-title">Gutenberg PR or branch</div></div>
+                  <button class="btn bootBtn">Boot</button>
+                </div>
+                <div class="route-form"><input class="field" value="gutenberg: trunk or PR #62714"><button class="btn primary bootBtn">Run</button></div>
+              </div>
+              <div class="route-card">
+                <div class="route-card-head">
+                  <div class="route-icon"><i data-lucide="github"></i></div>
+                  <div><div class="route-label">Theme or plugin</div><div class="route-title">From GitHub</div></div>
+                  <button class="btn bootBtn">Mount</button>
+                </div>
+                <div class="route-form"><input class="field" value="github.com/wordpress/twentytwentyfive"><button class="btn primary bootBtn">Run</button></div>
+              </div>
+              <div class="route-card">
+                <div class="route-card-head">
+                  <div class="route-icon"><i data-lucide="link"></i></div>
+                  <div><div class="route-label">Remote JSON</div><div class="route-title">Blueprint URL</div></div>
+                  <button class="btn bootBtn">Load</button>
+                </div>
+                <div class="route-form"><input class="field" value="https://playground.wordpress.net/blueprint.json"><button class="btn primary bootBtn">Run</button></div>
+              </div>
+              <div class="route-card">
+                <div class="route-card-head">
+                  <div class="route-icon"><i data-lucide="file-archive"></i></div>
+                  <div><div class="route-label">Existing work</div><div class="route-title">Import .zip</div></div>
+                  <button class="btn bootBtn">Import</button>
+                </div>
+                <div class="dropzone">Drop exported playground zip or browse files</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="subsection" id="sites-blueprints">
+            <h2>Featured blueprints</h2>
+            <div class="featured-row" id="featuredBlueprints"></div>
+            <div class="gallery-tools">
+              <input class="field" id="blueprintSearch" placeholder="Search 43 blueprints" aria-label="Search blueprints">
+              <div class="filter-row" id="categoryFilters"></div>
+            </div>
+            <div class="blueprint-grid" id="blueprintGrid"></div>
+          </div>
+
+          <div class="subsection" id="sites-saved">
+            <div class="notice warning">Unsaved Playground is not saved to browser storage. Save before refresh to keep this exact site.</div>
+            <div class="saved-list">
+              <div class="saved-item current-unsaved">
+                <div class="wp-dot">W</div>
+                <div><div class="saved-title">Unsaved Playground</div><div class="saved-meta">Active now, not saved to browser storage</div></div>
+                <button class="btn primary" id="saveBtn2">Save site locally</button>
+              </div>
+              <div class="saved-item">
+                <div class="route-icon"><i data-lucide="coffee"></i></div>
+                <div><div class="saved-title">Coffee shop checkout test</div><div class="saved-meta">WP 6.8 / PHP 8.3 / saved yesterday</div></div>
+                <button class="btn resumeBtn">Resume</button>
+              </div>
+              <div class="saved-item">
+                <div class="route-icon"><i data-lucide="palette"></i></div>
+                <div><div class="saved-title">Museum theme lab</div><div class="saved-meta">Blueprint bundle / 4 files edited</div></div>
+                <button class="btn resumeBtn">Resume</button>
+              </div>
+              <div class="saved-item">
+                <div class="route-icon"><i data-lucide="bug"></i></div>
+                <div><div class="saved-title">Core PR reproduction</div><div class="saved-meta">wordpress-develop PR #8123</div></div>
+                <button class="btn resumeBtn">Resume</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="section-manager">
+          <div class="manager-head">
+            <button class="btn primary"><i data-lucide="external-link"></i>WP Admin</button>
+            <button class="btn"><i data-lucide="home"></i>Homepage</button>
+          </div>
+          <div class="manager-tabs">
+            <button class="chip active" data-manager-sub="settings">Settings</button>
+            <button class="chip" data-manager-sub="files">Files</button>
+            <button class="chip" data-manager-sub="blueprint">Blueprint</button>
+            <button class="chip" data-manager-sub="database">Database</button>
+            <button class="chip" data-manager-sub="logs">Logs</button>
+          </div>
+
+          <div class="manager-view active" id="manager-settings">
+            <div class="notice warning">This is an Unsaved Playground. Your changes will be lost on page refresh. <button class="btn primary" id="saveBtn3" style="margin-top:8px">Save site locally</button></div>
+            <div class="settings-grid">
+              <div class="setting-row"><label>WordPress Version</label><select><option>7.0</option><option>Latest stable</option><option>6.8</option><option>6.7</option></select></div>
+              <div class="setting-row"><label>PHP Version</label><select><option>PHP 8.3</option><option>PHP 8.2</option><option>PHP 8.1</option></select></div>
+              <div class="setting-row"><label>Language</label><select><option>English (United States)</option><option>Japanese</option><option>Polish</option></select></div>
+            </div>
+            <div class="checks">
+              <label><input type="checkbox"> Include older versions</label>
+              <label><input type="checkbox" checked> Allow network access</label>
+              <label><input type="checkbox"> Create a multisite network</label>
+            </div>
+            <div class="notice danger">Destructive action: applying these settings resets the WordPress site to its initial state.</div>
+            <button class="btn danger" id="openReset">Apply Settings & Reset Playground</button>
+          </div>
+
+          <div class="manager-view" id="manager-files">
+            <div class="manager-head">
+              <button class="btn"><i data-lucide="file-plus-2"></i>New File</button>
+              <button class="btn"><i data-lucide="folder-plus"></i>New Folder</button>
+            </div>
+            <div class="file-layout">
+              <div class="file-tree">
+                <div class="tree-row active"><i data-lucide="folder"></i>/wordpress</div>
+                <div class="tree-row"><i data-lucide="folder"></i>wp-admin</div>
+                <div class="tree-row"><i data-lucide="folder"></i>wp-content</div>
+                <div class="tree-row"><i data-lucide="folder"></i>wp-includes</div>
+                <div class="tree-row"><i data-lucide="file"></i>index.php</div>
+                <div class="tree-row"><i data-lucide="file"></i>wp-config.php</div>
+                <div class="tree-row"><i data-lucide="file"></i>readme.html</div>
+              </div>
+              <pre class="editor"><span class="line"><span class="num">1</span>&lt;?php define(<span class="str">'CONCATENATE_SCRIPTS'</span>, false);</span><span class="line"><span class="num">2</span>/** Base configuration for WordPress. */</span><span class="line"><span class="num">3</span>define(<span class="str">'DB_NAME'</span>, <span class="str">'database_name_here'</span>);</span><span class="line"><span class="num">4</span>define(<span class="str">'DB_USER'</span>, <span class="str">'username_here'</span>);</span><span class="line"><span class="num">5</span>define(<span class="str">'DB_HOST'</span>, <span class="str">'localhost'</span>);</span><span class="line"><span class="num">6</span>$table_prefix = <span class="str">'wp_'</span>;</span></pre>
+            </div>
+          </div>
+
+          <div class="manager-view" id="manager-blueprint">
+            <div class="manager-head">
+              <button class="btn"><i data-lucide="copy"></i>Copy link</button>
+              <button class="btn"><i data-lucide="download"></i>Download bundle</button>
+              <button class="btn primary bootBtn"><i data-lucide="play-circle"></i>Run Blueprint</button>
+            </div>
+            <div class="blueprint-editor">
+              <div class="file-tree">
+                <div class="tree-row active"><i data-lucide="file-json"></i>blueprint.json</div>
+                <div class="tree-row"><i data-lucide="folder"></i>assets</div>
+                <div class="tree-row"><i data-lucide="file"></i>welcome.php</div>
+              </div>
+              <pre class="editor"><span class="line"><span class="num">1</span>{</span><span class="line"><span class="num">2</span>  <span class="key">"$schema"</span>: <span class="str">"https://playground.wordpress.net/blueprint-schema.json"</span>,</span><span class="line"><span class="num">3</span>  <span class="key">"meta"</span>: { <span class="key">"title"</span>: <span class="str">"Playground Welcome Landing Page"</span> },</span><span class="line"><span class="num">4</span>  <span class="key">"login"</span>: true,</span><span class="line"><span class="num">5</span>  <span class="key">"landingPage"</span>: <span class="str">"/hello-from-playground/"</span>,</span><span class="line"><span class="num">6</span>  <span class="key">"steps"</span>: [</span><span class="line"><span class="num">7</span>    { <span class="key">"step"</span>: <span class="str">"runPHPWithOptions"</span>, <span class="key">"options"</span>: { <span class="key">"code"</span>: <span class="str">"&lt;?php /* welcome */"</span> } }</span><span class="line"><span class="num">8</span>  ]</span><span class="line"><span class="num">9</span>}</span></pre>
+            </div>
+          </div>
+
+          <div class="manager-view" id="manager-database">
+            <div class="notice">Database management is an early access feature. WordPress Playground emulates MySQL using SQLite.</div>
+            <div class="db-card">
+              <div class="metric-grid">
+                <div class="metric"><b>SQLite</b>driver</div>
+                <div class="metric"><b>452 KB</b>size</div>
+                <div class="metric"><b>36</b>tables</div>
+              </div>
+              <p class="panel-description">Path: <span class="mono">/wordpress/wp-content/database/.ht.sqlite</span></p>
+              <div class="manager-head">
+                <button class="btn"><i data-lucide="download"></i>Download database.sqlite</button>
+                <button class="btn primary"><i data-lucide="external-link"></i>Open Adminer</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="manager-view" id="manager-logs">
+            <div class="log-viewer">
+              <input class="field" placeholder="Search logs" aria-label="Search logs">
+              <div class="filter-row">
+                <button class="chip active">All</button><button class="chip">Warnings</button><button class="chip">Notices</button>
+              </div>
+              <div class="log-lines">
+                <p><b>[21-May-2026 10:18:21 UTC] PHP Warning:</b> file_get_contents(/wordpress/wp-admin/css/view-transitions.min.css): Failed to open stream: No such file or directory in /wordpress/wp-includes/view-transitions.php on line 2</p>
+                <p><b>[21-May-2026 10:18:20 UTC] PHP Notice:</b> Function wp_maybe_inline_styles was called incorrectly. Unable to read the "path" key with value "/wordpress/wp-includes/css/dist/block-library/common.min.css".</p>
+                <p><b>[21-May-2026 10:18:20 UTC] PHP Notice:</b> Function wp_maybe_inline_styles was called incorrectly. Unable to read stylesheet "twentytwentyfive-style".</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="section-export">
+          <div class="notice">Export has one home in this design. It is not duplicated in a top kebab or a separate Site Manager action menu.</div>
+          <div class="export-options">
+            <div class="export-card">
+              <div class="route-icon"><i data-lucide="git-pull-request-arrow"></i></div>
+              <div><h3>Export to GitHub as PR</h3><p>Export a WordPress theme, plugin, or wp-content directory to a GitHub repository as a pull request.</p><button class="btn primary"><i data-lucide="github"></i>Configure GitHub PR</button></div>
+            </div>
+            <div class="export-card">
+              <div class="route-icon"><i data-lucide="file-archive"></i></div>
+              <div><h3>Download current playground</h3><p>Package the active Playground as a .zip file for import later from the Sites widget.</p><button class="btn"><i data-lucide="download"></i>Download .zip</button></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </aside>
+
+  <div class="ratio-seam" aria-hidden="true">
+    <div class="gauge"><span>pane</span><div class="gauge-dot"></div><span>site</span></div>
+  </div>
+
+  <main class="site-area">
+    <div class="site-frame">
+      <div class="site-stage" id="siteStage">
+        <div class="wp-adminbar">
+          <span class="wp-dot" style="width:22px;height:22px;font-size:14px;border-radius:50%">W</span>
+          <span>My WordPress Website</span>
+          <span>Edit Site</span>
+          <span>0</span>
+          <span>+ New</span>
+          <span>Edit Page</span>
+          <span style="margin-left:auto">Howdy, admin</span>
+        </div>
+        <div class="wp-shell">
+          <nav class="wp-nav">
+            <h2>My WordPress Website</h2>
+            <div class="wp-menu"><span>Hello from WordPress Playground!</span><span>Sample Page</span></div>
+          </nav>
+          <section class="wp-hero">
+            <div class="wp-copy">
+              <h1>Hello from <a>WordPress Playground!</a></h1>
+              <p>This is Playground, a WordPress that runs client-side in your browser. It is perfect for training, demonstrating plugins and themes, and for testing purposes.</p>
+              <p><mark>Note that you are logged-in as admin!</mark> Thus, you can modify this site as you like: edit content, install plugins and play around.</p>
+              <p>To start over, simply reload the page!</p>
+              <div class="wp-cta">Discover the mission behind Playground</div>
+            </div>
+            <div class="wp-art"><div class="wp-orbit"></div></div>
+          </section>
+        </div>
+      </div>
+      <div class="teaching-pulse">
+        <b>Smart resize is visible.</b>
+        Click the site to give it more room. Open the widget again for the Sites, Manager, and Export map.
+      </div>
+      <div class="loading-overlay">
+        <div class="loader-card">
+          <div class="loader-ring"></div>
+          <h2>Booting Playground</h2>
+          <p class="panel-description">Applying route settings, mounting WordPress, and restoring the selected blueprint.</p>
+          <button class="btn" id="cancelBoot">Cancel boot</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <button class="exit-fullscreen" id="exitFullscreen"><i data-lucide="minimize-2"></i>Exit focus mode (Esc)</button>
+</div>
+
+<div class="sheet-backdrop" id="resetSheet">
+  <div class="sheet">
+    <div class="panel-kicker">Destructive reset</div>
+    <h2>Apply settings and reset this Playground?</h2>
+    <p>This wipes the current WordPress site and reboots it with the selected WordPress, PHP, language, network, and multisite settings.</p>
+    <label class="mono" style="font-size:12px;color:var(--muted)">Type RESET to confirm</label>
+    <input class="field" id="resetPhrase" placeholder="RESET" style="margin-top:8px">
+    <div class="sheet-actions">
+      <button class="btn" id="cancelReset">Cancel</button>
+      <button class="btn danger" id="confirmReset" disabled>Apply & Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-region" id="toastRegion"></div>
+
+<script>
+const app = document.getElementById('app');
+const panelTitle = document.getElementById('panelTitle');
+const ratioLabel = document.getElementById('ratioLabel');
+const sections = {
+  sites: document.getElementById('section-sites'),
+  manager: document.getElementById('section-manager'),
+  export: document.getElementById('section-export')
+};
+const titles = {
+  sites: 'Sites are the front door',
+  manager: 'Site Manager tools',
+  export: 'Export this Playground'
+};
+
+const blueprints = [
+  ['Art Gallery','An art gallery created with the Vueo theme.','Website, Personal','art'],
+  ['Coffee Shop','A stylish WooCommerce coffee shop storefront with custom theme, products, and content.','WooCommerce, Store','coffee'],
+  ['Feed Reader with the Friends Plugin','Read feeds including ActivityPub in Playground via the Friends plugin.','rss, social web','feed'],
+  ['Gaming News','A gaming news site created with the Spiel theme.','Website, News','game'],
+  ['Non-profit Organization','A non-profit organization site created with the Koinonia theme.','Website, Organization','nonprofit'],
+  ['Personal Blog','A personal blog site created with the Substrata theme.','Website, Personal, Blog','personal'],
+  ['Personal Resume','A resume site created with the Readymade theme.','Website, Personal','personal'],
+  ['Photography Portfolio','A photography portfolio created with the Grammer theme.','Website, Personal, Photography','art'],
+  ['Skincare Blog','A skincare blog created with the Piel theme.','Website, News, Blog','personal'],
+  ['University Website','A university website created with the Kentwood theme.','Website, Organization, Education','theme'],
+  ['Create Block Theme','Install Create Block Theme and start editing right away.','Editor, theme','theme'],
+  ['Creating a new user for the blog','Update user meta data.','meta','theme'],
+  ['Custom Post Type: Books','Add a custom post type to playground.','Content, CPT','theme'],
+  ['Demo of Twenty-Twenty-Five theme','Demo content for the Twenty-Twenty-Five default theme.','Themes, default','theme'],
+  ['Display Admin Notice','Add a tiny mu-plugin and display an admin notice.','Admin notices','theme'],
+  ['Enable all three Dataview Experiments in Gutenberg','Enable multiple Experiments within the Gutenberg plugin.','Gutenberg, Experiments','theme'],
+  ['Fancy Dashboard Widget','Display statistics about users, posts and comments.','','theme'],
+  ['Grid Variations Experiments enabled','Toggle a Gutenberg Experiments feature on.','Gutenberg, Experiments','theme'],
+  ['Gutenberg Guidelines Experiment enabled','Enable Gutenberg Guidelines experiment.','Gutenberg, Experiments','theme'],
+  ['Import Theme Starter Content','Install a theme with starter content.','Themes, Starter Content','theme'],
+  ['Import a standalone starter content via a blueprint step','Use a stand-alone starter content file and import it.','Themes, Starter Content','theme'],
+  ['Install WordPress language packs','Install and activate the latest Japanese translation pack.','core','theme'],
+  ['Install plugin from a gist','Install and activate a WordPress plugin from a PHP file in a gist.','plugins','theme'],
+  ['Latest Gutenberg plugin','A preview of the latest Gutenberg plugin.','plugins','theme'],
+  ['Loading, activating, and configuring a theme from a GitHub repository','Typical steps for a theme load, activate, configure flow.','theme','theme'],
+  ['Login as an editor','Test as an editor rather than an administrator.','User Role','theme'],
+  ['Markdown and Trac Syntax Editor','Edit Markdown and Trac formatting in the block editor.','block-editor','theme'],
+  ['Minimal WooCommerce Setup with Sample Products, Shipping, and Payment Method','WooCommerce setup with sample products and direct bank transfer.','WooCommerce, shipping','woo'],
+  ['My WordPress','A welcome experience for persistent WordPress Playground instances.','Playground, Onboarding','theme'],
+  ['Playground Welcome Landing Page','Landing page for the WordPress Playground.','meta','theme'],
+  ['Pretty permalinks','Set the permalink structure to pretty permalinks.','Settings','theme'],
+  ['Reset data and import content with logs','Reset default data before importing custom content; logs each step.','Content, log, debug','theme'],
+  ['Serve media files from another host','Redirect uploads requests to an external host.','Settings','theme'],
+  ['Set the admin color scheme','Set admin color scheme to Modern via updateUserMeta step.','user meta','theme'],
+  ['Showcase plugin','Showcase a custom plugin with media and content imported as WXR.','plugin, demo, media','theme'],
+  ['Stylish Press','A Woo store with custom theme, content, products.','WooCommerce, Site','woo'],
+  ['Theme Tester','Add content and plugins to explore a theme.','Themes, Content','theme'],
+  ['Use WPGraphQL to query WordPress','Loads WordPress with WPGraphQL active and the GraphQL IDE page.','API, wpgraphql','theme'],
+  ['Use wp-cli command to add posts','Add posts via a wp-cli command.','Content, wpcli','theme'],
+  ['Use wp-cli to add a post with image','Create a post with block markup and featured image via wp-cli.','Content, wpcli','theme'],
+  ['Weather Shortcode Plugin','Connect weather API and show data as a shortcode.','','theme'],
+  ['WooCommerce product feed','Create a WooCommerce product and export an XML or CSV product feed.','WooCommerce, Content','woo'],
+  ['WordPress Beta','Test the latest WordPress Beta or RC with theme test data and debugging plugins.','Testing','theme']
+];
+const categories = ['All','Featured','Website','Personal','Content','Themes','Gutenberg','Experiments','WooCommerce','News'];
+let activeCategory = 'All';
+
+function setSection(name) {
+  app.classList.add('panel-open');
+  app.classList.remove('site-focus');
+  Object.keys(sections).forEach(key => sections[key].classList.toggle('active', key === name));
+  document.querySelectorAll('.tabs .tab').forEach(tab => tab.classList.toggle('active', tab.dataset.open === name));
+  panelTitle.textContent = titles[name];
+  ratioLabel.textContent = name === 'sites' ? 'Sites 32 / Site 68' : name === 'manager' ? 'Manager 32 / Site 68' : 'Export 32 / Site 68';
+}
+function setSitesSub(name) {
+  document.querySelectorAll('[data-sites-sub]').forEach(el => {
+    if (el.classList.contains('chip')) el.classList.toggle('active', el.dataset.sitesSub === name);
+  });
+  ['start','blueprints','saved'].forEach(key => {
+    document.getElementById('sites-' + key).classList.toggle('active', key === name);
+  });
+}
+function setManagerSub(name) {
+  document.querySelectorAll('[data-manager-sub]').forEach(el => el.classList.toggle('active', el.dataset.managerSub === name));
+  ['settings','files','blueprint','database','logs'].forEach(key => {
+    document.getElementById('manager-' + key).classList.toggle('active', key === name);
+  });
+}
+function cardHTML(bp, i) {
+  const tags = bp[2] ? bp[2].split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('') : '<span class="tag">blueprint</span>';
+  return `<button class="blueprint-card bootBtn"><div class="thumb ${bp[3]}"></div><div class="blueprint-card-body"><h3>${bp[0]}</h3><p>${bp[1]}</p><div class="tag-row">${tags}</div></div></button>`;
+}
+function renderBlueprints() {
+  const q = document.getElementById('blueprintSearch').value.toLowerCase().trim();
+  const featured = blueprints.slice(0, 5);
+  document.getElementById('featuredBlueprints').innerHTML = featured.map(cardHTML).join('');
+  const filtered = blueprints.filter(bp => {
+    const hay = (bp[0] + ' ' + bp[1] + ' ' + bp[2]).toLowerCase();
+    const categoryOk = activeCategory === 'All' ||
+      (activeCategory === 'Featured' ? featured.includes(bp) : hay.includes(activeCategory.toLowerCase()));
+    return categoryOk && (!q || hay.includes(q));
+  });
+  document.getElementById('blueprintGrid').innerHTML = filtered.map(cardHTML).join('');
+  bindBootButtons();
+  if (window.lucide) lucide.createIcons();
+}
+function renderCategories() {
+  document.getElementById('categoryFilters').innerHTML = categories.map(cat => `<button class="chip ${cat === activeCategory ? 'active' : ''}" data-category="${cat}">${cat}</button>`).join('');
+  document.querySelectorAll('[data-category]').forEach(btn => btn.addEventListener('click', () => {
+    activeCategory = btn.dataset.category;
+    renderCategories();
+    renderBlueprints();
+  }));
+}
+function toast(message, icon = 'check-circle') {
+  const region = document.getElementById('toastRegion');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<i data-lucide="${icon}"></i><span>${message}</span>`;
+  region.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+  setTimeout(() => el.remove(), 3600);
+}
+function saveSite() {
+  document.getElementById('playgroundName').textContent = 'Museum Theme Lab';
+  document.getElementById('widgetSub').textContent = 'Saved locally to browser storage';
+  document.getElementById('savePip').classList.add('saved');
+  document.querySelectorAll('#saveBtn,#saveBtn2,#saveBtn3').forEach(btn => {
+    if (btn) { btn.innerHTML = '<i data-lucide="check"></i>Saved'; btn.classList.remove('primary'); }
+  });
+  toast('Playground saved locally');
+}
+function beginBoot() {
+  app.classList.add('loading');
+  toast('Boot request queued', 'loader');
+  window.clearTimeout(window.bootTimer);
+  window.bootTimer = setTimeout(() => {
+    app.classList.remove('loading');
+    toast('Playground is ready');
+  }, 1500);
+}
+function bindBootButtons() {
+  document.querySelectorAll('.bootBtn').forEach(btn => {
+    btn.onclick = beginBoot;
+  });
+}
+
+document.querySelectorAll('[data-open]').forEach(btn => btn.addEventListener('click', e => {
+  e.stopPropagation();
+  setSection(btn.dataset.open);
+  if (btn.dataset.manager) setManagerSub(btn.dataset.manager);
+}));
+document.querySelectorAll('[data-sites-sub]').forEach(btn => btn.addEventListener('click', () => setSitesSub(btn.dataset.sitesSub)));
+document.querySelectorAll('[data-manager-sub]').forEach(btn => btn.addEventListener('click', () => setManagerSub(btn.dataset.managerSub)));
+document.getElementById('widgetToggle').addEventListener('click', e => {
+  if (e.target.closest('#saveBtn')) return;
+  app.classList.toggle('panel-open');
+  app.classList.remove('site-focus');
+});
+document.getElementById('widgetToggle').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    app.classList.toggle('panel-open');
+    app.classList.remove('site-focus');
+  }
+});
+document.getElementById('closePanel').addEventListener('click', () => app.classList.remove('panel-open', 'site-focus'));
+document.getElementById('focusBtn').addEventListener('click', () => {
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    app.classList.add('fullscreen');
+    return;
+  }
+  if (!app.classList.contains('panel-open')) app.classList.add('panel-open');
+  app.classList.toggle('site-focus');
+  ratioLabel.textContent = app.classList.contains('site-focus') ? 'Widget peek / Site 92' : 'Manager 32 / Site 68';
+});
+document.getElementById('siteStage').addEventListener('click', () => {
+  if (app.classList.contains('panel-open')) {
+    app.classList.add('site-focus');
+    ratioLabel.textContent = 'Widget peek / Site 92';
+  }
+});
+document.getElementById('fullscreenBtn').addEventListener('click', () => app.classList.add('fullscreen'));
+document.getElementById('mobileFullscreenBtn').addEventListener('click', () => app.classList.add('fullscreen'));
+document.getElementById('exitFullscreen').addEventListener('click', () => app.classList.remove('fullscreen'));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    app.classList.remove('fullscreen');
+    document.getElementById('resetSheet').classList.remove('open');
+  }
+});
+document.getElementById('refreshBtn').addEventListener('click', () => toast('WordPress iframe refreshed', 'rotate-cw'));
+document.querySelectorAll('#saveBtn,#saveBtn2,#saveBtn3').forEach(btn => btn.addEventListener('click', e => {
+  e.stopPropagation();
+  saveSite();
+}));
+document.querySelectorAll('.resumeBtn').forEach(btn => btn.addEventListener('click', () => {
+  document.getElementById('playgroundName').textContent = btn.closest('.saved-item').querySelector('.saved-title').textContent;
+  document.getElementById('widgetSub').textContent = 'Resumed from browser storage';
+  document.getElementById('savePip').classList.add('saved');
+  toast('Saved Playground resumed');
+}));
+document.getElementById('openReset').addEventListener('click', () => document.getElementById('resetSheet').classList.add('open'));
+document.getElementById('cancelReset').addEventListener('click', () => document.getElementById('resetSheet').classList.remove('open'));
+document.getElementById('resetPhrase').addEventListener('input', e => {
+  document.getElementById('confirmReset').disabled = e.target.value.trim() !== 'RESET';
+});
+document.getElementById('confirmReset').addEventListener('click', () => {
+  document.getElementById('resetSheet').classList.remove('open');
+  document.getElementById('resetPhrase').value = '';
+  document.getElementById('confirmReset').disabled = true;
+  beginBoot();
+  toast('Settings applied after confirmation');
+});
+document.getElementById('cancelBoot').addEventListener('click', () => {
+  app.classList.remove('loading');
+  toast('Boot cancelled', 'x-circle');
+});
+document.getElementById('blueprintSearch').addEventListener('input', renderBlueprints);
+
+renderCategories();
+renderBlueprints();
+bindBootButtons();
+if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>
