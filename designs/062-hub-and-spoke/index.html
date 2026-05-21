@@ -1,0 +1,1525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Playground — Hub & Spoke</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --bg-0:#070912;
+    --bg-1:#0c1020;
+    --bg-2:#121833;
+    --ink-0:#f4f6ff;
+    --ink-1:#c5cbe6;
+    --ink-2:#8a92b8;
+    --ink-3:#5b6391;
+    --line:rgba(255,255,255,.08);
+    --line-2:rgba(255,255,255,.14);
+    --accent:#7a8cff;        /* periwinkle */
+    --accent-2:#5dd0ff;      /* cyan */
+    --hot:#ff8a4c;           /* orange */
+    --good:#7df0a0;          /* mint */
+    --warn:#ffd166;          /* amber */
+    --bad:#ff6b8a;           /* coral */
+    --wp:#3858e9;
+    --grad: conic-gradient(from 220deg, #7a8cff, #5dd0ff, #7df0a0, #ffd166, #ff8a4c, #ff6b8a, #7a8cff);
+    --r-lg:18px;
+    --r-md:12px;
+    --r-sm:8px;
+    --shadow-lg:0 30px 80px -20px rgba(0,0,0,.7), 0 8px 30px -10px rgba(80,100,200,.25);
+    font-synthesis:none;
+    -webkit-font-smoothing:antialiased;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg-0);color:var(--ink-0);font-family:'Inter',system-ui,sans-serif;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(122,140,255,.18), transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, rgba(93,208,255,.14), transparent 60%),
+      radial-gradient(700px 500px at 50% 50%, rgba(20,28,60,.6), transparent 70%),
+      var(--bg-0);
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  .display{font-family:'Space Grotesk',sans-serif;letter-spacing:-.01em}
+  button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+  a{color:inherit;text-decoration:none}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:10px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.16)}
+
+  /* ---- top status bar ---- */
+  .statusbar{
+    position:sticky;top:0;z-index:20;
+    height:44px;display:flex;align-items:center;gap:14px;
+    padding:0 20px;
+    background:rgba(7,9,18,.7);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;color:var(--ink-2);
+  }
+  .brand{display:flex;align-items:center;gap:8px;color:var(--ink-0);font-weight:600;letter-spacing:-.01em}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--grad);box-shadow:0 0 14px rgba(122,140,255,.6)}
+  .crumbs{display:flex;align-items:center;gap:8px}
+  .crumb-sep{opacity:.4}
+  .crumb-now{color:var(--ink-0);font-weight:500}
+  .statusbar .spacer{flex:1}
+  .status-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;
+    background:rgba(125,240,160,.08);color:var(--good);
+    border:1px solid rgba(125,240,160,.25);
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+  }
+  .status-pill.warn{background:rgba(255,209,102,.08);color:var(--warn);border-color:rgba(255,209,102,.25)}
+  .status-pill .blip{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor;animation:blip 1.6s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:.4}50%{opacity:1}}
+  .stat-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-1)}
+  .stat-chip i{width:12px;height:12px}
+
+  /* ---- shell ---- */
+  .shell{max-width:1440px;margin:0 auto;padding:24px}
+
+  /* ============== HUB VIEW (home) ============== */
+  .hub-wrap{
+    position:relative;
+    min-height:calc(100vh - 44px - 48px);
+    display:grid;place-items:center;
+  }
+  .hub-stage{
+    position:relative;
+    width:min(880px, 95vw);
+    aspect-ratio:1/1;
+  }
+  /* concentric guide rings */
+  .ring{
+    position:absolute;inset:0;
+    border-radius:50%;
+    border:1px dashed rgba(255,255,255,.06);
+    pointer-events:none;
+  }
+  .ring.r2{inset:8%;border-style:solid;border-color:rgba(255,255,255,.04)}
+  .ring.r3{inset:18%;border-style:dashed}
+  .ring.r4{inset:30%;border-style:solid;border-color:rgba(255,255,255,.06)}
+  .ring-label{
+    position:absolute;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);letter-spacing:.18em;text-transform:uppercase;
+    background:var(--bg-0);padding:2px 8px;
+  }
+  .ring-label.top{top:-6px;left:50%;transform:translateX(-50%)}
+  .ring-label.bot{bottom:-6px;left:50%;transform:translateX(-50%)}
+
+  /* central porthole */
+  .core{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:34%;aspect-ratio:1/1;border-radius:50%;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,.12), transparent 60%),
+      linear-gradient(160deg, #1b2350, #0c1130);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.08),
+      inset 0 -30px 60px rgba(0,0,0,.4),
+      0 30px 80px -20px rgba(0,0,0,.7);
+    overflow:hidden;
+    display:grid;place-items:center;
+    cursor:pointer;
+  }
+  .core::before{
+    content:"";position:absolute;inset:6px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.06);
+    background:
+      conic-gradient(from 0deg, rgba(122,140,255,.0) 0deg, rgba(122,140,255,.5) 60deg, rgba(93,208,255,.4) 120deg, rgba(122,140,255,0) 200deg);
+    -webkit-mask: radial-gradient(circle, transparent 64%, #000 65%);
+            mask: radial-gradient(circle, transparent 64%, #000 65%);
+    animation:spin 14s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .core .iframe-thumb{
+    position:relative;z-index:2;
+    width:78%;aspect-ratio:1/1;border-radius:50%;
+    overflow:hidden;border:1px solid rgba(255,255,255,.12);
+    background:#fff;
+    display:flex;flex-direction:column;
+  }
+  /* fake WP page inside the porthole */
+  .wp-mock{
+    flex:1;display:flex;flex-direction:column;
+    background:#fafaf7;color:#1d2327;font-family:'Inter',sans-serif;
+    overflow:hidden;
+  }
+  .wp-mock .wp-top{height:18px;background:#1d2327;color:#fff;font-size:9px;display:flex;align-items:center;padding:0 8px;gap:8px}
+  .wp-mock .wp-top .dot{width:6px;height:6px;border-radius:50%}
+  .wp-mock .wp-top .dot.r{background:#ff5f56}.wp-mock .wp-top .dot.y{background:#ffbd2e}.wp-mock .wp-top .dot.g{background:#27c93f}
+  .wp-mock h1{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:14px 12px 4px;color:#101317}
+  .wp-mock p{font-size:9px;margin:0 12px;color:#4a536b;line-height:1.5}
+  .wp-mock .wp-card{margin:8px 12px;background:#fff;border:1px solid #e4e7ee;border-radius:6px;padding:8px;font-size:8.5px;color:#1d2327}
+  .wp-mock .wp-tag{display:inline-block;background:#eef2ff;color:#3858e9;font-size:7px;border-radius:99px;padding:1px 6px;margin-right:4px}
+  .core-label{
+    position:absolute;left:50%;bottom:8%;transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.6);
+    background:rgba(0,0,0,.4);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.1);
+    z-index:3;
+  }
+  .core-enter{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;
+    width:54px;height:54px;border-radius:50%;
+    background:rgba(255,255,255,.9);color:#0c1130;
+    display:grid;place-items:center;border:none;cursor:pointer;
+    box-shadow:0 8px 24px rgba(122,140,255,.6);
+    opacity:0;transition:opacity .2s ease;
+  }
+  .core:hover .core-enter{opacity:1}
+  .core-enter i{width:22px;height:22px}
+
+  /* inner ring controls (top toolbar lives here) */
+  .inner-bar{
+    position:absolute;left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    width:60%;
+  }
+  .inner-bar > div{
+    pointer-events:auto;position:absolute;
+    background:rgba(12,16,32,.85);
+    backdrop-filter:blur(10px);
+    border:1px solid var(--line-2);
+    border-radius:99px;
+    padding:6px 10px;
+    display:flex;align-items:center;gap:6px;
+    font-size:12px;color:var(--ink-1);
+    box-shadow:0 12px 36px -10px rgba(0,0,0,.6);
+  }
+  .inner-bar .ib-top{left:50%;top:-22px;transform:translate(-50%,-100%)}
+  .inner-bar .ib-bot{left:50%;bottom:-22px;transform:translate(-50%,100%)}
+  .inner-bar .icon-btn{
+    width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--ink-1);
+  }
+  .inner-bar .icon-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+  .inner-bar .icon-btn i{width:14px;height:14px}
+  .inner-bar .url{
+    display:flex;align-items:center;gap:6px;
+    padding:5px 12px;border-radius:99px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ink-1);
+    min-width:240px;
+  }
+  .inner-bar .url i{width:12px;height:12px;color:var(--ink-3)}
+  .inner-bar .url .path{color:#fff}
+  .inner-bar .name{
+    display:flex;align-items:center;gap:10px;padding-left:6px;padding-right:6px;
+  }
+  .inner-bar .name .label{font-weight:600;color:#fff;font-size:12.5px}
+  .inner-bar .name .meta{font-size:11px;color:var(--ink-3)}
+  .inner-bar .save{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 12px;border-radius:99px;
+    background:linear-gradient(180deg, #ff8a4c, #ff6b8a);
+    color:#1a0a18;font-weight:600;font-size:11.5px;
+    box-shadow:0 6px 18px -4px rgba(255,138,76,.5);
+    position:relative;
+  }
+  .inner-bar .save i{width:13px;height:13px}
+  .inner-bar .save::after{
+    content:"";position:absolute;inset:-3px;border-radius:99px;
+    border:2px solid rgba(255,138,76,.4);animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.08);opacity:.2}}
+
+  /* spokes positioning — 9 spokes around the ring */
+  .spoke{
+    position:absolute;
+    width:140px;
+    transform:translate(-50%,-50%);
+    text-align:center;
+    cursor:pointer;
+  }
+  .spoke .badge{
+    width:64px;height:64px;border-radius:50%;
+    display:grid;place-items:center;margin:0 auto 10px;
+    background:rgba(20,26,50,.85);
+    border:1px solid var(--line-2);
+    backdrop-filter:blur(10px);
+    color:var(--ink-0);
+    box-shadow:0 14px 40px -12px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06);
+    transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .spoke .badge i{width:24px;height:24px}
+  .spoke .title{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:var(--ink-0);letter-spacing:-.01em}
+  .spoke .sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+  .spoke:hover .badge{transform:scale(1.08);border-color:var(--accent);box-shadow:0 18px 50px -10px rgba(122,140,255,.6), inset 0 1px 0 rgba(255,255,255,.1)}
+  .spoke:hover .title{color:#fff}
+  /* tint variants */
+  .spoke.a .badge{color:#a8b6ff}.spoke.b .badge{color:#7df0a0}.spoke.c .badge{color:#ffd166}.spoke.d .badge{color:#ff8a4c}.spoke.e .badge{color:#5dd0ff}.spoke.f .badge{color:#ff6b8a}.spoke.g .badge{color:#c0a8ff}.spoke.h .badge{color:#7df0d8}.spoke.i .badge{color:#ffb3c1}
+
+  /* spoke connector line */
+  .spoke::before{
+    content:"";position:absolute;left:50%;top:32px;
+    width:1px;height:50px;
+    background:linear-gradient(180deg, rgba(255,255,255,.2), transparent);
+    transform:translateX(-50%);
+    pointer-events:none;
+  }
+
+  /* radial positions — 9 spokes, evenly distributed */
+  /* using --x and --y as fractions from center on a 880px stage */
+  .spoke.p1{left:50%;top:5%}
+  .spoke.p2{left:80%;top:14%}
+  .spoke.p3{left:95%;top:42%}
+  .spoke.p4{left:88%;top:72%}
+  .spoke.p5{left:64%;top:92%}
+  .spoke.p6{left:36%;top:92%}
+  .spoke.p7{left:12%;top:72%}
+  .spoke.p8{left:5%;top:42%}
+  .spoke.p9{left:20%;top:14%}
+
+  /* hub side notes */
+  .hub-aside{
+    position:absolute;
+    width:240px;
+    background:rgba(12,16,32,.7);
+    border:1px solid var(--line);
+    border-radius:var(--r-md);
+    padding:14px 16px;
+    backdrop-filter:blur(10px);
+    font-size:12px;color:var(--ink-1);
+  }
+  .hub-aside.tl{left:-12px;top:-12px;transform:translate(-100%,0)}
+  .hub-aside.br{right:-12px;bottom:-12px;transform:translate(100%,0)}
+  .hub-aside h4{margin:0 0 6px;font-family:'Space Grotesk',sans-serif;font-size:13px;color:#fff;font-weight:600;display:flex;align-items:center;gap:8px}
+  .hub-aside p{margin:0;color:var(--ink-2);font-size:11.5px;line-height:1.45}
+  .hub-aside .legend-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .hub-aside .legend-list .row{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-2);letter-spacing:.04em}
+  .hub-aside .legend-list .row b{color:#fff;font-weight:500}
+  .hub-aside .toast{display:flex;gap:8px;align-items:flex-start;padding-top:8px;border-top:1px dashed var(--line)}
+  .hub-aside .toast i{width:14px;height:14px;color:var(--good);margin-top:2px;flex:none}
+
+  /* ============== SUB-SCREENS ============== */
+  .panels{
+    margin-top:48px;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:48px;
+  }
+  .panel{
+    background:linear-gradient(180deg, rgba(20,26,50,.55), rgba(12,16,32,.55));
+    border:1px solid var(--line);
+    border-radius:24px;
+    overflow:hidden;
+    box-shadow:var(--shadow-lg);
+    position:relative;
+  }
+  .panel-header{
+    display:flex;align-items:center;gap:14px;
+    padding:18px 22px;border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.02);
+  }
+  .panel-header .back{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:6px 12px;border-radius:99px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line-2);
+    color:var(--ink-1);font-size:12px;
+  }
+  .panel-header .back i{width:14px;height:14px}
+  .panel-header .spoke-icon{
+    width:38px;height:38px;border-radius:50%;
+    background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+    display:grid;place-items:center;color:#fff;
+  }
+  .panel-header .spoke-icon i{width:18px;height:18px}
+  .panel-header .titles h2{margin:0;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .panel-header .titles .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase}
+  .panel-header .spacer{flex:1}
+  .panel-header .ctxbtns{display:flex;gap:8px}
+  .ctx-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 11px;border-radius:8px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+    color:var(--ink-1);font-size:12px;font-weight:500;
+  }
+  .ctx-btn.primary{background:linear-gradient(180deg, var(--accent), #5666e2);color:#fff;border-color:transparent}
+  .ctx-btn.danger{background:rgba(255,107,138,.12);color:var(--bad);border-color:rgba(255,107,138,.35)}
+  .ctx-btn i{width:13px;height:13px}
+
+  /* hub dock (mini hub shown when a sub-screen is "active") */
+  .hub-dock{
+    position:absolute;right:18px;bottom:18px;
+    width:62px;height:62px;border-radius:50%;
+    background:radial-gradient(circle at 30% 25%, rgba(255,255,255,.2), transparent 60%), linear-gradient(160deg, #1b2350, #0c1130);
+    border:1px solid var(--line-2);
+    display:grid;place-items:center;
+    color:#fff;
+    box-shadow:0 12px 30px -8px rgba(122,140,255,.45);
+    cursor:pointer;
+  }
+  .hub-dock i{width:22px;height:22px}
+  .hub-dock::after{
+    content:"home";position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;
+  }
+
+  /* ---- panel body utilities ---- */
+  .pb{padding:22px}
+  .grid-2{display:grid;grid-template-columns:300px 1fr;gap:22px}
+  .grid-3{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:14px}
+  .grid-4{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:14px}
+
+  /* ============== "New" launch pad ============== */
+  .launchpad{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;
+  }
+  .launch-card{
+    border:1px solid var(--line-2);border-radius:14px;padding:16px;
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    display:flex;flex-direction:column;gap:8px;
+    min-height:140px;position:relative;cursor:pointer;
+    transition:border-color .2s ease, transform .2s ease;
+  }
+  .launch-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .launch-card .ic{
+    width:36px;height:36px;border-radius:10px;
+    background:rgba(255,255,255,.05);display:grid;place-items:center;color:#fff;
+  }
+  .launch-card.wp .ic{background:#3858e9;color:#fff}
+  .launch-card.pr .ic{background:rgba(122,140,255,.18);color:#a8b6ff}
+  .launch-card.gut .ic{background:rgba(93,208,255,.15);color:#5dd0ff}
+  .launch-card.gh .ic{background:rgba(255,255,255,.1);color:#fff}
+  .launch-card.url .ic{background:rgba(125,240,160,.15);color:var(--good)}
+  .launch-card.zip .ic{background:rgba(255,138,76,.15);color:var(--hot)}
+  .launch-card h3{margin:0;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:#fff}
+  .launch-card p{margin:0;font-size:12px;color:var(--ink-2);line-height:1.5}
+  .launch-card .input{
+    display:flex;align-items:center;gap:8px;
+    padding:7px 10px;border-radius:8px;
+    background:rgba(0,0,0,.35);border:1px solid var(--line-2);
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-1);
+  }
+  .launch-card .input.muted{color:var(--ink-3)}
+  .launch-card .go{
+    margin-top:auto;display:inline-flex;align-items:center;gap:6px;
+    font-size:12px;font-weight:600;color:#fff;
+  }
+  .launch-card .go i{width:13px;height:13px}
+
+  /* ============== Blueprint gallery ============== */
+  .bp-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .bp-search{
+    flex:1;min-width:240px;
+    display:flex;align-items:center;gap:8px;
+    padding:9px 12px;border-radius:10px;
+    background:rgba(0,0,0,.35);border:1px solid var(--line-2);
+    font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-1);
+  }
+  .bp-search i{width:14px;height:14px;color:var(--ink-3)}
+  .bp-search input{background:none;border:none;outline:none;color:inherit;flex:1;font-family:inherit;font-size:inherit}
+  .bp-cats{display:flex;gap:6px;flex-wrap:wrap}
+  .bp-cat{
+    padding:6px 11px;border-radius:99px;font-size:11.5px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--ink-1);
+    font-weight:500;
+  }
+  .bp-cat.active{background:#fff;color:#0c1130;border-color:transparent}
+  .bp-card{
+    border:1px solid var(--line-2);border-radius:14px;overflow:hidden;
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    display:flex;flex-direction:column;cursor:pointer;
+    transition:transform .2s, border-color .2s;
+  }
+  .bp-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+  .bp-thumb{
+    aspect-ratio:16/9;
+    background:linear-gradient(135deg, var(--c1,#3858e9), var(--c2,#5dd0ff));
+    position:relative;display:flex;align-items:flex-end;padding:10px;
+  }
+  .bp-thumb::after{
+    content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), transparent 50%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 2px, transparent 2px 8px);
+    pointer-events:none;
+  }
+  .bp-thumb .num{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,.85);background:rgba(0,0,0,.35);padding:3px 7px;border-radius:99px;position:relative;z-index:1}
+  .bp-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .bp-body h4{margin:0;font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:600;color:#fff;letter-spacing:-.005em}
+  .bp-body p{margin:0;font-size:11.5px;color:var(--ink-2);line-height:1.45;flex:1}
+  .bp-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .bp-tag{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--ink-2);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:99px;text-transform:lowercase}
+  .bp-tag.featured{color:var(--warn);background:rgba(255,209,102,.1)}
+
+  /* ============== Your Playgrounds ============== */
+  .yp-row{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 16px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg, rgba(255,255,255,.03), transparent);
+    cursor:pointer;transition:border-color .2s;
+  }
+  .yp-row:hover{border-color:var(--accent)}
+  .yp-fav{
+    width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+    color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
+  }
+  .yp-meta{flex:1;min-width:0}
+  .yp-meta h4{margin:0;font-size:14px;color:#fff;font-weight:600}
+  .yp-meta .line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-2);display:flex;gap:10px;margin-top:3px}
+  .yp-meta .line span{display:inline-flex;align-items:center;gap:4px}
+  .yp-meta .line i{width:11px;height:11px}
+  .yp-acts{display:flex;gap:6px}
+  .yp-acts .ctx-btn{padding:6px 10px;font-size:11.5px}
+
+  /* ============== Settings ============== */
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase}
+  .field .control{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px;border-radius:10px;
+    background:rgba(0,0,0,.3);border:1px solid var(--line-2);
+    color:#fff;font-size:13px;font-weight:500;
+  }
+  .field .control i{width:14px;height:14px;color:var(--ink-3)}
+  .switch{
+    width:36px;height:20px;border-radius:99px;
+    background:rgba(255,255,255,.1);position:relative;
+  }
+  .switch::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s}
+  .switch.on{background:var(--accent)}
+  .switch.on::after{left:19px}
+  .danger-banner{
+    margin-top:14px;
+    padding:12px 14px;border-radius:12px;
+    background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.3);
+    color:var(--bad);font-size:12px;display:flex;align-items:flex-start;gap:10px;
+  }
+  .danger-banner i{width:16px;height:16px;flex:none;margin-top:1px}
+  .danger-banner b{color:#fff}
+
+  /* ============== Files ============== */
+  .files-tree{
+    background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;
+    padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-1);
+    overflow:auto;height:420px;
+  }
+  .tree-row{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:6px;cursor:pointer}
+  .tree-row:hover{background:rgba(255,255,255,.04)}
+  .tree-row.active{background:rgba(122,140,255,.18);color:#fff}
+  .tree-row i{width:13px;height:13px;color:var(--ink-3)}
+  .tree-row.folder i{color:var(--warn)}
+  .tree-row.active i{color:var(--accent)}
+  .tree-indent{padding-left:18px}
+  .tree-indent-2{padding-left:36px}
+  .tree-indent-3{padding-left:54px}
+  .editor{
+    background:#0a0d1c;border:1px solid var(--line);border-radius:12px;
+    height:420px;overflow:auto;
+    font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;
+    display:grid;grid-template-columns:42px 1fr;
+  }
+  .editor .ln{padding:14px 0;text-align:right;color:var(--ink-3);background:rgba(255,255,255,.02);font-size:11px}
+  .editor .ln span{display:block;padding-right:10px}
+  .editor .code{padding:14px 14px 14px 6px;color:var(--ink-1);white-space:pre;overflow-x:auto}
+  .editor .code .kw{color:#ff8a4c}.editor .code .str{color:#7df0a0}.editor .code .num{color:#ffd166}.editor .code .com{color:var(--ink-3);font-style:italic}.editor .code .fn{color:#5dd0ff}.editor .code .var{color:#a8b6ff}
+
+  /* ============== Logs ============== */
+  .logs-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .logs-bar .bp-search{flex:1}
+  .level-chip{
+    padding:5px 10px;border-radius:99px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;
+    border:1px solid;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .level-chip.info{color:var(--accent-2);border-color:rgba(93,208,255,.4);background:rgba(93,208,255,.08)}
+  .level-chip.warn{color:var(--warn);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.08)}
+  .level-chip.err{color:var(--bad);border-color:rgba(255,107,138,.4);background:rgba(255,107,138,.08)}
+  .level-chip.ok{color:var(--good);border-color:rgba(125,240,160,.4);background:rgba(125,240,160,.08)}
+  .logs-list{
+    background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:12px;
+  }
+  .log-line{display:grid;grid-template-columns:140px 80px 1fr;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04)}
+  .log-line:last-child{border-bottom:none}
+  .log-line .t{color:var(--ink-3)}
+  .log-line .lvl{font-weight:600}
+  .log-line .msg{color:var(--ink-1)}
+  .log-line .msg .pill{display:inline-block;background:rgba(255,255,255,.05);padding:0 6px;border-radius:4px;color:var(--ink-2);margin-right:6px}
+  .log-line.warn .lvl{color:var(--warn)}
+  .log-line.err .lvl{color:var(--bad)}
+  .log-line.info .lvl{color:var(--accent-2)}
+  .log-line.ok .lvl{color:var(--good)}
+
+  /* ============== DB browser ============== */
+  .db-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .db-tab{
+    padding:6px 11px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;
+    background:rgba(255,255,255,.04);color:var(--ink-1);border:1px solid var(--line);
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .db-tab.active{background:#fff;color:#0c1130;border-color:transparent}
+  .db-table{
+    background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;
+    overflow:hidden;
+  }
+  .db-table .row{display:grid;grid-template-columns:50px 1fr 1fr 130px 100px;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--ink-1)}
+  .db-table .row.head{background:rgba(255,255,255,.04);color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+  .db-table .row:last-child{border-bottom:none}
+  .db-info{
+    margin-bottom:12px;padding:10px 14px;border-radius:10px;
+    background:rgba(93,208,255,.06);border:1px solid rgba(93,208,255,.25);
+    color:var(--accent-2);font-size:12px;display:flex;align-items:flex-start;gap:10px;
+  }
+  .db-info i{width:14px;height:14px;flex:none;margin-top:2px}
+  .db-info b{color:#fff}
+
+  /* ============== Blueprint editor ============== */
+  .blueprint-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .blueprint-toolbar .name-pill{
+    display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;
+    background:rgba(122,140,255,.12);color:#a8b6ff;border:1px solid rgba(122,140,255,.3);
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;
+  }
+  .blueprint-toolbar .spacer{flex:1}
+
+  /* ============== Saved playgrounds (your playgrounds list inside launcher) ============== */
+  .yp-list{display:flex;flex-direction:column;gap:8px}
+
+  /* ============== Mobile view ============== */
+  .mobile-wrap{
+    margin-top:60px;
+    display:flex;flex-direction:column;align-items:center;gap:24px;
+  }
+  .mobile-wrap > h3{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin:0;
+  }
+  .mob-pair{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+  .phone{
+    width:390px;height:844px;
+    background:#0a0d1c;
+    border:1px solid var(--line-2);
+    border-radius:38px;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,.7);
+    padding:14px;
+    position:relative;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .phone::before{
+    content:"";position:absolute;left:50%;top:14px;transform:translateX(-50%);
+    width:110px;height:24px;border-radius:99px;background:#000;
+  }
+  .phone .mscreen{
+    flex:1;margin-top:32px;border-radius:24px;background:var(--bg-0);
+    border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;
+  }
+  .mob-topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .mob-topbar .lbl{font-size:12.5px;font-weight:600;color:#fff;flex:1}
+  .mob-topbar .icon-btn{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink-1);background:rgba(255,255,255,.04)}
+  .mob-topbar .icon-btn i{width:14px;height:14px}
+  .mob-hub{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:14px;gap:14px;
+    background:
+      radial-gradient(400px 300px at 50% 30%, rgba(122,140,255,.18), transparent 70%);
+  }
+  .mob-core{
+    width:160px;height:160px;border-radius:50%;
+    background:radial-gradient(circle at 30% 25%, rgba(255,255,255,.15), transparent 60%), linear-gradient(160deg, #1b2350, #0c1130);
+    border:1px solid var(--line-2);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:#fff;text-align:center;gap:4px;
+    box-shadow:0 14px 40px -10px rgba(122,140,255,.5);
+  }
+  .mob-core .name{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700}
+  .mob-core .url{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--ink-2)}
+  .mob-core .badge{padding:2px 8px;border-radius:99px;background:rgba(125,240,160,.15);color:var(--good);font-family:'JetBrains Mono',monospace;font-size:9px;border:1px solid rgba(125,240,160,.3);margin-top:6px}
+  .mob-spokes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+  .mob-spoke{
+    border:1px solid var(--line-2);border-radius:14px;
+    padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;
+    background:rgba(255,255,255,.03);
+  }
+  .mob-spoke i{width:18px;height:18px;color:var(--accent)}
+  .mob-spoke b{font-size:11px;color:#fff;font-weight:600;font-family:'Space Grotesk',sans-serif}
+  .mob-spoke.b i{color:var(--good)}.mob-spoke.c i{color:var(--warn)}.mob-spoke.d i{color:var(--hot)}.mob-spoke.e i{color:var(--accent-2)}.mob-spoke.f i{color:var(--bad)}.mob-spoke.g i{color:#c0a8ff}.mob-spoke.h i{color:#7df0d8}.mob-spoke.i i{color:#ffb3c1}
+
+  .mob-save{
+    width:100%;padding:11px 16px;border-radius:12px;
+    background:linear-gradient(180deg, #ff8a4c, #ff6b8a);color:#1a0a18;font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .mob-save i{width:14px;height:14px}
+
+  /* Mobile sub-screen (blueprint browser) */
+  .mob-bp-screen{flex:1;display:flex;flex-direction:column;overflow:auto}
+  .mob-bp-screen .pb{padding:14px}
+  .mob-search{
+    display:flex;align-items:center;gap:8px;padding:9px 12px;
+    border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-2);
+  }
+  .mob-search i{width:14px;height:14px;color:var(--ink-3)}
+  .mob-cats{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+  .mob-cats::-webkit-scrollbar{height:0}
+  .mob-cats .bp-cat{flex:none;font-size:11px}
+  .mob-bp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .mob-bp-grid .bp-card{font-size:11px}
+  .mob-bp-grid .bp-thumb{aspect-ratio:1/1}
+  .mob-bp-grid .bp-body{padding:8px}
+  .mob-bp-grid .bp-body h4{font-size:11.5px}
+  .mob-bp-grid .bp-body p{font-size:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+  /* ============== State banner ============== */
+  .state-banner{
+    display:flex;align-items:center;gap:14px;margin:0 auto 24px;
+    max-width:1440px;padding:14px 22px;
+    background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;
+  }
+  .state-banner .num{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);letter-spacing:.16em;text-transform:uppercase;
+  }
+  .state-banner h2{margin:0;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:-.01em}
+  .state-banner p{margin:2px 0 0;font-size:12.5px;color:var(--ink-2)}
+  .state-banner .num-big{
+    width:46px;height:46px;border-radius:14px;background:rgba(122,140,255,.15);color:var(--accent);
+    display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-weight:700;
+    border:1px solid rgba(122,140,255,.3);
+  }
+
+  /* Toast region */
+  .toast-region{
+    position:fixed;left:20px;bottom:20px;z-index:50;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .toast-region .toast-card{
+    display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+    background:rgba(12,16,32,.92);border:1px solid var(--line-2);border-radius:12px;
+    backdrop-filter:blur(10px);box-shadow:0 16px 50px -10px rgba(0,0,0,.7);
+    max-width:340px;font-size:12.5px;color:var(--ink-1);
+  }
+  .toast-region .toast-card i{width:16px;height:16px;color:var(--good);margin-top:1px;flex:none}
+  .toast-region .toast-card b{color:#fff}
+  .toast-region .toast-card.warn i{color:var(--warn)}
+
+  /* footer */
+  .footer{
+    max-width:1440px;margin:40px auto 24px;padding:0 24px;
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);letter-spacing:.06em;
+  }
+
+  /* ====== responsive ====== */
+  @media (max-width: 900px){
+    .hub-stage{width:100%}
+    .spoke{width:90px}
+    .spoke .badge{width:48px;height:48px}
+    .spoke .badge i{width:18px;height:18px}
+    .spoke .title{font-size:11.5px}
+    .spoke .sub{font-size:9px}
+    .hub-aside{display:none}
+    .inner-bar{display:none}
+    .core .iframe-thumb{width:86%}
+    .grid-2{grid-template-columns:1fr}
+    .grid-3{grid-template-columns:1fr 1fr}
+    .grid-4{grid-template-columns:1fr 1fr}
+    .launchpad{grid-template-columns:1fr 1fr}
+    .panels{gap:30px;margin-top:30px}
+    .pb{padding:14px}
+    .shell{padding:14px}
+    .state-banner{margin:0 14px 18px}
+  }
+  @media (max-width: 560px){
+    .grid-3, .grid-4, .launchpad{grid-template-columns:1fr}
+    .db-table .row{grid-template-columns:30px 1fr 70px;font-size:10.5px}
+    .db-table .row > div:nth-child(3),.db-table .row > div:nth-child(4){display:none}
+    .log-line{grid-template-columns:90px 60px 1fr;font-size:11px}
+    .panel-header{flex-wrap:wrap;gap:10px;padding:14px}
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ============ STATUS BAR ============ -->
+<div class="statusbar">
+  <div class="brand"><span class="dot"></span> Playground <span style="color:var(--ink-3);font-weight:400;margin-left:6px">/ orbit console</span></div>
+  <div class="crumbs">
+    <span>Home</span>
+    <span class="crumb-sep">›</span>
+    <span class="crumb-now">Coffee Shop · v6.5</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="stat-chip"><i data-lucide="cpu"></i> PHP 8.3</span>
+  <span class="stat-chip"><i data-lucide="database"></i> SQLite</span>
+  <span class="stat-chip"><i data-lucide="globe"></i> en_US</span>
+  <span class="status-pill"><span class="blip"></span> session live · 00:14:22</span>
+</div>
+
+<div class="shell">
+
+<!-- ============ STATE 1 — HUB ============ -->
+<div class="state-banner">
+  <div class="num-big">01</div>
+  <div>
+    <div class="num">State · home</div>
+    <h2>Hub</h2>
+    <p>Every action is a spoke. The running site lives in the porthole. Hover the porthole to enter the site fullscreen.</p>
+  </div>
+</div>
+
+<div class="hub-wrap">
+  <div class="hub-stage">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+    <div class="ring r3"></div>
+    <div class="ring r4"></div>
+    <div class="ring-label top">orbit · v2.4 · session 7f2a</div>
+    <div class="ring-label bot">home · idle · 9 spokes</div>
+
+    <!-- hub aside top-left -->
+    <div class="hub-aside tl">
+      <h4><i data-lucide="circle-dot" style="width:14px;height:14px;color:var(--accent)"></i> orientation</h4>
+      <p>Click any spoke to flip into its sub-screen. The hub docks to the bottom-right. Hit <span class="mono" style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px">esc</span> to return.</p>
+      <div class="legend-list">
+        <div class="row"><span>N · 12 o'clock</span><b>NEW</b></div>
+        <div class="row"><span>NE · 1–2</span><b>BLUEPRINTS</b></div>
+        <div class="row"><span>E · 3</span><b>YOUR SITES</b></div>
+        <div class="row"><span>SE · 4–5</span><b>SETTINGS</b></div>
+        <div class="row"><span>S · 6</span><b>BLUEPRINT EDIT</b></div>
+        <div class="row"><span>SW · 7–8</span><b>FILES / DB</b></div>
+        <div class="row"><span>W · 9</span><b>LOGS</b></div>
+        <div class="row"><span>NW · 10–11</span><b>EXPORT</b></div>
+      </div>
+    </div>
+
+    <!-- hub aside bottom-right -->
+    <div class="hub-aside br">
+      <h4><i data-lucide="zap" style="width:14px;height:14px;color:var(--good)"></i> right now</h4>
+      <p>Coffee Shop blueprint mounted. WordPress 6.5, PHP 8.3, multisite off, network on. Save state is <b style="color:var(--hot)">unsaved</b>.</p>
+      <div class="toast">
+        <i data-lucide="check-circle-2"></i>
+        <div>Boot complete in <b style="color:#fff">2.41s</b>. 14 sample products imported, custom theme active.</div>
+      </div>
+    </div>
+
+    <!-- 9 SPOKES -->
+    <div class="spoke a p1" onclick="document.getElementById('panel-new').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="plus-circle"></i></div>
+      <div class="title">New session</div>
+      <div class="sub">Vanilla · PR · GH · zip</div>
+    </div>
+    <div class="spoke b p2" onclick="document.getElementById('panel-bp').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="layout-grid"></i></div>
+      <div class="title">Blueprints</div>
+      <div class="sub">43 templates</div>
+    </div>
+    <div class="spoke c p3" onclick="document.getElementById('panel-yp').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="folder-heart"></i></div>
+      <div class="title">Your sites</div>
+      <div class="sub">3 saved</div>
+    </div>
+    <div class="spoke d p4" onclick="document.getElementById('panel-settings').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="sliders-horizontal"></i></div>
+      <div class="title">Settings</div>
+      <div class="sub">WP · PHP · L10n</div>
+    </div>
+    <div class="spoke e p5" onclick="document.getElementById('panel-blueprint').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="braces"></i></div>
+      <div class="title">Blueprint</div>
+      <div class="sub">Active json</div>
+    </div>
+    <div class="spoke f p6" onclick="document.getElementById('panel-files').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="folder-tree"></i></div>
+      <div class="title">Files</div>
+      <div class="sub">/wordpress/</div>
+    </div>
+    <div class="spoke g p7" onclick="document.getElementById('panel-db').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="database"></i></div>
+      <div class="title">Database</div>
+      <div class="sub">SQLite · early</div>
+    </div>
+    <div class="spoke h p8" onclick="document.getElementById('panel-logs').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="scroll-text"></i></div>
+      <div class="title">Logs</div>
+      <div class="sub">42 entries</div>
+    </div>
+    <div class="spoke i p9" onclick="document.getElementById('panel-export').scrollIntoView({behavior:'smooth'})">
+      <div class="badge"><i data-lucide="upload-cloud"></i></div>
+      <div class="title">Export</div>
+      <div class="sub">.zip · GitHub PR</div>
+    </div>
+
+    <!-- INNER BAR (toolbar surrogate) -->
+    <div class="inner-bar">
+      <div class="ib-top">
+        <button class="icon-btn" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+        <div class="url"><i data-lucide="globe"></i><span class="path">/shop/featured/</span><i data-lucide="corner-down-left"></i></div>
+        <button class="icon-btn" title="WP-Admin"><i data-lucide="shield"></i></button>
+      </div>
+      <div class="ib-bot">
+        <div class="name">
+          <span class="label">Coffee Shop</span>
+          <span class="meta mono">unsaved · WP 6.5</span>
+        </div>
+        <button class="save"><i data-lucide="save"></i> Save site</button>
+      </div>
+    </div>
+
+    <!-- CORE PORTHOLE -->
+    <div class="core" title="Enter site fullscreen">
+      <div class="iframe-thumb">
+        <div class="wp-mock">
+          <div class="wp-top">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span style="opacity:.7">playground.wordpress.net</span>
+          </div>
+          <h1>Single Origin Roasters</h1>
+          <p>Slow-brewed, locally sourced, ridiculously good.</p>
+          <div class="wp-card">
+            <b>Ethiopian Yirgacheffe</b><br/>
+            <span style="color:#5b6391">Bright · floral · jasmine</span><br/>
+            <span class="wp-tag">single-origin</span><span class="wp-tag">light</span>
+          </div>
+        </div>
+      </div>
+      <div class="core-label">live site</div>
+      <button class="core-enter"><i data-lucide="maximize-2"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STATE 2 — booting / blueprint browser sub-screen ============ -->
+
+<div class="panels">
+
+<!-- ============ NEW SESSION SPOKE ============ -->
+<div class="panel" id="panel-new">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#a8b6ff"><i data-lucide="plus-circle"></i></div>
+    <div class="titles"><div class="sub">spoke · N · 12 o'clock</div><h2>Start a new session</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="help-circle"></i> How it works</button>
+    </div>
+  </div>
+  <div class="pb">
+    <div class="launchpad">
+      <div class="launch-card wp">
+        <div class="ic"><i data-lucide="layout"></i></div>
+        <h3>Vanilla WordPress</h3>
+        <p>A fresh WP site with the default theme. The fastest place to start.</p>
+        <span class="go">Boot now <i data-lucide="arrow-right"></i></span>
+      </div>
+      <div class="launch-card pr">
+        <div class="ic"><i data-lucide="git-pull-request"></i></div>
+        <h3>WordPress Core PR</h3>
+        <p>Boot a WordPress core PR by number or URL — perfect for reviewing patches.</p>
+        <div class="input"><span>#</span><span style="color:#fff">62543</span></div>
+        <span class="go">Mount PR <i data-lucide="arrow-right"></i></span>
+      </div>
+      <div class="launch-card gut">
+        <div class="ic"><i data-lucide="blocks"></i></div>
+        <h3>Gutenberg PR</h3>
+        <p>Try a Gutenberg PR with the latest editor changes pre-applied.</p>
+        <div class="input"><span>#</span><span style="color:#fff">69821</span></div>
+        <span class="go">Mount PR <i data-lucide="arrow-right"></i></span>
+      </div>
+      <div class="launch-card gh">
+        <div class="ic"><i data-lucide="github"></i></div>
+        <h3>From GitHub</h3>
+        <p>Point at a public repo — its theme or plugin is installed & activated.</p>
+        <div class="input muted"><span>owner/repo</span></div>
+        <span class="go">Load repo <i data-lucide="arrow-right"></i></span>
+      </div>
+      <div class="launch-card url">
+        <div class="ic"><i data-lucide="link"></i></div>
+        <h3>Blueprint URL</h3>
+        <p>Paste any blueprint JSON URL. Great for sharing recipes.</p>
+        <div class="input muted"><span>https://… blueprint.json</span></div>
+        <span class="go">Run blueprint <i data-lucide="arrow-right"></i></span>
+      </div>
+      <div class="launch-card zip">
+        <div class="ic"><i data-lucide="archive"></i></div>
+        <h3>Import .zip</h3>
+        <p>Drag a previously exported playground here. Restores files & DB.</p>
+        <div class="input muted"><span>drop a .zip or click to browse</span></div>
+        <span class="go">Import <i data-lucide="arrow-right"></i></span>
+      </div>
+    </div>
+  </div>
+  <div class="hub-dock" title="Return to hub"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ BLUEPRINTS SPOKE ============ -->
+<div class="panel" id="panel-bp">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#7df0a0"><i data-lucide="layout-grid"></i></div>
+    <div class="titles"><div class="sub">spoke · NE · 2 o'clock</div><h2>Blueprint gallery · 43 templates</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="sparkles"></i> Featured first</button>
+      <button class="ctx-btn primary"><i data-lucide="plus"></i> New blueprint</button>
+    </div>
+  </div>
+  <div class="pb">
+    <div class="bp-toolbar">
+      <div class="bp-search"><i data-lucide="search"></i><input placeholder="Search 43 blueprints by name, tag, theme…" value="" /><span class="mono" style="color:var(--ink-3);font-size:11px">⌘K</span></div>
+      <div class="bp-cats">
+        <span class="bp-cat active">All · 43</span>
+        <span class="bp-cat">Featured · 5</span>
+        <span class="bp-cat">Website · 10</span>
+        <span class="bp-cat">Personal · 5</span>
+        <span class="bp-cat">Content · 6</span>
+        <span class="bp-cat">Themes · 7</span>
+        <span class="bp-cat">Gutenberg · 4</span>
+        <span class="bp-cat">Experiments · 3</span>
+        <span class="bp-cat">WooCommerce · 4</span>
+        <span class="bp-cat">News · 3</span>
+      </div>
+    </div>
+    <div class="grid-4" id="bp-grid">
+      <!-- populated by JS below -->
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ YOUR SITES SPOKE ============ -->
+<div class="panel" id="panel-yp">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#ffd166"><i data-lucide="folder-heart"></i></div>
+    <div class="titles"><div class="sub">spoke · E · 3 o'clock</div><h2>Your Playgrounds</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="filter"></i> Filter</button>
+      <button class="ctx-btn"><i data-lucide="arrow-down-up"></i> Sort: recent</button>
+    </div>
+  </div>
+  <div class="pb">
+    <div class="yp-list">
+      <div class="yp-row">
+        <div class="yp-fav" style="background:linear-gradient(135deg,#3858e9,#5dd0ff)">CS</div>
+        <div class="yp-meta">
+          <h4>Coffee Shop — staging clone</h4>
+          <div class="line">
+            <span><i data-lucide="hash"></i>blueprint · coffee-shop</span>
+            <span><i data-lucide="clock"></i>2 min ago</span>
+            <span><i data-lucide="hard-drive"></i>OPFS · 41 MB</span>
+            <span><i data-lucide="cpu"></i>WP 6.5 · PHP 8.3</span>
+          </div>
+        </div>
+        <div class="yp-acts">
+          <button class="ctx-btn"><i data-lucide="play"></i>Boot</button>
+          <button class="ctx-btn"><i data-lucide="more-horizontal"></i></button>
+        </div>
+      </div>
+      <div class="yp-row">
+        <div class="yp-fav" style="background:linear-gradient(135deg,#7df0a0,#5dd0ff)">UR</div>
+        <div class="yp-meta">
+          <h4>Personal Resume — review</h4>
+          <div class="line">
+            <span><i data-lucide="hash"></i>blueprint · personal-resume</span>
+            <span><i data-lucide="clock"></i>yesterday</span>
+            <span><i data-lucide="hard-drive"></i>OPFS · 18 MB</span>
+            <span><i data-lucide="cpu"></i>WP 6.5 · PHP 8.2</span>
+          </div>
+        </div>
+        <div class="yp-acts">
+          <button class="ctx-btn"><i data-lucide="play"></i>Boot</button>
+          <button class="ctx-btn"><i data-lucide="more-horizontal"></i></button>
+        </div>
+      </div>
+      <div class="yp-row">
+        <div class="yp-fav" style="background:linear-gradient(135deg,#ff8a4c,#ff6b8a)">GB</div>
+        <div class="yp-meta">
+          <h4>Gutenberg PR #69821 — block toolbar fix</h4>
+          <div class="line">
+            <span><i data-lucide="git-pull-request"></i>PR 69821</span>
+            <span><i data-lucide="clock"></i>3 days ago</span>
+            <span><i data-lucide="hard-drive"></i>OPFS · 64 MB</span>
+            <span><i data-lucide="cpu"></i>WP trunk · PHP 8.3</span>
+          </div>
+        </div>
+        <div class="yp-acts">
+          <button class="ctx-btn"><i data-lucide="play"></i>Boot</button>
+          <button class="ctx-btn"><i data-lucide="more-horizontal"></i></button>
+        </div>
+      </div>
+      <div class="yp-row" style="opacity:.7">
+        <div class="yp-fav" style="background:linear-gradient(135deg,#5b6391,#3a3f63)">?</div>
+        <div class="yp-meta">
+          <h4>Unsaved Playground</h4>
+          <div class="line">
+            <span><i data-lucide="alert-circle"></i>not saved to browser storage</span>
+            <span><i data-lucide="clock"></i>this session</span>
+          </div>
+        </div>
+        <div class="yp-acts">
+          <button class="ctx-btn primary"><i data-lucide="save"></i>Save now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ SETTINGS SPOKE ============ -->
+<div class="panel" id="panel-settings">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#ff8a4c"><i data-lucide="sliders-horizontal"></i></div>
+    <div class="titles"><div class="sub">spoke · SE · 5 o'clock</div><h2>Edit Playground settings</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="rotate-ccw"></i> Reset to defaults</button>
+      <button class="ctx-btn primary"><i data-lucide="check"></i> Apply &amp; reset playground</button>
+    </div>
+  </div>
+  <div class="pb grid-2">
+    <div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Site name</label>
+        <div class="control">Coffee Shop <i data-lucide="edit-3"></i></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>WordPress version</label>
+        <div class="control">6.5 (latest stable) <i data-lucide="chevron-down"></i></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>PHP version</label>
+        <div class="control">8.3 <i data-lucide="chevron-down"></i></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Language</label>
+        <div class="control">English (United States) <i data-lucide="chevron-down"></i></div>
+      </div>
+    </div>
+    <div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Network access</label>
+        <div class="control">Allow outbound HTTP requests <span class="switch on"></span></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Multisite</label>
+        <div class="control">Enable WordPress multisite <span class="switch"></span></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Persistent storage</label>
+        <div class="control">Save site locally to OPFS <span class="switch on"></span></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Debug mode</label>
+        <div class="control">WP_DEBUG + WP_DEBUG_LOG <span class="switch on"></span></div>
+      </div>
+      <div class="danger-banner">
+        <i data-lucide="alert-triangle"></i>
+        <div><b>Heads up.</b> Apply &amp; Reset destroys the current site state to apply WP/PHP version changes. Save first if you need this session.</div>
+      </div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ BLUEPRINT EDITOR SPOKE ============ -->
+<div class="panel" id="panel-blueprint">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#5dd0ff"><i data-lucide="braces"></i></div>
+    <div class="titles"><div class="sub">spoke · S · 6 o'clock</div><h2>Blueprint editor</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="link"></i> Copy link</button>
+      <button class="ctx-btn"><i data-lucide="download"></i> Download bundle</button>
+      <button class="ctx-btn primary"><i data-lucide="play"></i> Run blueprint</button>
+    </div>
+  </div>
+  <div class="pb">
+    <div class="blueprint-toolbar">
+      <span class="name-pill"><i data-lucide="braces" style="width:12px;height:12px"></i> blueprint.json</span>
+      <span class="name-pill" style="background:rgba(125,240,160,.1);color:var(--good);border-color:rgba(125,240,160,.3)"><i data-lucide="folder" style="width:12px;height:12px"></i> 4 files in bundle</span>
+      <div class="spacer"></div>
+      <span class="mono" style="font-size:11px;color:var(--ink-3)">last saved 14s ago</span>
+    </div>
+    <div class="grid-2">
+      <div class="files-tree" style="height:380px">
+        <div class="tree-row folder"><i data-lucide="folder-open"></i> coffee-shop-blueprint/</div>
+        <div class="tree-row tree-indent active"><i data-lucide="file-json"></i> blueprint.json</div>
+        <div class="tree-row tree-indent"><i data-lucide="file-text"></i> README.md</div>
+        <div class="tree-row tree-indent folder"><i data-lucide="folder"></i> assets/</div>
+        <div class="tree-row tree-indent-2"><i data-lucide="image"></i> hero.jpg</div>
+        <div class="tree-row tree-indent-2"><i data-lucide="image"></i> bag.png</div>
+        <div class="tree-row tree-indent folder"><i data-lucide="folder"></i> content/</div>
+        <div class="tree-row tree-indent-2"><i data-lucide="file-text"></i> sample.xml</div>
+      </div>
+      <div class="editor" style="height:380px">
+        <div class="ln">
+<span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span>
+        </div>
+        <div class="code"><span class="com">// Coffee Shop blueprint</span>
+{
+  <span class="var">"landingPage"</span>: <span class="str">"/shop"</span>,
+  <span class="var">"preferredVersions"</span>: {
+    <span class="var">"php"</span>: <span class="str">"8.3"</span>,
+    <span class="var">"wp"</span>: <span class="str">"6.5"</span>
+  },
+  <span class="var">"steps"</span>: [
+    { <span class="var">"step"</span>: <span class="str">"installTheme"</span>,
+      <span class="var">"themeZipFile"</span>: { <span class="var">"resource"</span>: <span class="str">"wordpress.org/themes"</span>, <span class="var">"slug"</span>: <span class="str">"coffee-pot"</span> } },
+    { <span class="var">"step"</span>: <span class="str">"installPlugin"</span>,
+      <span class="var">"pluginZipFile"</span>: { <span class="var">"resource"</span>: <span class="str">"wordpress.org/plugins"</span>, <span class="var">"slug"</span>: <span class="str">"woocommerce"</span> } },
+    { <span class="var">"step"</span>: <span class="str">"runWpCliCommand"</span>,
+      <span class="var">"command"</span>: <span class="str">"wp wc product create --name='Yirgacheffe'"</span> },
+    { <span class="var">"step"</span>: <span class="str">"importWxr"</span>,
+      <span class="var">"file"</span>: { <span class="var">"resource"</span>: <span class="str">"vfs"</span>, <span class="var">"path"</span>: <span class="str">"content/sample.xml"</span> } }
+  ]
+}</div>
+      </div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ FILES SPOKE ============ -->
+<div class="panel" id="panel-files">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#ff6b8a"><i data-lucide="folder-tree"></i></div>
+    <div class="titles"><div class="sub">spoke · SW · 7 o'clock</div><h2>File browser · /wordpress</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="file-plus"></i> New file</button>
+      <button class="ctx-btn"><i data-lucide="folder-plus"></i> New folder</button>
+      <button class="ctx-btn"><i data-lucide="search"></i> Find in files</button>
+    </div>
+  </div>
+  <div class="pb grid-2">
+    <div class="files-tree">
+      <div class="tree-row folder"><i data-lucide="folder-open"></i> wordpress/</div>
+      <div class="tree-row tree-indent folder"><i data-lucide="folder"></i> wp-admin/</div>
+      <div class="tree-row tree-indent folder"><i data-lucide="folder-open"></i> wp-content/</div>
+      <div class="tree-row tree-indent-2 folder"><i data-lucide="folder"></i> mu-plugins/</div>
+      <div class="tree-row tree-indent-2 folder"><i data-lucide="folder-open"></i> themes/</div>
+      <div class="tree-row tree-indent-3 folder"><i data-lucide="folder-open"></i> coffee-pot/</div>
+      <div class="tree-row tree-indent-3 active" style="padding-left:72px"><i data-lucide="file-code-2"></i> functions.php</div>
+      <div class="tree-row tree-indent-3" style="padding-left:72px"><i data-lucide="file-code-2"></i> style.css</div>
+      <div class="tree-row tree-indent-3" style="padding-left:72px"><i data-lucide="file-code-2"></i> theme.json</div>
+      <div class="tree-row tree-indent-2 folder"><i data-lucide="folder"></i> plugins/</div>
+      <div class="tree-row tree-indent-2 folder"><i data-lucide="folder"></i> uploads/</div>
+      <div class="tree-row tree-indent folder"><i data-lucide="folder"></i> wp-includes/</div>
+      <div class="tree-row tree-indent"><i data-lucide="file-code-2"></i> wp-config.php</div>
+      <div class="tree-row tree-indent"><i data-lucide="file-code-2"></i> index.php</div>
+      <div class="tree-row tree-indent"><i data-lucide="file-code-2"></i> .htaccess</div>
+    </div>
+    <div class="editor">
+      <div class="ln">
+<span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span>
+      </div>
+      <div class="code"><span class="com">&lt;?php</span>
+<span class="com">/**
+ * Coffee Pot theme - functions.php
+ */</span>
+
+<span class="kw">add_action</span>( <span class="str">'after_setup_theme'</span>, <span class="kw">function</span>() {
+    <span class="fn">add_theme_support</span>( <span class="str">'wp-block-styles'</span> );
+    <span class="fn">add_theme_support</span>( <span class="str">'editor-styles'</span> );
+    <span class="fn">add_theme_support</span>( <span class="str">'post-thumbnails'</span> );
+    <span class="fn">register_nav_menu</span>( <span class="str">'primary'</span>, <span class="str">'Primary'</span> );
+} );
+
+<span class="kw">add_action</span>( <span class="str">'wp_enqueue_scripts'</span>, <span class="kw">function</span>() {
+    <span class="fn">wp_enqueue_style</span>(
+        <span class="str">'coffee-pot'</span>,
+        <span class="fn">get_stylesheet_uri</span>(),
+        [],
+        <span class="str">'1.4.2'</span>
+    );
+} );
+
+<span class="com">// Custom product loop</span>
+<span class="kw">function</span> <span class="fn">cp_featured_grid</span>( <span class="var">$atts</span> ) {
+  <span class="kw">return</span> <span class="str">"&lt;div class='cp-grid'&gt;…&lt;/div&gt;"</span>;
+}</div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ DB SPOKE ============ -->
+<div class="panel" id="panel-db">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#c0a8ff"><i data-lucide="database"></i></div>
+    <div class="titles"><div class="sub">spoke · SW · 8 o'clock · early access</div><h2>Database browser</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="terminal"></i> Run SQL</button>
+      <button class="ctx-btn"><i data-lucide="download"></i> Export .sql</button>
+    </div>
+  </div>
+  <div class="pb">
+    <div class="db-info">
+      <i data-lucide="info"></i>
+      <div><b>Database management is an early access feature.</b> SQLite-backed. Have feedback? <span style="text-decoration:underline">Open an issue on the tracker</span>.</div>
+    </div>
+    <div class="db-tabs">
+      <span class="db-tab active"><i data-lucide="table" style="width:12px;height:12px"></i> wp_posts</span>
+      <span class="db-tab">wp_users</span>
+      <span class="db-tab">wp_options</span>
+      <span class="db-tab">wp_postmeta</span>
+      <span class="db-tab">wp_terms</span>
+      <span class="db-tab">wp_commentmeta</span>
+      <span class="db-tab" style="background:rgba(125,240,160,.1);color:var(--good);border-color:rgba(125,240,160,.3)"><i data-lucide="plus" style="width:12px;height:12px"></i> new query</span>
+    </div>
+    <div class="db-table">
+      <div class="row head">
+        <div>ID</div><div>post_title</div><div>post_type</div><div>post_status</div><div>updated</div>
+      </div>
+      <div class="row"><div>14</div><div>Single Origin Roasters</div><div>page</div><div style="color:var(--good)">publish</div><div>2 min ago</div></div>
+      <div class="row"><div>22</div><div>Ethiopian Yirgacheffe</div><div>product</div><div style="color:var(--good)">publish</div><div>3 min ago</div></div>
+      <div class="row"><div>23</div><div>Sumatra Mandheling</div><div>product</div><div style="color:var(--good)">publish</div><div>3 min ago</div></div>
+      <div class="row"><div>24</div><div>Costa Rican Tarrazu</div><div>product</div><div style="color:var(--good)">publish</div><div>3 min ago</div></div>
+      <div class="row"><div>25</div><div>House Blend</div><div>product</div><div style="color:var(--warn)">draft</div><div>2 min ago</div></div>
+      <div class="row"><div>26</div><div>Brewing tips for pour-over</div><div>post</div><div style="color:var(--good)">publish</div><div>4 min ago</div></div>
+      <div class="row"><div>27</div><div>Featured</div><div>nav_menu_item</div><div style="color:var(--good)">publish</div><div>4 min ago</div></div>
+      <div class="row"><div>28</div><div>About the roastery</div><div>page</div><div style="color:var(--good)">publish</div><div>4 min ago</div></div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ LOGS SPOKE ============ -->
+<div class="panel" id="panel-logs">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#7df0d8"><i data-lucide="scroll-text"></i></div>
+    <div class="titles"><div class="sub">spoke · W · 9 o'clock</div><h2>Logs · PHP error log + boot trace</h2></div>
+    <div class="spacer"></div>
+    <div class="ctxbtns">
+      <button class="ctx-btn"><i data-lucide="pause"></i> Pause tail</button>
+      <button class="ctx-btn"><i data-lucide="trash-2"></i> Clear</button>
+    </div>
+  </div>
+  <div class="pb">
+    <div class="logs-bar">
+      <div class="bp-search"><i data-lucide="search"></i><input placeholder="grep logs…" /></div>
+      <span class="level-chip info">info · 18</span>
+      <span class="level-chip ok">ok · 12</span>
+      <span class="level-chip warn">warn · 9</span>
+      <span class="level-chip err">err · 3</span>
+    </div>
+    <div class="logs-list">
+      <div class="log-line info"><div class="t">14:02:33.118</div><div class="lvl">INFO</div><div class="msg"><span class="pill">boot</span>PHP 8.3.7 initialised · sqlite-database-integration v2.1.7</div></div>
+      <div class="log-line ok"><div class="t">14:02:33.402</div><div class="lvl">OK</div><div class="msg"><span class="pill">blueprint</span>step <b>installTheme</b> · coffee-pot ✓ in 0.28s</div></div>
+      <div class="log-line ok"><div class="t">14:02:33.812</div><div class="lvl">OK</div><div class="msg"><span class="pill">blueprint</span>step <b>installPlugin</b> · woocommerce ✓ in 0.41s</div></div>
+      <div class="log-line info"><div class="t">14:02:34.014</div><div class="lvl">INFO</div><div class="msg"><span class="pill">wp-cli</span>wp wc product create --name='Yirgacheffe' → ID 22</div></div>
+      <div class="log-line warn"><div class="t">14:02:34.221</div><div class="lvl">WARN</div><div class="msg"><span class="pill">wp-content/plugins/woocommerce/includes/abstracts/abstract-wc-order.php:1024</span> Deprecated: explode(): Passing null is deprecated</div></div>
+      <div class="log-line ok"><div class="t">14:02:34.512</div><div class="lvl">OK</div><div class="msg"><span class="pill">blueprint</span>step <b>importWxr</b> · 14 items ✓ in 0.71s</div></div>
+      <div class="log-line warn"><div class="t">14:02:35.030</div><div class="lvl">WARN</div><div class="msg"><span class="pill">wp_remote_get</span>response code 301 from cdn.example.com (followed)</div></div>
+      <div class="log-line err"><div class="t">14:02:35.221</div><div class="lvl">ERR</div><div class="msg"><span class="pill">wp-content/themes/coffee-pot/functions.php:74</span> Notice: Undefined index: cp_promo_image</div></div>
+      <div class="log-line info"><div class="t">14:02:35.610</div><div class="lvl">INFO</div><div class="msg"><span class="pill">request</span>GET /shop/featured/ · 200 · 84ms · 18 queries</div></div>
+      <div class="log-line ok"><div class="t">14:02:35.812</div><div class="lvl">OK</div><div class="msg"><span class="pill">boot</span>Coffee Shop ready in <b>2.41s</b></div></div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+<!-- ============ EXPORT SPOKE ============ -->
+<div class="panel" id="panel-export">
+  <div class="panel-header">
+    <button class="back"><i data-lucide="arrow-left"></i> Back to hub</button>
+    <div class="spoke-icon" style="color:#ffb3c1"><i data-lucide="upload-cloud"></i></div>
+    <div class="titles"><div class="sub">spoke · NW · 10 o'clock · additional actions</div><h2>Export &amp; share</h2></div>
+    <div class="spacer"></div>
+  </div>
+  <div class="pb">
+    <div class="launchpad" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="launch-card gh" style="min-height:170px">
+        <div class="ic"><i data-lucide="git-pull-request"></i></div>
+        <h3>Export to GitHub as Pull Request</h3>
+        <p>Push a WordPress theme, plugin, or the entire <span class="mono" style="color:#fff">wp-content</span> directory to a GitHub repo as a PR. We'll handle the diff, commit and branch.</p>
+        <div class="input"><i data-lucide="github" style="width:12px;height:12px"></i> <span style="color:#fff">wordpress/coffee-pot-theme</span></div>
+        <span class="go">Open PR <i data-lucide="arrow-right"></i></span>
+      </div>
+      <div class="launch-card zip" style="min-height:170px">
+        <div class="ic"><i data-lucide="download"></i></div>
+        <h3>Download as .zip</h3>
+        <p>Get the whole current playground as a portable archive — files, database snapshot and blueprint. Import it later from the New session spoke.</p>
+        <div class="input"><span style="color:#fff">coffee-shop-2026-05-21.zip</span><span style="color:var(--ink-3)">· ~41 MB</span></div>
+        <span class="go">Download <i data-lucide="arrow-right"></i></span>
+      </div>
+    </div>
+  </div>
+  <div class="hub-dock"><i data-lucide="circle-dot"></i></div>
+</div>
+
+</div><!-- /.panels -->
+
+
+<!-- ============ MOBILE VIEW ============ -->
+<div class="mobile-wrap">
+  <h3>State · mobile · 390 × 844</h3>
+  <div class="mob-pair">
+    <!-- mobile hub -->
+    <div class="phone">
+      <div class="mscreen">
+        <div class="mob-topbar">
+          <button class="icon-btn"><i data-lucide="menu"></i></button>
+          <div class="lbl">Coffee Shop</div>
+          <button class="icon-btn"><i data-lucide="refresh-cw"></i></button>
+          <button class="icon-btn"><i data-lucide="more-vertical"></i></button>
+        </div>
+        <div class="mob-hub">
+          <div class="mob-core">
+            <div class="name">Single Origin Roasters</div>
+            <div class="url">/shop/featured/</div>
+            <div class="badge">live · WP 6.5</div>
+          </div>
+          <div class="mob-save"><i data-lucide="save"></i> Save site (unsaved)</div>
+          <div class="mob-spokes">
+            <div class="mob-spoke a"><i data-lucide="plus-circle"></i><b>New</b></div>
+            <div class="mob-spoke b"><i data-lucide="layout-grid"></i><b>Blueprints</b></div>
+            <div class="mob-spoke c"><i data-lucide="folder-heart"></i><b>Your sites</b></div>
+            <div class="mob-spoke d"><i data-lucide="sliders-horizontal"></i><b>Settings</b></div>
+            <div class="mob-spoke e"><i data-lucide="braces"></i><b>Blueprint</b></div>
+            <div class="mob-spoke f"><i data-lucide="folder-tree"></i><b>Files</b></div>
+            <div class="mob-spoke g"><i data-lucide="database"></i><b>DB</b></div>
+            <div class="mob-spoke h"><i data-lucide="scroll-text"></i><b>Logs</b></div>
+            <div class="mob-spoke i"><i data-lucide="upload-cloud"></i><b>Export</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- mobile sub-screen -->
+    <div class="phone">
+      <div class="mscreen">
+        <div class="mob-topbar">
+          <button class="icon-btn"><i data-lucide="arrow-left"></i></button>
+          <div class="lbl">Blueprints · 43</div>
+          <button class="icon-btn"><i data-lucide="circle-dot"></i></button>
+        </div>
+        <div class="mob-bp-screen">
+          <div class="pb">
+            <div class="mob-search"><i data-lucide="search"></i> Search blueprints…</div>
+            <div class="mob-cats">
+              <span class="bp-cat active">All</span>
+              <span class="bp-cat">Featured</span>
+              <span class="bp-cat">Website</span>
+              <span class="bp-cat">Themes</span>
+              <span class="bp-cat">Gutenberg</span>
+              <span class="bp-cat">WooCommerce</span>
+              <span class="bp-cat">Content</span>
+            </div>
+            <div class="mob-bp-grid" id="mob-bp-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.shell -->
+
+<!-- toast region -->
+<div class="toast-region">
+  <div class="toast-card">
+    <i data-lucide="check-circle-2"></i>
+    <div><b>Coffee Shop ready.</b> Boot finished in 2.41s. 14 sample products and 4 pages imported.</div>
+  </div>
+  <div class="toast-card warn">
+    <i data-lucide="alert-triangle"></i>
+    <div><b>Unsaved.</b> Hitting refresh will lose this session. <span style="color:var(--warn);text-decoration:underline;cursor:pointer">Save now</span> or hit ⌘S.</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div>#062 · Hub-and-spoke · orbit console v2.4</div>
+  <div>1440 × 900 · 390 × 844 · WordPress Playground redesign</div>
+</div>
+
+<script>
+  // blueprints data (mirrored from BLUEPRINTS.md)
+  const palettes = [
+    ['#3858e9','#5dd0ff'],['#ff8a4c','#ff6b8a'],['#7df0a0','#5dd0ff'],['#ffd166','#ff8a4c'],
+    ['#c0a8ff','#5dd0ff'],['#7a8cff','#c0a8ff'],['#ff6b8a','#ffd166'],['#7df0d8','#7df0a0'],
+    ['#5dd0ff','#3858e9'],['#ffb3c1','#ff6b8a'],['#a8b6ff','#7a8cff'],['#7df0a0','#ffd166']
+  ];
+  const blueprints = [
+    {n:1,t:"Art Gallery",d:"An art gallery created with the Vueo theme.",tags:["website","personal"],featured:true},
+    {n:2,t:"Coffee Shop",d:"A stylish WooCommerce coffee shop with custom theme, products and content.",tags:["woocommerce","store"],featured:true},
+    {n:3,t:"Feed Reader (Friends Plugin)",d:"Read RSS, Atom and ActivityPub feeds in Playground via the Friends plugin.",tags:["rss","social","web"],featured:true},
+    {n:4,t:"Gaming News",d:"A gaming news site created with the Spiel theme.",tags:["website","news"],featured:true},
+    {n:5,t:"Non-profit Organization",d:"A non-profit organization site created with the Koinonia theme.",tags:["website","organization"],featured:true},
+    {n:6,t:"Personal Blog",d:"A personal blog created with the Substrata theme.",tags:["website","blog","personal"]},
+    {n:7,t:"Personal Resume",d:"A resume site created with the Readymade theme.",tags:["website","personal"]},
+    {n:8,t:"Photography Portfolio",d:"A photography portfolio created with the Grammer theme.",tags:["personal","photography"]},
+    {n:9,t:"Skincare Blog",d:"A skincare blog created with the Piel theme.",tags:["website","news","blog"]},
+    {n:10,t:"University Website",d:"A university website created with the Kentwood theme.",tags:["website","education"]},
+    {n:11,t:"Create Block Theme",d:"Install Create Block Theme and start editing right away.",tags:["editor","theme"]},
+    {n:12,t:"Creating a new user",d:"Update user meta data to create an editor account.",tags:["meta","user"]},
+    {n:13,t:"Custom Post Type: Books",d:"Register a custom post type for books with sample content.",tags:["content","cpt"]},
+    {n:14,t:"Twenty-Twenty-Five demo",d:"Demo content for the Twenty-Twenty-Five default theme.",tags:["themes","default"]},
+    {n:15,t:"Display Admin Notice",d:"Add a tiny mu-plugin that surfaces an admin notice.",tags:["admin","notices"]},
+    {n:16,t:"All Dataview Experiments",d:"Enable multiple Experiments within the Gutenberg plugin.",tags:["gutenberg","experiments"]},
+    {n:17,t:"Fancy Dashboard Widget",d:"Display statistics about users, posts and comments.",tags:["admin","stats"]},
+    {n:18,t:"Grid Variations",d:"Toggle a Gutenberg Experiments feature on.",tags:["gutenberg","experiments"]},
+    {n:19,t:"Guidelines Experiment",d:"Enable the Gutenberg Guidelines experiment.",tags:["gutenberg","experiments"]},
+    {n:20,t:"Theme Starter Content",d:"Install a theme with starter content (Twenty-Twenty-One).",tags:["themes","starter"]},
+    {n:21,t:"Standalone starter content",d:"Use a stand-alone starter content file and import it.",tags:["themes","starter"]},
+    {n:22,t:"Language packs",d:"Install and activate the latest Japanese translation pack.",tags:["core","i18n"]},
+    {n:23,t:"Install plugin from gist",d:"Install and activate a WordPress plugin from a .php file in a gist.",tags:["plugins"]},
+    {n:24,t:"Latest Gutenberg",d:"A preview of the latest Gutenberg plugin.",tags:["plugins","gutenberg"]},
+    {n:25,t:"Theme from GitHub",d:"Typical steps for a theme's load / activate / configure.",tags:["theme","github"]},
+    {n:26,t:"Login as an editor",d:"Test as an editor rather than an administrator.",tags:["user","role"]},
+    {n:27,t:"Markdown / Trac editor",d:"Edit Markdown or Trac formatting in the block editor.",tags:["block-editor"]},
+    {n:28,t:"Minimal WooCommerce",d:"WooCommerce with custom flat-rate shipping, sample products and BACS.",tags:["woocommerce","shipping"]},
+    {n:29,t:"My WordPress",d:"A welcome experience for persistent Playground instances.",tags:["playground","onboarding"]},
+    {n:30,t:"Welcome Landing Page",d:"The landing page for WordPress Playground.",tags:["meta"]},
+    {n:31,t:"Pretty permalinks",d:"Set the permalink structure to pretty permalinks.",tags:["settings"]},
+    {n:32,t:"Reset & import (with logs)",d:"Resets default data before importing custom content; logs each step.",tags:["reset","log","debug"]},
+    {n:33,t:"External media host",d:"Redirect uploads requests to an external host.",tags:["settings","media"]},
+    {n:34,t:"Modern admin color",d:"Set admin color scheme to Modern via updateUserMeta.",tags:["user","meta"]},
+    {n:35,t:"Showcase plugin",d:"Showcase a custom plugin with media and content imported as WXR.",tags:["plugin","media"]},
+    {n:36,t:"Stylish Press",d:"A Woo store with custom theme, content and products.",tags:["woocommerce","site"]},
+    {n:37,t:"Theme Tester",d:"Add content and plugins to explore a theme.",tags:["themes","content"]},
+    {n:38,t:"WPGraphQL",d:"Loads WordPress with WPGraphQL active and the WPGraphQL IDE page.",tags:["api","wpgraphql"]},
+    {n:39,t:"wp-cli posts",d:"Add posts via a wp-cli command.",tags:["content","wpcli"]},
+    {n:40,t:"wp-cli with image",d:"Create a post from text file with block markup and featured image via wp-cli.",tags:["content","wpcli"]},
+    {n:41,t:"Weather Shortcode",d:"Connect a weather API and show data as a shortcode.",tags:["plugin","api"]},
+    {n:42,t:"Woo product feed",d:"Create a WooCommerce product and export an XML/CSV product feed.",tags:["woocommerce","content"]},
+    {n:43,t:"WordPress Beta",d:"Test the latest WP Beta/RC with theme test data and debugging plugins.",tags:["testing","beta"]}
+  ];
+
+  function renderBp(target, items){
+    const grid = document.getElementById(target);
+    if(!grid) return;
+    grid.innerHTML = items.map((b,i)=>{
+      const [c1,c2] = palettes[(b.n-1) % palettes.length];
+      const tags = b.tags.map(t => `<span class="bp-tag">${t}</span>`).join('');
+      const featured = b.featured ? `<span class="bp-tag featured">featured</span>` : '';
+      return `
+        <div class="bp-card">
+          <div class="bp-thumb" style="--c1:${c1};--c2:${c2}">
+            <span class="num">#${String(b.n).padStart(2,'0')}</span>
+          </div>
+          <div class="bp-body">
+            <h4>${b.t}</h4>
+            <p>${b.d}</p>
+            <div class="bp-tags">${featured}${tags}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  renderBp('bp-grid', blueprints);
+  renderBp('mob-bp-grid', blueprints.slice(0,8));
+
+  // init lucide
+  if (window.lucide && window.lucide.createIcons) {
+    window.lucide.createIcons();
+  }
+</script>
+
+</body>
+</html>
