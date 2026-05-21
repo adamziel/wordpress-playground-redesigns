@@ -1,0 +1,10 @@
+# 035 — Brutalist web 1.0
+
+## Thesis
+WordPress Playground, reimagined as if it were filed at the Library of Congress in 1997. The chrome is a monospaced, hairline-bordered broadsheet: dense black-on-paper typography, table-of-contents navigation, footnote-style metadata, and an iframe presented as "FIGURE 1." Every control is a labeled `[BUTTON]` or a `<form>` field. Nothing rounds, nothing animates, nothing apologises. The interface looks printed, but it's still fully interactive — the brutalism is the whole point of having so many features: it lets us show *all* of them on one page, ranked, like a contents page.
+
+## What I remixed / merged / removed
+The three settings entry points (popover, Site Manager tab, info-notice button) collapse into a single ruled `<fieldset>` titled `§3. SETTINGS / VERSIONS`, exposed on the page itself and re-pointed-to from the toolbar's `[SETTINGS]` link. The launcher and Site Manager stop being modal drawers and become numbered sections (§4 Start, §5 Blueprints, §6 Saved, §7 Site Manager) anchored from a sticky masthead — a brutalist site is a single long document, not an app. Logs become a real `<pre>` block with monospaced timestamps and level tags `[ERR]/[WRN]/[INF]`. The Blueprint editor and File browser sit side-by-side as a two-column ledger. Tabs inside the Site Manager remain (FILES / BLUEPRINT / DATABASE / LOGS / SETTINGS) but rendered as `[TAB] [TAB]` underlined links. Additional actions (Export PR, Download .zip) live in a footer "ACTIONS" block, always visible — no hidden menus.
+
+## Trade-offs
+Density over discoverability: a new user has to read. Mobile collapses the columns and hides the FILES/BLUEPRINT split behind a `[+] EXPAND` toggle, but the page is still long. We lose visual hierarchy from color and shadow; we lean entirely on rules, capitalisation, leading, and section numbers. No previews of blueprints — we list them as a sortable table because thumbnails would betray the aesthetic. Some users will find this hostile; that's the direction.
