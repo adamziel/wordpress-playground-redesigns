@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WP Playground — Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+:root {
+  --bg: #1e1e1e;
+  --panel: #2c2c2c;
+  --panel-2: #383838;
+  --panel-3: #444;
+  --line: #383838;
+  --line-2: #4a4a4a;
+  --ink: #e6e6e6;
+  --ink-dim: #b3b3b3;
+  --ink-faint: #7d7d7d;
+  --accent: #0d99ff;
+  --accent-2: #1ab0ff;
+  --accent-soft: rgba(13,153,255,.15);
+  --green: #14ae5c;
+  --red: #f24822;
+  --orange: #ffaa00;
+  --purple: #9747ff;
+  --canvas-bg: #1e1e1e;
+  --canvas-grid: #2a2a2a;
+  --frame-bg: #f5f5f5;
+  --frame-ink: #1a1a1a;
+  --frame-bar: #ffffff;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  height: 100vh;
+}
+
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+input, select, textarea { font: inherit; color: inherit; }
+[data-lucide] { width: 14px; height: 14px; stroke-width: 1.75; }
+
+/* ---------- App shell ---------- */
+.app {
+  display: grid;
+  grid-template-rows: 40px 1fr;
+  grid-template-columns: 240px 1fr 280px;
+  grid-template-areas:
+    "top top top"
+    "left center right";
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  grid-area: top;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  z-index: 30;
+}
+.tb-section { display: flex; align-items: center; gap: 2px; }
+.tb-divider { width: 1px; height: 20px; background: var(--line-2); margin: 0 6px; }
+
+.tool-btn {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink-dim);
+  transition: background .12s, color .12s;
+}
+.tool-btn:hover { background: var(--panel-3); color: var(--ink); }
+.tool-btn.active { background: var(--accent); color: white; }
+.tool-btn.active:hover { background: var(--accent-2); }
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 4px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.logo-mark {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #0d99ff 0%, #9747ff 100%);
+  display: grid; place-items: center;
+  color: white; font-weight: 700; font-size: 12px;
+}
+.logo-text { font-size: 12px; }
+
+/* address bar in top center */
+.address-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.address-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(520px, 50vw);
+  height: 28px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 8px;
+  color: var(--ink-dim);
+  transition: border .12s, background .12s;
+}
+.address-bar:focus-within { border-color: var(--accent); background: #2f2f2f; }
+.address-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--ink);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.address-bar input::placeholder { color: var(--ink-faint); }
+.address-bar .url-host { color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+.play-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(255,255,255,.04);
+}
+.play-name .dot-unsaved { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+.play-name .dot-saved { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.play-name.editable:hover { background: var(--panel-3); }
+
+/* right cluster of top bar */
+.tb-right { display: flex; align-items: center; gap: 4px; }
+
+.zoom-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  cursor: pointer;
+}
+.zoom-pill:hover { background: var(--panel-3); }
+
+/* primary blue button */
+.btn-primary {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: white;
+  font-weight: 500;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary:hover { background: var(--accent-2); }
+.btn-primary.ghost {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- Left panel ---------- */
+.left-panel {
+  grid-area: left;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.lp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  padding: 0 4px;
+}
+.lp-tab {
+  flex: 1;
+  height: 32px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.lp-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+.lp-tab:hover { color: var(--ink-dim); }
+
+.lp-body { flex: 1; overflow-y: auto; }
+.lp-section { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.lp-section-title {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.lp-section-title .chev { color: var(--ink-faint); }
+
+/* layers tree */
+.layers-list { padding: 2px 0; }
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  cursor: pointer;
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+.layer:hover { background: var(--panel-2); color: var(--ink); }
+.layer.active { background: var(--accent-soft); color: var(--ink); }
+.layer.active .layer-icon { color: var(--accent); }
+.layer.indent { padding-left: 28px; font-size: 11px; }
+.layer-icon { color: var(--ink-faint); display: inline-flex; }
+.layer-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.layer-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--panel-3);
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.layer-badge.boot { background: rgba(255,170,0,.15); color: var(--orange); }
+.layer-badge.live { background: rgba(20,174,92,.18); color: var(--green); }
+.layer-badge.draft { background: rgba(151,71,255,.18); color: #c69aff; }
+
+/* assets/blueprint search */
+.lp-search {
+  margin: 8px 12px;
+  position: relative;
+}
+.lp-search input {
+  width: 100%;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+  padding: 0 10px 0 30px;
+  color: var(--ink);
+  outline: none;
+  font-size: 12px;
+}
+.lp-search input:focus { border-color: var(--accent); }
+.lp-search input::placeholder { color: var(--ink-faint); }
+.lp-search [data-lucide="search"] {
+  position: absolute; top: 7px; left: 8px;
+  color: var(--ink-faint);
+}
+
+.cat-chips {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: 0 12px 8px;
+}
+.chip {
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--ink-dim);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.chip:hover { background: var(--panel-3); color: var(--ink); }
+.chip.active { background: var(--accent); color: white; }
+
+.bp-list { padding: 4px 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+.bp-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: grab;
+}
+.bp-item:hover { background: var(--panel-2); }
+.bp-thumb {
+  width: 28px; height: 28px; flex: 0 0 28px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #0d99ff, #9747ff);
+  color: white; display: grid; place-items: center;
+  font-size: 14px;
+}
+.bp-thumb.cf { background: linear-gradient(135deg, #f24822, #ffaa00); }
+.bp-thumb.gb { background: linear-gradient(135deg, #14ae5c, #0d99ff); }
+.bp-thumb.wc { background: linear-gradient(135deg, #9747ff, #f24822); }
+.bp-thumb.ex { background: linear-gradient(135deg, #ffaa00, #f24822); }
+.bp-thumb.theme { background: linear-gradient(135deg, #1a1a1a, #383838); border: 1px solid #555; }
+.bp-meta { min-width: 0; flex: 1; }
+.bp-title { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-tags { font-size: 10px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Canvas ---------- */
+.canvas-area {
+  grid-area: center;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+  background-image:
+    linear-gradient(var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+.canvas-stage {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  transition: transform .35s cubic-bezier(.2,.7,.2,1);
+}
+
+/* Frames */
+.frame {
+  position: absolute;
+  background: var(--frame-bg);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 30px 60px -20px rgba(0,0,0,.5);
+  overflow: hidden;
+  color: var(--frame-ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+.frame.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.frame .frame-label {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.frame .frame-label .badge {
+  background: var(--accent);
+  color: white;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.frame:not(.selected) .frame-label { color: var(--ink-dim); }
+
+/* Frame inner chrome */
+.frame-chrome {
+  height: 32px;
+  background: var(--frame-bar);
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  font-size: 11px;
+  color: #555;
+}
+.frame-dots { display: flex; gap: 5px; }
+.frame-dots .d { width: 9px; height: 9px; border-radius: 50%; }
+.frame-dots .r { background: #ff5f57; }
+.frame-dots .y { background: #febc2e; }
+.frame-dots .g { background: #28c840; }
+.frame-url {
+  flex: 1;
+  background: #f0f0f0;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.frame-icon { color: #777; }
+
+/* Frame body — the WP iframe placeholder */
+.frame-body {
+  position: absolute;
+  inset: 32px 0 0;
+  background: white;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Reusable WP site mock styles */
+.wp-page { width: 100%; height: 100%; padding: 24px 32px; overflow: hidden; }
+.wp-page h1 {
+  font-family: 'Inter', sans-serif;
+  font-size: 36px;
+  line-height: 1.1;
+  margin: 0 0 12px;
+  font-weight: 700;
+  color: #111;
+}
+.wp-page p { color: #333; font-size: 13px; margin: 0 0 8px; }
+.wp-nav {
+  display: flex; gap: 16px; padding: 0 0 16px; border-bottom: 1px solid #eee;
+  font-size: 12px; color: #555;
+}
+.wp-nav .brand { font-weight: 700; color: #111; margin-right: auto; }
+.wp-hero {
+  margin: 20px 0;
+  border-radius: 8px;
+  padding: 28px;
+  background: linear-gradient(135deg, #2271b1, #135e96);
+  color: white;
+}
+.wp-hero h2 { margin: 0 0 6px; font-size: 20px; }
+.wp-hero p { color: rgba(255,255,255,.85); margin: 0; }
+.wp-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.wp-card { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 12px; font-size: 11px; color: #333; }
+.wp-card h3 { margin: 0 0 4px; font-size: 12px; color: #111; }
+
+/* WC store mock */
+.wc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 16px; }
+.wc-card { background: white; border: 1px solid #ececec; border-radius: 6px; overflow: hidden; }
+.wc-card .ph { aspect-ratio: 1; background: linear-gradient(135deg, #d2b48c, #8b6f47); display: grid; place-items: center; color: white; font-size: 24px; }
+.wc-card.b .ph { background: linear-gradient(135deg, #6b4226, #3a2515); }
+.wc-card.c .ph { background: linear-gradient(135deg, #c9a063, #74522a); }
+.wc-card .meta { padding: 8px 10px; }
+.wc-card .name { font-size: 12px; color: #111; font-weight: 600; }
+.wc-card .price { font-size: 11px; color: #2271b1; }
+
+/* gallery */
+.gallery-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-top: 16px; }
+.gallery-grid .ph { aspect-ratio: 1; border-radius: 4px; }
+.gallery-grid .ph:nth-child(1) { background: linear-gradient(135deg,#ff7e5f,#feb47b); }
+.gallery-grid .ph:nth-child(2) { background: linear-gradient(135deg,#4facfe,#00f2fe); }
+.gallery-grid .ph:nth-child(3) { background: linear-gradient(135deg,#43e97b,#38f9d7); }
+.gallery-grid .ph:nth-child(4) { background: linear-gradient(135deg,#fa709a,#fee140); }
+.gallery-grid .ph:nth-child(5) { background: linear-gradient(135deg,#667eea,#764ba2); }
+.gallery-grid .ph:nth-child(6) { background: linear-gradient(135deg,#f093fb,#f5576c); }
+.gallery-grid .ph:nth-child(7) { background: linear-gradient(135deg,#30cfd0,#330867); }
+.gallery-grid .ph:nth-child(8) { background: linear-gradient(135deg,#fda085,#f6d365); }
+
+/* wp-admin mock */
+.wpadmin { display: flex; height: 100%; background: #f0f0f1; font-family: -apple-system, sans-serif; }
+.wpadmin .sidebar { width: 160px; background: #1d2327; color: #c3c4c7; font-size: 12px; padding: 8px 0; }
+.wpadmin .sidebar .item { padding: 6px 14px; display: flex; gap: 8px; align-items: center; }
+.wpadmin .sidebar .item.active { background: #2271b1; color: white; }
+.wpadmin .main { flex: 1; padding: 18px 22px; overflow: hidden; }
+.wpadmin .main h1 { font-size: 22px; font-weight: 400; color: #1d2327; margin: 0 0 12px; }
+.wpadmin .widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wpadmin .widget { background: white; border: 1px solid #c3c4c7; border-radius: 2px; padding: 10px 14px; }
+.wpadmin .widget h2 { margin: 0 0 6px; font-size: 13px; color: #1d2327; }
+.wpadmin .widget p { font-size: 11px; color: #50575e; margin: 2px 0; }
+
+/* Booting frame */
+.frame.booting .frame-body {
+  background: #fafafa;
+  display: grid; place-items: center;
+}
+.boot-card { text-align: center; color: #444; }
+.boot-card .ring {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 3px solid #e5e5e5;
+  border-top-color: var(--accent);
+  animation: spin 1.2s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.boot-card .step { font-size: 12px; color: #2271b1; font-weight: 500; margin-bottom: 4px; }
+.boot-card .label { font-size: 12px; color: #666; }
+.boot-progress { width: 200px; height: 4px; background: #e5e5e5; border-radius: 2px; margin: 12px auto 0; overflow: hidden; }
+.boot-progress .fill { width: 62%; height: 100%; background: var(--accent); }
+
+/* Logs preview */
+.logs-pane {
+  background: #0f1014; color: #e0e0e0;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 12px 16px; height: 100%; overflow: hidden;
+}
+.logs-pane .ln { padding: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logs-pane .lvl { display: inline-block; width: 56px; }
+.logs-pane .l-info { color: #6ec1ff; }
+.logs-pane .l-warn { color: #ffaa00; }
+.logs-pane .l-err { color: #ff5a4d; }
+.logs-pane .ts { color: #6a6a6a; margin-right: 8px; }
+
+/* ---------- Canvas controls (floating) ---------- */
+.minimap {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 180px;
+  height: 110px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  z-index: 5;
+}
+.minimap .mmlabel {
+  position: absolute; top: -20px; left: 0;
+  font-size: 10px; color: var(--ink-faint);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.minimap .mm-canvas {
+  position: relative;
+  width: 100%; height: 100%;
+  background: #181818;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mm-frame {
+  position: absolute;
+  background: rgba(13,153,255,.3);
+  border: 1px solid #0d99ff;
+  border-radius: 1px;
+}
+.mm-frame.selected { background: rgba(255,255,255,.4); border-color: white; }
+.mm-view {
+  position: absolute;
+  border: 1px solid white;
+  background: rgba(255,255,255,.06);
+}
+
+.canvas-toolbar-bottom {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  z-index: 5;
+}
+.cb-btn {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 10px;
+  border-radius: 5px;
+  color: var(--ink-dim);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.cb-btn:hover { background: var(--panel-3); color: var(--ink); }
+.cb-btn.active { background: var(--accent); color: white; }
+
+.toast {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  z-index: 5;
+}
+.toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.toast .x { color: var(--ink-faint); margin-left: 4px; }
+
+/* ---------- Right panel (Inspector) ---------- */
+.right-panel {
+  grid-area: right;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rp-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+}
+.rp-header .selected-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+.rp-header .selected-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.rp-header .grow { flex: 1; }
+.rp-header .ico-btn {
+  width: 24px; height: 24px;
+  border-radius: 4px;
+  color: var(--ink-dim);
+  display: grid; place-items: center;
+}
+.rp-header .ico-btn:hover { background: var(--panel-3); color: var(--ink); }
+
+.rp-tabs {
+  display: flex;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--line);
+  gap: 0;
+}
+.rp-tab {
+  flex: 1;
+  height: 30px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  border-bottom: 2px solid transparent;
+  text-align: center;
+}
+.rp-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+.rp-tab:hover { color: var(--ink-dim); }
+
+.rp-body { flex: 1; overflow-y: auto; }
+
+/* Property rows (Figma-style) */
+.prop-section { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.prop-section-title {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 12px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.prop-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+}
+.prop-row .lbl {
+  width: 64px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.prop-input {
+  flex: 1;
+  display: flex; align-items: center; gap: 6px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.prop-input:hover { background: var(--panel-3); }
+.prop-input.input-style input,
+.prop-input.input-style select {
+  flex: 1;
+  border: none; outline: none;
+  background: none;
+  color: var(--ink);
+  font-size: 11px;
+}
+.prop-input.input-style { cursor: text; }
+.prop-input select { -webkit-appearance: none; appearance: none; cursor: pointer; }
+.prop-input .right-ico { color: var(--ink-faint); margin-left: auto; }
+
+.toggle {
+  display: inline-flex; align-items: center;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  padding: 2px;
+  gap: 0;
+}
+.toggle .seg {
+  padding: 0 8px; line-height: 20px;
+  font-size: 10px; color: var(--ink-dim);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.toggle .seg.active { background: var(--panel-3); color: var(--ink); }
+
+.swatch {
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,.1);
+}
+.swatch.wp { background: linear-gradient(135deg,#0d99ff,#9747ff); }
+.swatch.php { background: linear-gradient(135deg,#777bb4,#4f5b93); }
+
+.danger-zone {
+  margin: 8px 12px;
+  padding: 10px;
+  border: 1px dashed var(--red);
+  border-radius: 6px;
+  background: rgba(242,72,34,.08);
+}
+.danger-zone .title { font-size: 11px; font-weight: 600; color: var(--red); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.danger-zone .body { font-size: 11px; color: var(--ink-dim); margin-bottom: 8px; }
+.btn-danger {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: var(--red);
+  color: white;
+  font-weight: 500;
+  font-size: 11px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+.btn-secondary {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--line-2);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-secondary:hover { background: var(--panel-3); }
+
+.notice {
+  margin: 8px 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgba(255,170,0,.1);
+  border: 1px solid rgba(255,170,0,.3);
+  font-size: 11px;
+  color: #ffd278;
+  line-height: 1.45;
+}
+.notice .title { font-weight: 600; color: #ffbb33; margin-bottom: 4px; display:flex; align-items:center; gap:6px; }
+
+/* Tab content panes inside the inspector */
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* File tree */
+.tree { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 4px 0; }
+.tree-row {
+  display: flex; align-items: center; gap: 4px;
+  height: 22px;
+  padding: 0 12px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.tree-row:hover { background: var(--panel-2); color: var(--ink); }
+.tree-row.active { background: var(--accent-soft); color: var(--ink); }
+.tree-row.l1 { padding-left: 26px; }
+.tree-row.l2 { padding-left: 40px; }
+.tree-row [data-lucide="chevron-right"] { transition: transform .15s; }
+.tree-row.open [data-lucide="chevron-right"] { transform: rotate(90deg); }
+
+/* Code editor stub */
+.code-mini {
+  margin: 8px 12px;
+  background: #1a1a1a;
+  border-radius: 5px;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #c3c4c7;
+  line-height: 1.55;
+  white-space: pre;
+  overflow: auto;
+  max-height: 220px;
+}
+.code-mini .k { color: #ff7b72; }
+.code-mini .s { color: #a5d6ff; }
+.code-mini .c { color: #6a6a6a; }
+.code-mini .n { color: #79c0ff; }
+
+/* DB table */
+.db-tablebar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+}
+.db-table {
+  margin: 0 12px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+}
+.db-table .hd, .db-table .rw {
+  display: grid;
+  grid-template-columns: 36px 2fr 1fr 1fr;
+  gap: 4px;
+  padding: 4px 8px;
+}
+.db-table .hd { background: var(--panel-2); color: var(--ink-dim); font-size: 10px; text-transform: uppercase; }
+.db-table .rw { border-top: 1px solid var(--line); }
+.db-table .rw:hover { background: var(--panel-2); }
+
+/* Logs */
+.logs-toolbar { padding: 8px 12px; display: flex; gap: 6px; align-items: center; }
+.log-stream {
+  margin: 0 12px 12px;
+  background: #0f1014;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: #cfcfcf;
+  padding: 8px;
+  height: 240px; overflow: auto;
+}
+.log-stream .ln { line-height: 1.55; }
+
+/* ---------- New frame menu (dropdown placed in canvas) ---------- */
+.dropdown {
+  position: absolute;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.5);
+  z-index: 50;
+  min-width: 240px;
+  display: none;
+}
+.dropdown.open { display: block; }
+.dd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 12px;
+}
+.dd-item:hover { background: var(--accent); color: white; }
+.dd-item .ico { width: 22px; height: 22px; border-radius: 4px; background: var(--panel-2); display: grid; place-items: center; color: var(--ink-dim); }
+.dd-item:hover .ico { background: rgba(255,255,255,.18); color: white; }
+.dd-item .desc { font-size: 10px; color: var(--ink-faint); display: block; }
+.dd-item:hover .desc { color: rgba(255,255,255,.85); }
+.dd-item .text { flex: 1; }
+.dd-item .kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+  background: var(--panel-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.dd-item:hover .kbd { background: rgba(0,0,0,.25); color: white; }
+.dd-sep { height: 1px; background: var(--line); margin: 4px 0; }
+.dd-header { padding: 4px 10px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); font-weight: 600; }
+
+/* ---------- Modal: Full blueprint gallery ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.65);
+  display: none;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.modal-backdrop.open { display: flex; align-items: center; justify-content: center; }
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  width: min(1100px, 92vw);
+  height: min(720px, 88vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+.modal-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px;
+}
+.modal-head h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.modal-head .count { font-size: 12px; color: var(--ink-faint); }
+.modal-close { width: 28px; height: 28px; border-radius: 4px; display: grid; place-items: center; color: var(--ink-dim); }
+.modal-close:hover { background: var(--panel-3); color: var(--ink); }
+
+.gallery-shell {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  min-height: 0; flex: 1;
+}
+.gallery-side {
+  padding: 14px 8px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.gallery-side .gs-item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: var(--ink-dim);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.gallery-side .gs-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.gallery-side .gs-item .ct { font-size: 10px; color: var(--ink-faint); }
+.gallery-side .gs-item.active .ct { color: var(--accent); }
+
+.gallery-main { padding: 12px 16px; overflow-y: auto; min-height: 0; }
+.gallery-search {
+  position: relative; margin-bottom: 12px;
+}
+.gallery-search input {
+  width: 100%; height: 36px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+  padding: 0 12px 0 36px;
+  color: var(--ink);
+  outline: none;
+  font-size: 13px;
+}
+.gallery-search input:focus { border-color: var(--accent); }
+.gallery-search [data-lucide="search"] {
+  position: absolute; top: 11px; left: 12px;
+  color: var(--ink-faint);
+}
+
+.gallery-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.gcard {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: grab;
+  transition: transform .12s, border-color .12s;
+}
+.gcard:hover { border-color: var(--accent); transform: translateY(-2px); }
+.gcard .thumb {
+  aspect-ratio: 16/10;
+  display: grid; place-items: center;
+  color: white;
+  font-size: 28px;
+}
+.gcard .body { padding: 8px 10px 10px; }
+.gcard .ttl { font-size: 12px; font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+.gcard .dsc { font-size: 11px; color: var(--ink-dim); line-height: 1.4; height: 30px; overflow: hidden; }
+.gcard .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+.gcard .tag { font-size: 9px; color: var(--ink-faint); background: var(--panel-3); padding: 1px 5px; border-radius: 8px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* gradient palette for blueprint thumbs */
+.gr-0 { background: linear-gradient(135deg,#ff7e5f,#feb47b); }
+.gr-1 { background: linear-gradient(135deg,#4facfe,#00f2fe); }
+.gr-2 { background: linear-gradient(135deg,#43e97b,#38f9d7); }
+.gr-3 { background: linear-gradient(135deg,#fa709a,#fee140); }
+.gr-4 { background: linear-gradient(135deg,#667eea,#764ba2); }
+.gr-5 { background: linear-gradient(135deg,#f093fb,#f5576c); }
+.gr-6 { background: linear-gradient(135deg,#30cfd0,#330867); }
+.gr-7 { background: linear-gradient(135deg,#fda085,#f6d365); }
+.gr-8 { background: linear-gradient(135deg,#0d99ff,#9747ff); }
+.gr-9 { background: linear-gradient(135deg,#14ae5c,#0d99ff); }
+.gr-10 { background: linear-gradient(135deg,#9747ff,#f24822); }
+.gr-11 { background: linear-gradient(135deg,#ffaa00,#f24822); }
+.gr-12 { background: linear-gradient(135deg,#1a1a1a,#383838); border-bottom: 1px solid #555; }
+.gr-13 { background: linear-gradient(135deg,#005faf,#9b59b6); }
+.gr-14 { background: linear-gradient(135deg,#e96443,#904e95); }
+.gr-15 { background: linear-gradient(135deg,#16a085,#f4d03f); }
+.gr-16 { background: linear-gradient(135deg,#283c86,#45a247); }
+
+/* ---------- popover quick settings ---------- */
+.popover {
+  position: absolute;
+  width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.55);
+  z-index: 60;
+  display: none;
+}
+.popover.open { display: block; }
+.popover h4 {
+  margin: 0; padding: 4px 6px 8px;
+  font-size: 11px; color: var(--ink-faint);
+  text-transform: uppercase; letter-spacing: .06em;
+  font-weight: 600;
+}
+.popover .prow {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px;
+}
+.popover .plbl { width: 70px; font-size: 11px; color: var(--ink-dim); }
+.popover select {
+  flex: 1; height: 24px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--ink);
+}
+.popover .check { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 11px; color: var(--ink); }
+.popover .actions { display: flex; gap: 6px; padding: 6px 6px 0; border-top: 1px solid var(--line); margin-top: 6px; }
+
+/* ---------- Demo: states row ---------- */
+.states-strip {
+  position: absolute;
+  top: 50px; right: 296px;
+  display: flex;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 10;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.states-strip .lbl {
+  padding: 4px 8px;
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  align-self: center;
+}
+.state-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--ink-dim);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.state-btn:hover { background: var(--panel-3); color: var(--ink); }
+.state-btn.active { background: var(--accent); color: white; }
+
+/* ---------- Mobile ---------- */
+.mobile-frame {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 280px;
+  height: 580px;
+  background: #111;
+  border-radius: 36px;
+  padding: 8px;
+  z-index: 80;
+  box-shadow: 0 30px 60px rgba(0,0,0,.7);
+  display: none;
+}
+.mobile-frame.open { display: block; }
+.mobile-frame .screen {
+  width: 100%; height: 100%;
+  border-radius: 28px;
+  overflow: hidden;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.mobile-frame .close-mob {
+  position: absolute; top: -28px; right: 4px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  display: flex; align-items: center; gap: 4px;
+}
+.mob-status {
+  height: 24px; padding: 3px 16px;
+  font-size: 11px; color: var(--ink); font-weight: 600;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.mob-top {
+  padding: 6px 12px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.mob-top .hand { color: var(--ink-dim); }
+.mob-top .name { font-size: 12px; flex: 1; }
+.mob-top .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.mob-canvas {
+  flex: 1;
+  background: var(--canvas-bg);
+  background-image:
+    linear-gradient(var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px);
+  background-size: 18px 18px;
+  position: relative;
+  overflow: hidden;
+}
+.mob-canvas .mframe {
+  position: absolute;
+  top: 30px; left: 16px; right: 16px;
+  height: 320px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mob-canvas .mframe-bar {
+  height: 24px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 8px;
+}
+.mob-canvas .mframe-bar .d { width: 6px; height: 6px; border-radius: 50%; }
+.mob-canvas .mframe-bar .r { background: #ff5f57; }
+.mob-canvas .mframe-bar .y { background: #febc2e; }
+.mob-canvas .mframe-bar .g { background: #28c840; }
+.mob-canvas .mframe-bar .url {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  background: #f0f0f0; padding: 2px 6px; border-radius: 8px;
+  margin-left: 4px; color: #555; flex: 1; text-align: center;
+}
+.mob-canvas .mframe-body {
+  padding: 14px; color: #1a1a1a;
+  font-family: -apple-system, sans-serif;
+}
+.mob-canvas .mframe-body h1 { margin: 0 0 6px; font-size: 16px; }
+.mob-canvas .mframe-body p { margin: 0 0 6px; font-size: 10px; color: #555; }
+.mob-canvas .mframe-body .b { margin-top: 8px; padding: 8px; border-radius: 4px; background: linear-gradient(135deg,#2271b1,#135e96); color: white; font-size: 9px; }
+
+.mob-canvas .mframe-label {
+  position: absolute;
+  top: 12px; left: 16px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.mob-tabbar {
+  height: 60px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4,1fr);
+}
+.mob-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--ink-faint);
+  font-size: 9px;
+}
+.mob-tab.active { color: var(--accent); }
+.mob-tab [data-lucide] { width: 16px; height: 16px; }
+
+.mob-sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 60px;
+  height: 240px;
+  background: var(--panel);
+  border-top: 1px solid var(--line-2);
+  border-radius: 14px 14px 0 0;
+  padding: 8px 0;
+  transform: translateY(220px);
+}
+.mob-sheet .handle {
+  width: 36px; height: 4px; background: var(--ink-faint);
+  border-radius: 2px; margin: 4px auto 6px;
+}
+.mob-sheet .ttl { font-size: 11px; font-weight: 600; padding: 4px 16px; color: var(--ink-dim); display: flex; justify-content: space-between; }
+.mob-sheet .row {
+  display: flex; gap: 8px; align-items: center;
+  padding: 6px 16px;
+  font-size: 11px;
+}
+.mob-sheet .row .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.show-mobile-btn {
+  position: fixed;
+  right: 16px;
+  top: 50px;
+  z-index: 95;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.show-mobile-btn:hover { color: var(--ink); }
+
+/* Hide layers when narrow */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 40px 1fr;
+    grid-template-areas:
+      "top"
+      "center";
+  }
+  .left-panel, .right-panel { display: none; }
+  .states-strip { display: none; }
+  .show-mobile-btn { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-mark">P</div>
+      <span class="logo-text">Playground</span>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- Selection / hand / scale tools -->
+    <div class="tb-section">
+      <button class="tool-btn active" title="Move (V)"><i data-lucide="mouse-pointer-2"></i></button>
+      <button class="tool-btn" title="Hand (H)"><i data-lucide="hand"></i></button>
+      <button class="tool-btn" title="Scale (K)"><i data-lucide="scale"></i></button>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- New frame menu -->
+    <div class="tb-section" style="position: relative;">
+      <button class="tool-btn" id="newFrameBtn" title="New playground">
+        <i data-lucide="plus"></i>
+        <span style="font-size:11px;">New</span>
+        <i data-lucide="chevron-down" style="width:11px;height:11px;"></i>
+      </button>
+      <div class="dropdown" id="newFrameDD" style="top: 34px; left: 0;">
+        <div class="dd-header">Start a new playground</div>
+        <div class="dd-item">
+          <div class="ico"><i data-lucide="globe"></i></div>
+          <div class="text">Vanilla WordPress<span class="desc">Latest WP, default theme, no plugins</span></div>
+          <span class="kbd">N</span>
+        </div>
+        <div class="dd-item">
+          <div class="ico"><i data-lucide="git-pull-request"></i></div>
+          <div class="text">WordPress PR<span class="desc">Boot from a WordPress core pull request</span></div>
+        </div>
+        <div class="dd-item">
+          <div class="ico"><i data-lucide="puzzle"></i></div>
+          <div class="text">Gutenberg PR<span class="desc">Boot from a Gutenberg pull request</span></div>
+        </div>
+        <div class="dd-item">
+          <div class="ico"><i data-lucide="github"></i></div>
+          <div class="text">From GitHub<span class="desc">Theme or plugin from a repo</span></div>
+        </div>
+        <div class="dd-item">
+          <div class="ico"><i data-lucide="link"></i></div>
+          <div class="text">Blueprint URL<span class="desc">Paste any blueprint JSON URL</span></div>
+        </div>
+        <div class="dd-item">
+          <div class="ico"><i data-lucide="file-archive"></i></div>
+          <div class="text">Import .zip<span class="desc">Upload a previously exported playground</span></div>
+        </div>
+        <div class="dd-sep"></div>
+        <div class="dd-item" id="openGalleryBtn">
+          <div class="ico"><i data-lucide="layout-grid"></i></div>
+          <div class="text">Browse all 43 blueprints<span class="desc">Open the full gallery</span></div>
+          <span class="kbd">G</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="tool-btn" title="Refresh" id="refreshBtn"><i data-lucide="rotate-ccw"></i></button>
+
+    <!-- Address bar -->
+    <div class="address-row">
+      <div class="play-name editable" id="playNameLabel">
+        <span class="dot-unsaved"></span>
+        <span>Stylish Coffee Co.</span>
+        <i data-lucide="chevron-down" style="width:11px;height:11px;color:var(--ink-faint);"></i>
+      </div>
+      <div class="address-bar">
+        <i data-lucide="chevron-left" style="color:var(--ink-faint)"></i>
+        <i data-lucide="chevron-right" style="color:var(--ink-faint)"></i>
+        <span class="url-host">playground.wp/</span>
+        <input value="wp-admin/edit.php?post_type=product" />
+        <i data-lucide="lock" style="color:var(--ink-faint)"></i>
+      </div>
+    </div>
+
+    <!-- Right cluster -->
+    <div class="tb-right">
+      <button class="tool-btn" title="Saved Playgrounds" id="savedBtn"><i data-lucide="folder-open"></i><span style="font-size:11px;">12</span></button>
+      <button class="tool-btn" id="settingsBtn" title="Edit playground settings" style="position:relative;">
+        <i data-lucide="sliders-horizontal"></i>
+        <div class="popover" id="settingsPop" style="top: 34px; right: 0;">
+          <h4>Quick settings</h4>
+          <div class="prow"><span class="plbl">WP</span><select><option>6.5</option><option selected>6.6</option><option>6.7-beta</option><option>nightly</option></select></div>
+          <div class="prow"><span class="plbl">PHP</span><select><option>7.4</option><option>8.0</option><option selected>8.2</option><option>8.3</option></select></div>
+          <div class="prow"><span class="plbl">Language</span><select><option selected>English (US)</option><option>Japanese</option><option>French</option><option>German</option></select></div>
+          <div class="check"><input type="checkbox" checked />Network access</div>
+          <div class="check"><input type="checkbox" />Multisite</div>
+          <div class="actions">
+            <button class="btn-secondary" style="flex:1;">Reset</button>
+            <button class="btn-danger" style="flex:1;"><i data-lucide="alert-triangle"></i>Apply &amp; reset</button>
+          </div>
+        </div>
+      </button>
+      <button class="tool-btn" title="Site Manager"><i data-lucide="panel-right"></i></button>
+      <button class="btn-primary" id="saveBtn"><i data-lucide="bookmark-plus"></i>Save</button>
+    </div>
+  </header>
+
+  <!-- ============ LEFT PANEL ============ -->
+  <aside class="left-panel">
+    <div class="lp-tabs">
+      <button class="lp-tab active" data-lptab="layers">Layers</button>
+      <button class="lp-tab" data-lptab="assets">Assets</button>
+    </div>
+
+    <div class="lp-body">
+      <!-- LAYERS -->
+      <div id="lp-layers">
+        <div class="lp-section">
+          <div class="lp-section-title">
+            <span>Your Playgrounds</span>
+            <i data-lucide="chevron-down" class="chev"></i>
+          </div>
+          <div class="layers-list">
+            <div class="layer active">
+              <i data-lucide="frame" class="layer-icon"></i>
+              <span class="layer-name">Stylish Coffee Co.</span>
+              <span class="layer-badge live">Live</span>
+            </div>
+            <div class="layer">
+              <i data-lucide="frame" class="layer-icon"></i>
+              <span class="layer-name">My Portfolio</span>
+              <span class="layer-badge">Saved</span>
+            </div>
+            <div class="layer">
+              <i data-lucide="frame" class="layer-icon"></i>
+              <span class="layer-name">Gutenberg PR #62194</span>
+              <span class="layer-badge boot">Boot…</span>
+            </div>
+            <div class="layer">
+              <i data-lucide="frame" class="layer-icon"></i>
+              <span class="layer-name">WP 6.7 RC Test</span>
+              <span class="layer-badge draft">Draft</span>
+            </div>
+            <div class="layer">
+              <i data-lucide="frame" class="layer-icon"></i>
+              <span class="layer-name">Friends Plugin Sandbox</span>
+              <span class="layer-badge">Saved</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lp-section">
+          <div class="lp-section-title">
+            <span>Frame: Coffee Co.</span>
+            <i data-lucide="chevron-down" class="chev"></i>
+          </div>
+          <div class="layers-list">
+            <div class="layer indent">
+              <i data-lucide="folder" class="layer-icon"></i>
+              <span class="layer-name">wp-content</span>
+            </div>
+            <div class="layer indent">
+              <i data-lucide="puzzle" class="layer-icon"></i>
+              <span class="layer-name">themes / spiel</span>
+            </div>
+            <div class="layer indent">
+              <i data-lucide="puzzle" class="layer-icon"></i>
+              <span class="layer-name">plugins / woocommerce</span>
+            </div>
+            <div class="layer indent">
+              <i data-lucide="database" class="layer-icon"></i>
+              <span class="layer-name">wp_options (124)</span>
+            </div>
+            <div class="layer indent">
+              <i data-lucide="file-code" class="layer-icon"></i>
+              <span class="layer-name">blueprint.json</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lp-section">
+          <div class="lp-section-title"><span>Pages</span><i data-lucide="chevron-down" class="chev"></i></div>
+          <div class="layers-list">
+            <div class="layer"><i data-lucide="circle" class="layer-icon"></i><span class="layer-name">Canvas — Workspace</span></div>
+            <div class="layer"><i data-lucide="circle" class="layer-icon"></i><span class="layer-name">Archive (3 frames)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ASSETS -->
+      <div id="lp-assets" style="display:none;">
+        <div class="lp-search">
+          <i data-lucide="search"></i>
+          <input placeholder="Search blueprints…" />
+        </div>
+
+        <div class="cat-chips">
+          <span class="chip active">All</span>
+          <span class="chip">Featured</span>
+          <span class="chip">Website</span>
+          <span class="chip">Personal</span>
+          <span class="chip">Content</span>
+          <span class="chip">Themes</span>
+          <span class="chip">Gutenberg</span>
+          <span class="chip">Experiments</span>
+          <span class="chip">WooCommerce</span>
+          <span class="chip">News</span>
+        </div>
+
+        <div class="lp-section-title" style="padding-top:6px;">
+          <span>Featured</span>
+          <i data-lucide="chevron-down" class="chev"></i>
+        </div>
+        <div class="bp-list">
+          <div class="bp-item"><div class="bp-thumb">A</div><div class="bp-meta"><div class="bp-title">Art Gallery</div><div class="bp-tags">Website · Personal</div></div></div>
+          <div class="bp-item"><div class="bp-thumb wc">C</div><div class="bp-meta"><div class="bp-title">Coffee Shop</div><div class="bp-tags">WooCommerce · Store</div></div></div>
+          <div class="bp-item"><div class="bp-thumb">F</div><div class="bp-meta"><div class="bp-title">Feed Reader / Friends</div><div class="bp-tags">rss · social · web</div></div></div>
+          <div class="bp-item"><div class="bp-thumb cf">G</div><div class="bp-meta"><div class="bp-title">Gaming News</div><div class="bp-tags">Website · News</div></div></div>
+          <div class="bp-item"><div class="bp-thumb">N</div><div class="bp-meta"><div class="bp-title">Non-profit Organization</div><div class="bp-tags">Website · Organization</div></div></div>
+        </div>
+
+        <div class="lp-section-title"><span>Themes</span><i data-lucide="chevron-down" class="chev"></i></div>
+        <div class="bp-list">
+          <div class="bp-item"><div class="bp-thumb theme">T</div><div class="bp-meta"><div class="bp-title">Twenty Twenty-Five demo</div><div class="bp-tags">Themes · default</div></div></div>
+          <div class="bp-item"><div class="bp-thumb theme">P</div><div class="bp-meta"><div class="bp-title">Personal Resume (Readymade)</div><div class="bp-tags">Website · Personal</div></div></div>
+          <div class="bp-item"><div class="bp-thumb theme">B</div><div class="bp-meta"><div class="bp-title">Personal Blog (Substrata)</div><div class="bp-tags">Website · Blog</div></div></div>
+        </div>
+
+        <div class="lp-section-title"><span>Gutenberg / Experiments</span><i data-lucide="chevron-down" class="chev"></i></div>
+        <div class="bp-list">
+          <div class="bp-item"><div class="bp-thumb gb">L</div><div class="bp-meta"><div class="bp-title">Latest Gutenberg plugin</div><div class="bp-tags">plugins</div></div></div>
+          <div class="bp-item"><div class="bp-thumb ex">G</div><div class="bp-meta"><div class="bp-title">Grid Variations Experiment</div><div class="bp-tags">Gutenberg · Experiments</div></div></div>
+          <div class="bp-item"><div class="bp-thumb ex">D</div><div class="bp-meta"><div class="bp-title">Dataview Experiments (all 3)</div><div class="bp-tags">Gutenberg · Experiments</div></div></div>
+          <div class="bp-item"><div class="bp-thumb gb">M</div><div class="bp-meta"><div class="bp-title">Markdown / Trac editor</div><div class="bp-tags">block-editor</div></div></div>
+        </div>
+
+        <div class="lp-section-title"><span>WooCommerce</span><i data-lucide="chevron-down" class="chev"></i></div>
+        <div class="bp-list">
+          <div class="bp-item"><div class="bp-thumb wc">S</div><div class="bp-meta"><div class="bp-title">Stylish Press</div><div class="bp-tags">Woocommerce · Site</div></div></div>
+          <div class="bp-item"><div class="bp-thumb wc">M</div><div class="bp-meta"><div class="bp-title">Minimal WC setup</div><div class="bp-tags">woocommerce · shipping</div></div></div>
+          <div class="bp-item"><div class="bp-thumb wc">P</div><div class="bp-meta"><div class="bp-title">WC product feed</div><div class="bp-tags">WooCommerce · Content</div></div></div>
+        </div>
+
+        <div style="padding: 8px 12px 16px;">
+          <button class="btn-secondary" id="openGalleryBtn2" style="width:100%; justify-content:center;">
+            <i data-lucide="layout-grid"></i> View all 43 blueprints
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ CANVAS ============ -->
+  <main class="canvas-area" id="canvas">
+    <div class="canvas-stage" id="stage">
+
+      <!-- Frame 1 — Stylish Coffee Co. (selected, WooCommerce) -->
+      <div class="frame selected" id="f1" style="left: 80px; top: 80px; width: 880px; height: 540px;">
+        <div class="frame-label">
+          <span class="badge">Selected</span>
+          <span>Stylish Coffee Co. — wp-admin</span>
+        </div>
+        <div class="frame-chrome">
+          <div class="frame-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+          <div class="frame-url">playground.wp/wp-admin/edit.php?post_type=product</div>
+          <i data-lucide="refresh-cw" class="frame-icon"></i>
+        </div>
+        <div class="frame-body">
+          <div class="wpadmin">
+            <div class="sidebar">
+              <div class="item"><i data-lucide="layout-dashboard" style="width:12px;height:12px;"></i>Dashboard</div>
+              <div class="item active"><i data-lucide="shopping-bag" style="width:12px;height:12px;"></i>WooCommerce</div>
+              <div class="item"><i data-lucide="package" style="width:12px;height:12px;"></i>Products</div>
+              <div class="item"><i data-lucide="palette" style="width:12px;height:12px;"></i>Appearance</div>
+              <div class="item"><i data-lucide="puzzle" style="width:12px;height:12px;"></i>Plugins</div>
+              <div class="item"><i data-lucide="users" style="width:12px;height:12px;"></i>Users</div>
+              <div class="item"><i data-lucide="wrench" style="width:12px;height:12px;"></i>Tools</div>
+              <div class="item"><i data-lucide="settings" style="width:12px;height:12px;"></i>Settings</div>
+            </div>
+            <div class="main">
+              <h1>Products</h1>
+              <div class="widgets">
+                <div class="widget">
+                  <h2>House Blend Coffee</h2>
+                  <p>SKU: HB-001 · Stock: 124 · Price: $18.00</p>
+                  <p style="color:#2271b1;">Published</p>
+                </div>
+                <div class="widget">
+                  <h2>Single Origin: Ethiopia</h2>
+                  <p>SKU: SO-ET3 · Stock: 38 · Price: $24.00</p>
+                  <p style="color:#2271b1;">Published</p>
+                </div>
+                <div class="widget">
+                  <h2>Espresso Roast 1kg</h2>
+                  <p>SKU: ER-1K · Stock: 12 · Price: $44.00</p>
+                  <p style="color:#dba617;">Low stock</p>
+                </div>
+                <div class="widget">
+                  <h2>Cold Brew Concentrate</h2>
+                  <p>SKU: CB-512 · Stock: 56 · Price: $22.00</p>
+                  <p style="color:#2271b1;">Published</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 2 — My Portfolio (frontend WP page) -->
+      <div class="frame" id="f2" style="left: 1020px; top: 80px; width: 620px; height: 440px;">
+        <div class="frame-label"><span>My Portfolio</span></div>
+        <div class="frame-chrome">
+          <div class="frame-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+          <div class="frame-url">playground.wp/</div>
+        </div>
+        <div class="frame-body">
+          <div class="wp-page">
+            <div class="wp-nav">
+              <span class="brand">JANE DOE</span>
+              <span>Work</span><span>About</span><span>Journal</span><span>Contact</span>
+            </div>
+            <h1 style="margin-top: 20px;">Quiet design, loud ideas.</h1>
+            <p>Selected projects from 2018 to today — brand systems, editorial, and product.</p>
+            <div class="gallery-grid">
+              <div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div>
+              <div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 3 — Gutenberg PR (booting) -->
+      <div class="frame booting" id="f3" style="left: 80px; top: 700px; width: 520px; height: 360px;">
+        <div class="frame-label"><span style="color:var(--orange);">Booting · Gutenberg PR #62194</span></div>
+        <div class="frame-chrome">
+          <div class="frame-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+          <div class="frame-url">playground.wp/?gutenberg-pr=62194</div>
+        </div>
+        <div class="frame-body">
+          <div class="boot-card">
+            <div class="ring"></div>
+            <div class="step">Step 4 of 6</div>
+            <div class="label">Activating Gutenberg from PR build artifact…</div>
+            <div class="boot-progress"><div class="fill"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 4 — Friends Plugin Sandbox -->
+      <div class="frame" id="f4" style="left: 660px; top: 700px; width: 560px; height: 360px;">
+        <div class="frame-label"><span>Friends Plugin Sandbox</span></div>
+        <div class="frame-chrome">
+          <div class="frame-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+          <div class="frame-url">playground.wp/wp-admin/admin.php?page=friends</div>
+        </div>
+        <div class="frame-body">
+          <div class="wp-page" style="padding:18px 24px;">
+            <h1 style="font-size:24px;">Your feed</h1>
+            <p style="color:#666;">3 new posts from people you follow.</p>
+            <div class="wp-cards" style="grid-template-columns:1fr;">
+              <div class="wp-card"><h3>@matthias — On Reading Slowly</h3><p>A reminder that RSS is still the open web's heartbeat.</p></div>
+              <div class="wp-card"><h3>@kim — ActivityPub for everyone</h3><p>Why WP + Friends + ActivityPub matters.</p></div>
+              <div class="wp-card"><h3>@anna — Saturday garden updates</h3><p>The tomatoes are finally ripening. Photos →</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 5 — WP 6.7 RC test (logs preview) -->
+      <div class="frame" id="f5" style="left: 1280px; top: 580px; width: 460px; height: 340px;">
+        <div class="frame-label"><span>WP 6.7 RC Test</span></div>
+        <div class="frame-chrome">
+          <div class="frame-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+          <div class="frame-url">playground.wp/wp-admin/options-general.php</div>
+        </div>
+        <div class="frame-body">
+          <div class="logs-pane">
+            <div class="ln"><span class="ts">12:04:11</span><span class="lvl l-info">[INFO]</span> PHP 8.2.13 booted</div>
+            <div class="ln"><span class="ts">12:04:11</span><span class="lvl l-info">[INFO]</span> Mounting OPFS at /wordpress</div>
+            <div class="ln"><span class="ts">12:04:12</span><span class="lvl l-info">[INFO]</span> Applying blueprint step 1 of 4</div>
+            <div class="ln"><span class="ts">12:04:13</span><span class="lvl l-warn">[WARN]</span> wp_remote_get blocked, network=off</div>
+            <div class="ln"><span class="ts">12:04:14</span><span class="lvl l-info">[INFO]</span> Installing theme: twentytwentyfive</div>
+            <div class="ln"><span class="ts">12:04:15</span><span class="lvl l-err">[ERROR]</span> Notice: Undefined index 'foo' in template-tags.php:118</div>
+            <div class="ln"><span class="ts">12:04:16</span><span class="lvl l-info">[INFO]</span> Site ready at http://playground.wp/</div>
+            <div class="ln"><span class="ts">12:04:22</span><span class="lvl l-info">[INFO]</span> GET / 200 in 84ms</div>
+            <div class="ln"><span class="ts">12:04:24</span><span class="lvl l-info">[INFO]</span> GET /wp-admin/ 302 in 12ms</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 6 — small thumbnail (Art Gallery) -->
+      <div class="frame" id="f6" style="left: 1700px; top: 80px; width: 360px; height: 280px;">
+        <div class="frame-label"><span>Art Gallery — Vueo</span></div>
+        <div class="frame-chrome">
+          <div class="frame-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+          <div class="frame-url">playground.wp/portfolio</div>
+        </div>
+        <div class="frame-body">
+          <div class="wp-page" style="padding:14px 18px;">
+            <div class="wp-nav" style="padding-bottom:8px;">
+              <span class="brand">VUEO</span>
+              <span style="font-size:11px;">Works</span><span style="font-size:11px;">About</span>
+            </div>
+            <h1 style="font-size:22px; margin-top:14px;">Atelier 2025</h1>
+            <div class="gallery-grid">
+              <div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drop hint for blueprint placement -->
+      <div style="position:absolute; left:1280px; top:980px; width:280px; height:180px;
+                  border: 2px dashed var(--accent); border-radius: 8px;
+                  display: flex; align-items: center; justify-content: center;
+                  color: var(--accent); font-size: 12px; font-weight: 500; gap: 6px;
+                  background: rgba(13,153,255,.06);">
+        <i data-lucide="package" style="width:18px;height:18px;"></i>
+        Drop "Weather Shortcode" here
+      </div>
+
+    </div><!-- /stage -->
+
+    <!-- States preview strip -->
+    <div class="states-strip">
+      <span class="lbl">View</span>
+      <button class="state-btn active" data-state="canvas"><i data-lucide="layout-grid"></i>Canvas</button>
+      <button class="state-btn" data-state="focus"><i data-lucide="maximize-2"></i>Focus</button>
+      <button class="state-btn" data-state="boot"><i data-lucide="loader"></i>Booting</button>
+      <button class="state-btn" data-state="gallery"><i data-lucide="grid-3x3"></i>Gallery</button>
+    </div>
+
+    <!-- Minimap -->
+    <div class="minimap" title="Mini-map">
+      <span class="mmlabel">Canvas overview</span>
+      <div class="mm-canvas">
+        <div class="mm-frame selected" style="left:5%; top:8%; width:36%; height:36%;"></div>
+        <div class="mm-frame" style="left:46%; top:8%; width:24%; height:28%;"></div>
+        <div class="mm-frame" style="left:5%; top:50%; width:22%; height:26%;"></div>
+        <div class="mm-frame" style="left:30%; top:50%; width:22%; height:26%;"></div>
+        <div class="mm-frame" style="left:56%; top:42%; width:18%; height:26%;"></div>
+        <div class="mm-frame" style="left:75%; top:8%; width:14%; height:20%;"></div>
+        <div class="mm-view" style="left:0; top:4%; width:64%; height:60%;"></div>
+      </div>
+    </div>
+
+    <!-- Bottom canvas toolbar (zoom & fit) -->
+    <div class="canvas-toolbar-bottom">
+      <button class="cb-btn" id="zoomOut"><i data-lucide="minus"></i></button>
+      <button class="cb-btn" id="zoomPill"><span id="zoomLabel">42%</span><i data-lucide="chevron-down" style="width:11px;height:11px;"></i></button>
+      <button class="cb-btn" id="zoomIn"><i data-lucide="plus"></i></button>
+      <div style="width:1px; background:var(--line-2); height:18px; margin: 0 2px;"></div>
+      <button class="cb-btn" id="fitAll"><i data-lucide="scan"></i><span>Fit all</span></button>
+      <button class="cb-btn" id="goFocus"><i data-lucide="focus"></i><span>Focus selected</span></button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast">
+      <span class="dot"></span>
+      <span>Stylish Coffee Co. autosaved · 12:04:38</span>
+      <i data-lucide="x" class="x"></i>
+    </div>
+
+  </main>
+
+  <!-- ============ RIGHT PANEL (Inspector) ============ -->
+  <aside class="right-panel">
+    <div class="rp-header">
+      <div class="selected-pill"><span class="dot"></span> Stylish Coffee Co.</div>
+      <div class="grow"></div>
+      <button class="ico-btn" title="WP Admin"><i data-lucide="shield"></i></button>
+      <button class="ico-btn" title="Homepage"><i data-lucide="home"></i></button>
+      <button class="ico-btn" title="More actions" id="moreBtn" style="position:relative;">
+        <i data-lucide="more-horizontal"></i>
+        <div class="dropdown" id="moreDD" style="top: 28px; right: 0; min-width: 280px;">
+          <div class="dd-header">Additional actions</div>
+          <div class="dd-item">
+            <div class="ico"><i data-lucide="github"></i></div>
+            <div class="text">Export to GitHub PR<span class="desc">Theme, plugin, or wp-content → pull request</span></div>
+          </div>
+          <div class="dd-item">
+            <div class="ico"><i data-lucide="download"></i></div>
+            <div class="text">Download .zip<span class="desc">Current playground as an archive</span></div>
+          </div>
+          <div class="dd-sep"></div>
+          <div class="dd-item">
+            <div class="ico"><i data-lucide="copy"></i></div>
+            <div class="text">Duplicate frame<span class="desc">Clone next to current</span></div>
+          </div>
+          <div class="dd-item">
+            <div class="ico"><i data-lucide="link-2"></i></div>
+            <div class="text">Copy share link<span class="desc">Includes blueprint hash</span></div>
+          </div>
+          <div class="dd-sep"></div>
+          <div class="dd-item" style="color:var(--red);">
+            <div class="ico" style="color:var(--red);"><i data-lucide="trash-2"></i></div>
+            <div class="text">Delete frame<span class="desc">Removes from OPFS</span></div>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <div class="rp-tabs">
+      <button class="rp-tab active" data-rptab="properties">Properties</button>
+      <button class="rp-tab" data-rptab="files">Files</button>
+      <button class="rp-tab" data-rptab="blueprint">Blueprint</button>
+      <button class="rp-tab" data-rptab="db">DB</button>
+      <button class="rp-tab" data-rptab="logs">Logs</button>
+    </div>
+
+    <div class="rp-body">
+
+      <!-- PROPERTIES -->
+      <div class="tab-pane active" data-pane="properties">
+        <div class="prop-section">
+          <div class="prop-section-title"><span>Frame</span></div>
+          <div class="prop-row">
+            <span class="lbl">Name</span>
+            <div class="prop-input input-style"><input value="Stylish Coffee Co." /></div>
+          </div>
+          <div class="prop-row">
+            <span class="lbl">Position</span>
+            <div class="prop-input input-style" style="flex:1;"><span style="color:var(--ink-faint)">X</span><input value="80" style="width:38px;" /><span style="color:var(--ink-faint)">Y</span><input value="80" style="width:38px;" /></div>
+          </div>
+          <div class="prop-row">
+            <span class="lbl">Size</span>
+            <div class="prop-input input-style" style="flex:1;"><span style="color:var(--ink-faint)">W</span><input value="880" style="width:38px;" /><span style="color:var(--ink-faint)">H</span><input value="540" style="width:38px;" /></div>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-section-title"><span>Runtime</span><i data-lucide="info" style="color:var(--ink-faint); width:11px; height:11px;"></i></div>
+          <div class="prop-row">
+            <span class="lbl">WordPress</span>
+            <div class="prop-input input-style"><span class="swatch wp"></span><select><option>6.5</option><option selected>6.6</option><option>6.7-beta</option><option>nightly</option></select><i data-lucide="chevron-down" class="right-ico"></i></div>
+          </div>
+          <div class="prop-row">
+            <span class="lbl">PHP</span>
+            <div class="prop-input input-style"><span class="swatch php"></span><select><option>7.4</option><option>8.0</option><option selected>8.2</option><option>8.3</option></select><i data-lucide="chevron-down" class="right-ico"></i></div>
+          </div>
+          <div class="prop-row">
+            <span class="lbl">Language</span>
+            <div class="prop-input input-style"><select><option selected>English (US)</option><option>Japanese</option><option>French</option><option>German</option></select><i data-lucide="chevron-down" class="right-ico"></i></div>
+          </div>
+          <div class="prop-row">
+            <span class="lbl">Network</span>
+            <div class="toggle"><span class="seg active">On</span><span class="seg">Off</span></div>
+          </div>
+          <div class="prop-row">
+            <span class="lbl">Multisite</span>
+            <div class="toggle"><span class="seg">On</span><span class="seg active">Off</span></div>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-section-title"><span>Persistence</span></div>
+          <div class="notice">
+            <div class="title"><i data-lucide="alert-triangle"></i>Unsaved Playground</div>
+            Changes will be lost on page refresh. Save to browser storage to keep this frame.
+            <div style="margin-top:8px; display:flex; gap:6px;">
+              <button class="btn-primary" style="flex:1; height:24px; padding: 0 8px; font-size:11px;"><i data-lucide="bookmark-plus"></i>Save site locally</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-section-title"><span>Apply settings</span></div>
+          <div class="danger-zone">
+            <div class="title"><i data-lucide="alert-triangle"></i>Destructive action</div>
+            <div class="body">"Apply settings" reboots PHP and wipes the running site. Save first to keep your work.</div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-secondary" style="flex:1;">Reset</button>
+              <button class="btn-danger" style="flex:1;"><i data-lucide="zap"></i>Apply &amp; reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILES -->
+      <div class="tab-pane" data-pane="files">
+        <div style="padding: 8px 12px; display:flex; gap:6px;">
+          <button class="btn-secondary" style="flex:1;"><i data-lucide="file-plus"></i>New file</button>
+          <button class="btn-secondary" style="flex:1;"><i data-lucide="folder-plus"></i>New folder</button>
+        </div>
+        <div class="tree">
+          <div class="tree-row open"><i data-lucide="chevron-right"></i><i data-lucide="folder-open" style="color:#dba617;"></i>wordpress/</div>
+          <div class="tree-row l1"><i data-lucide="chevron-right"></i><i data-lucide="folder" style="color:#dba617;"></i>wp-admin/</div>
+          <div class="tree-row l1 open"><i data-lucide="chevron-right"></i><i data-lucide="folder-open" style="color:#dba617;"></i>wp-content/</div>
+          <div class="tree-row l2 open"><i data-lucide="chevron-right"></i><i data-lucide="folder-open" style="color:#dba617;"></i>themes/</div>
+          <div class="tree-row" style="padding-left:54px;"><i data-lucide="folder" style="color:#dba617;"></i>spiel/</div>
+          <div class="tree-row" style="padding-left:54px;"><i data-lucide="folder" style="color:#dba617;"></i>twentytwentyfive/</div>
+          <div class="tree-row l2"><i data-lucide="chevron-right"></i><i data-lucide="folder" style="color:#dba617;"></i>plugins/</div>
+          <div class="tree-row l2"><i data-lucide="chevron-right"></i><i data-lucide="folder" style="color:#dba617;"></i>uploads/</div>
+          <div class="tree-row l1"><i data-lucide="chevron-right"></i><i data-lucide="folder" style="color:#dba617;"></i>wp-includes/</div>
+          <div class="tree-row active l1"><span style="width:14px;"></span><i data-lucide="file-code" style="color:#79c0ff;"></i>wp-config.php</div>
+          <div class="tree-row l1"><span style="width:14px;"></span><i data-lucide="file-code" style="color:#79c0ff;"></i>index.php</div>
+        </div>
+
+        <div class="prop-section-title" style="padding: 8px 12px 4px;">
+          <span>wp-config.php</span>
+          <i data-lucide="external-link" style="color:var(--ink-faint); width:11px; height:11px;"></i>
+        </div>
+        <div class="code-mini"><span class="c">// **Database settings**</span>
+<span class="k">define</span>( <span class="s">'DB_NAME'</span>, <span class="s">'wordpress'</span> );
+<span class="k">define</span>( <span class="s">'DB_USER'</span>, <span class="s">'root'</span> );
+<span class="k">define</span>( <span class="s">'DB_HOST'</span>, <span class="s">'localhost'</span> );
+
+<span class="c">// **Authentication unique keys**</span>
+<span class="k">define</span>( <span class="s">'AUTH_KEY'</span>, <span class="s">'pl@yground'</span> );
+
+<span class="c">// Playground-specific</span>
+<span class="k">define</span>( <span class="s">'WP_DEBUG'</span>, <span class="n">true</span> );
+<span class="k">define</span>( <span class="s">'PLAYGROUND'</span>, <span class="n">true</span> );
+
+<span class="k">$table_prefix</span> = <span class="s">'wp_'</span>;
+</div>
+      </div>
+
+      <!-- BLUEPRINT -->
+      <div class="tab-pane" data-pane="blueprint">
+        <div style="padding: 8px 12px; display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn-primary" style="flex:1;"><i data-lucide="play"></i>Run blueprint</button>
+          <button class="btn-secondary"><i data-lucide="link"></i></button>
+          <button class="btn-secondary"><i data-lucide="download"></i></button>
+        </div>
+        <div class="prop-section-title" style="padding: 8px 12px 4px;"><span>blueprint.json</span><i data-lucide="check-circle-2" style="color:var(--green); width:11px; height:11px;"></i></div>
+        <div class="code-mini">{
+  <span class="s">"landingPage"</span>: <span class="s">"/wp-admin/edit.php?post_type=product"</span>,
+  <span class="s">"preferredVersions"</span>: {
+    <span class="s">"php"</span>: <span class="s">"8.2"</span>,
+    <span class="s">"wp"</span>: <span class="s">"6.6"</span>
+  },
+  <span class="s">"steps"</span>: [
+    { <span class="s">"step"</span>: <span class="s">"installTheme"</span>,
+      <span class="s">"themeZipFile"</span>: {
+        <span class="s">"resource"</span>: <span class="s">"wordpress.org/themes"</span>,
+        <span class="s">"slug"</span>: <span class="s">"spiel"</span> } },
+    { <span class="s">"step"</span>: <span class="s">"installPlugin"</span>,
+      <span class="s">"pluginZipFile"</span>: {
+        <span class="s">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>,
+        <span class="s">"slug"</span>: <span class="s">"woocommerce"</span> } },
+    { <span class="s">"step"</span>: <span class="s">"runPHP"</span>,
+      <span class="s">"code"</span>: <span class="s">"&lt;?php require_once 'sample-products.php';"</span> },
+    { <span class="s">"step"</span>: <span class="s">"login"</span>,
+      <span class="s">"username"</span>: <span class="s">"admin"</span>,
+      <span class="s">"password"</span>: <span class="s">"password"</span> }
+  ]
+}</div>
+        <div style="padding: 0 12px 12px;">
+          <div class="prop-section-title" style="padding: 4px 0;"><span>Companion files</span></div>
+          <div class="tree" style="padding:0;">
+            <div class="tree-row"><i data-lucide="file-code" style="color:#79c0ff;"></i>sample-products.php</div>
+            <div class="tree-row"><i data-lucide="file-text" style="color:#a0e6c2;"></i>products.csv</div>
+            <div class="tree-row"><i data-lucide="file-image" style="color:#ffaa00;"></i>hero.jpg</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATABASE -->
+      <div class="tab-pane" data-pane="db">
+        <div class="notice">
+          <div class="title"><i data-lucide="flask-conical"></i>Early access</div>
+          Database management is an early access feature. <u>Report issues on GitHub →</u>
+        </div>
+        <div class="db-tablebar">
+          <div class="prop-input input-style" style="flex:1;">
+            <i data-lucide="search" style="color:var(--ink-faint)"></i>
+            <input placeholder="wp_options" style="flex:1;" />
+          </div>
+          <button class="btn-secondary"><i data-lucide="plus"></i></button>
+        </div>
+        <div class="db-table">
+          <div class="hd"><span>ID</span><span>option_name</span><span>value</span><span>autoload</span></div>
+          <div class="rw"><span>1</span><span>siteurl</span><span>http://playground.wp</span><span>yes</span></div>
+          <div class="rw"><span>2</span><span>blogname</span><span>Stylish Coffee Co.</span><span>yes</span></div>
+          <div class="rw"><span>3</span><span>active_plugins</span><span>a:1:{i:0;s:21:"woo…</span><span>yes</span></div>
+          <div class="rw"><span>4</span><span>template</span><span>spiel</span><span>yes</span></div>
+          <div class="rw"><span>5</span><span>permalink_structure</span><span>/%postname%/</span><span>yes</span></div>
+          <div class="rw"><span>6</span><span>woocommerce_version</span><span>8.9.3</span><span>yes</span></div>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div class="tab-pane" data-pane="logs">
+        <div class="logs-toolbar">
+          <div class="prop-input input-style" style="flex:1;">
+            <i data-lucide="search" style="color:var(--ink-faint)"></i>
+            <input placeholder="Filter logs…" />
+          </div>
+          <div class="toggle">
+            <span class="seg active">All</span>
+            <span class="seg">Warn</span>
+            <span class="seg">Err</span>
+          </div>
+        </div>
+        <div class="log-stream">
+          <div class="ln"><span class="ts">12:04:11</span><span class="lvl l-info">[INFO]</span> Booting PHP 8.2.13</div>
+          <div class="ln"><span class="ts">12:04:11</span><span class="lvl l-info">[INFO]</span> Mounting OPFS at /wordpress</div>
+          <div class="ln"><span class="ts">12:04:12</span><span class="lvl l-info">[INFO]</span> Applying blueprint step 1 of 4: installTheme (spiel)</div>
+          <div class="ln"><span class="ts">12:04:13</span><span class="lvl l-info">[INFO]</span> Applying blueprint step 2 of 4: installPlugin (woocommerce)</div>
+          <div class="ln"><span class="ts">12:04:13</span><span class="lvl l-warn">[WARN]</span> wp_remote_get fallback: cached copy used</div>
+          <div class="ln"><span class="ts">12:04:14</span><span class="lvl l-info">[INFO]</span> Applying step 3 of 4: runPHP (sample-products.php)</div>
+          <div class="ln"><span class="ts">12:04:15</span><span class="lvl l-err">[ERROR]</span> Notice: Undefined index 'foo' in template-tags.php:118</div>
+          <div class="ln"><span class="ts">12:04:15</span><span class="lvl l-info">[INFO]</span> Applying step 4 of 4: login as admin</div>
+          <div class="ln"><span class="ts">12:04:16</span><span class="lvl l-info">[INFO]</span> Site ready at http://playground.wp/</div>
+          <div class="ln"><span class="ts">12:04:22</span><span class="lvl l-info">[INFO]</span> GET / 200 in 84ms</div>
+          <div class="ln"><span class="ts">12:04:24</span><span class="lvl l-info">[INFO]</span> GET /wp-admin/ 302 in 12ms</div>
+          <div class="ln"><span class="ts">12:04:25</span><span class="lvl l-info">[INFO]</span> GET /wp-login.php 200 in 38ms</div>
+          <div class="ln"><span class="ts">12:04:26</span><span class="lvl l-info">[INFO]</span> POST /wp-login.php 302 in 91ms</div>
+          <div class="ln"><span class="ts">12:04:38</span><span class="lvl l-info">[INFO]</span> Autosave triggered</div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+</div><!-- /app -->
+
+<!-- ============ MODAL: Full blueprint gallery ============ -->
+<div class="modal-backdrop" id="galleryModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Blueprint gallery</h2>
+      <span class="count" id="galleryCount">43 blueprints · drag any onto the canvas</span>
+      <div style="flex:1;"></div>
+      <button class="modal-close" id="closeGalleryBtn"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="gallery-shell">
+      <aside class="gallery-side" id="gallerySide">
+        <!-- categories injected by JS -->
+      </aside>
+      <main class="gallery-main">
+        <div class="gallery-search">
+          <i data-lucide="search"></i>
+          <input id="gallerySearch" placeholder="Search 43 blueprints…" />
+        </div>
+        <div class="gallery-grid-cards" id="galleryGrid">
+          <!-- cards injected by JS -->
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MOBILE FRAME ============ -->
+<button class="show-mobile-btn" id="showMobile"><i data-lucide="smartphone"></i>Preview mobile (390×844)</button>
+
+<div class="mobile-frame" id="mobile">
+  <button class="close-mob" id="closeMobile"><i data-lucide="x"></i>Close</button>
+  <div class="screen">
+    <div class="mob-status"><span>9:41</span><span>● ● ●</span></div>
+    <div class="mob-top">
+      <i data-lucide="menu" class="hand"></i>
+      <span class="name">Stylish Coffee Co.</span>
+      <span class="dot"></span>
+      <i data-lucide="rotate-ccw" class="hand"></i>
+    </div>
+    <div class="mob-canvas">
+      <div class="mframe-label">Selected frame · 100%</div>
+      <div class="mframe">
+        <div class="mframe-bar">
+          <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+          <span class="url">playground.wp/</span>
+        </div>
+        <div class="mframe-body">
+          <h1>Welcome back.</h1>
+          <p>Last visit: 2 days ago. 4 products in cart.</p>
+          <p>House Blend, Single Origin Ethiopia, Cold Brew Concentrate.</p>
+          <div class="b">Open WP Admin →</div>
+        </div>
+      </div>
+
+      <div class="mob-sheet">
+        <div class="handle"></div>
+        <div class="ttl"><span>Frames (5)</span><i data-lucide="plus" style="color:var(--ink-dim);"></i></div>
+        <div class="row"><span class="dot" style="background:var(--green);"></span>Stylish Coffee Co. <span style="margin-left:auto; color:var(--ink-faint); font-size:10px;">Live</span></div>
+        <div class="row"><span class="dot" style="background:var(--ink-faint);"></span>My Portfolio <span style="margin-left:auto; color:var(--ink-faint); font-size:10px;">Saved</span></div>
+        <div class="row"><span class="dot" style="background:var(--orange);"></span>Gutenberg PR #62194 <span style="margin-left:auto; color:var(--ink-faint); font-size:10px;">Booting</span></div>
+        <div class="row"><span class="dot" style="background:var(--ink-faint);"></span>Friends Sandbox <span style="margin-left:auto; color:var(--ink-faint); font-size:10px;">Saved</span></div>
+        <div class="row"><span class="dot" style="background:var(--purple);"></span>WP 6.7 RC Test <span style="margin-left:auto; color:var(--ink-faint); font-size:10px;">Draft</span></div>
+      </div>
+    </div>
+
+    <div class="mob-tabbar">
+      <div class="mob-tab active"><i data-lucide="layout-grid"></i>Site</div>
+      <div class="mob-tab"><i data-lucide="file-code"></i>Files</div>
+      <div class="mob-tab"><i data-lucide="braces"></i>Blueprint</div>
+      <div class="mob-tab"><i data-lucide="more-horizontal"></i>More</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Blueprint data — 43 entries from BLUEPRINTS.md
+const BLUEPRINTS = [
+  { t:"Art Gallery", d:"An art gallery created with the Vueo theme.", tags:["Website","Personal"], cat:["Website","Personal","Featured"], g:0 },
+  { t:"Coffee Shop", d:"A stylish WooCommerce coffee shop storefront with custom theme, products, and content.", tags:["WooCommerce","Store"], cat:["WooCommerce","Featured"], g:11 },
+  { t:"Feed Reader with Friends Plugin", d:"Read feeds (incl. ActivityPub) in Playground via the Friends plugin.", tags:["rss","social","web"], cat:["Featured","Content"], g:1 },
+  { t:"Gaming News", d:"A gaming news site created with the Spiel theme.", tags:["Website","News"], cat:["Website","News","Featured"], g:5 },
+  { t:"Non-profit Organization", d:"A non-profit organization site created with the Koinonia theme.", tags:["Website","Organization"], cat:["Website","Featured"], g:2 },
+  { t:"Personal Blog", d:"A personal blog site created with the Substrata theme.", tags:["Website","Personal","Blog"], cat:["Website","Personal"], g:3 },
+  { t:"Personal Resume", d:"A resume site created with the Readymade theme.", tags:["Website","Personal"], cat:["Website","Personal"], g:13 },
+  { t:"Photography Portfolio", d:"A photography portfolio created with the Grammer theme.", tags:["Website","Personal","Photography"], cat:["Website","Personal"], g:14 },
+  { t:"Skincare Blog", d:"A skincare blog created with the Piel theme.", tags:["Website","News","Blog"], cat:["Website","News"], g:7 },
+  { t:"University Website", d:"A university website created with the Kentwood theme.", tags:["Website","Organization","Education"], cat:["Website"], g:6 },
+  { t:"Create Block Theme", d:"Install Create Block Theme and start editing right away.", tags:["Editor","theme"], cat:["Themes"], g:4 },
+  { t:"Creating a new user for the blog", d:"Update user meta data.", tags:["meta"], cat:["Content"], g:8 },
+  { t:"Custom Post Type: Books", d:"Add a custom post type to playground.", tags:["Content","CPT"], cat:["Content"], g:9 },
+  { t:"Demo of Twenty-Twenty-Five theme", d:"Demo content for the Twenty-Twenty-Five default theme.", tags:["Themes","default"], cat:["Themes","Featured"], g:12 },
+  { t:"Display Admin Notice", d:"Add a tiny mu-plugin and display an admin notice.", tags:["Admin notices"], cat:["Content"], g:15 },
+  { t:"Dataview Experiments enabled", d:"Enable multiple Experiments within the Gutenberg plugin.", tags:["Gutenberg","Experiments"], cat:["Gutenberg","Experiments"], g:9 },
+  { t:"Fancy Dashboard Widget", d:"Display statistics about users, posts and comments.", tags:["meta"], cat:["Content"], g:16 },
+  { t:"Grid Variations Experiment", d:"Toggle a Gutenberg Experiments feature on.", tags:["Gutenberg","Experiments"], cat:["Gutenberg","Experiments"], g:8 },
+  { t:"Gutenberg Guidelines Experiment", d:"Enable Gutenberg Guidelines experiment.", tags:["Gutenberg","Experiments"], cat:["Gutenberg","Experiments"], g:10 },
+  { t:"Import Theme Starter Content", d:"Install a theme with starter content (Twenty-Twenty-One).", tags:["Themes","Starter Content"], cat:["Themes"], g:7 },
+  { t:"Import standalone starter content", d:"Use a stand-alone starter content file and import it.", tags:["Themes","Starter Content"], cat:["Themes"], g:3 },
+  { t:"Install WordPress language packs", d:"Install and activate the latest Japanese translation pack.", tags:["core"], cat:["Content"], g:6 },
+  { t:"Install plugin from a gist", d:"Install/activate a WordPress plugin from a .php file in a gist.", tags:["plugins"], cat:["Content"], g:5 },
+  { t:"Latest Gutenberg plugin", d:"A preview of the latest Gutenberg plugin.", tags:["plugins"], cat:["Gutenberg","Featured"], g:9 },
+  { t:"Configure theme from a GitHub repo", d:"Typical steps for a theme's load/activate/configure.", tags:["theme"], cat:["Themes"], g:4 },
+  { t:"Login as an editor", d:"Test as an editor rather than an administrator.", tags:["User Role"], cat:["Content"], g:14 },
+  { t:"Markdown / Trac Syntax Editor", d:"Edit Markdown / Trac formatting in the block editor (blocky-formats).", tags:["block-editor"], cat:["Gutenberg"], g:0 },
+  { t:"Minimal WooCommerce Setup", d:"WooCommerce + custom flat-rate shipping + sample products + direct bank transfer.", tags:["woocommerce","shipping"], cat:["WooCommerce"], g:11 },
+  { t:"My WordPress", d:"A welcome experience for persistent WordPress Playground instances. Personalize site name, import RSS feed.", tags:["Playground","Onboarding"], cat:["Content"], g:13 },
+  { t:"Playground Welcome Landing", d:"Landing page for the WordPress Playground.", tags:["meta"], cat:["Content"], g:15 },
+  { t:"Pretty permalinks", d:"Set the permalink structure to pretty permalinks.", tags:["Settings"], cat:["Content"], g:2 },
+  { t:"Reset data and import content", d:"Resets default data before importing custom content; logs each step.", tags:["reset","log","debug"], cat:["Content"], g:1 },
+  { t:"Serve media from another host", d:"Redirect uploads requests to an external host.", tags:["Settings"], cat:["Content"], g:16 },
+  { t:"Set the admin color scheme", d:"Set admin color scheme to Modern via updateUserMeta step.", tags:["user meta"], cat:["Content"], g:8 },
+  { t:"Showcase plugin", d:"Showcase a custom plugin with media and content imported as WXR.", tags:["plugin","demo","media"], cat:["Content"], g:10 },
+  { t:"Stylish Press", d:"A Woo store with custom theme, content, products.", tags:["Woocommerce","Site"], cat:["WooCommerce"], g:11 },
+  { t:"Theme Tester", d:"Add content and plugins to explore a theme.", tags:["themes","content"], cat:["Themes"], g:12 },
+  { t:"WPGraphQL query playground", d:"Loads WordPress with WPGraphQL active and the WPGraphQL IDE page.", tags:["API","wpgraphql"], cat:["Content"], g:7 },
+  { t:"wp-cli: add posts", d:"Add posts via a wp-cli command.", tags:["Content","wpcli"], cat:["Content"], g:6 },
+  { t:"wp-cli: add a post with image", d:"Create a post from text file with block markup and featured image via wp-cli.", tags:["Content","wpcli"], cat:["Content"], g:5 },
+  { t:"Weather Shortcode Plugin", d:"Connect weather API and show data as a shortcode. (Requires OpenWeatherMap API key.)", tags:["plugin","shortcode"], cat:["Content"], g:3 },
+  { t:"WooCommerce product feed", d:"Create a WooCommerce product and export an XML/CSV product feed.", tags:["WooCommerce","Content"], cat:["WooCommerce"], g:11 },
+  { t:"WordPress Beta", d:"Test the latest WordPress Beta/RC with theme test data and debugging plugins.", tags:["Testing"], cat:["Featured"], g:13 },
+];
+const CATEGORIES = ["All","Featured","Website","Personal","Content","Themes","Gutenberg","Experiments","WooCommerce","News"];
+
+// Render gallery
+function letterFor(t) { return (t.replace(/[^A-Za-z]/g,"")[0] || "P").toUpperCase(); }
+function renderGallery(filter, query) {
+  const grid = document.getElementById('galleryGrid');
+  const list = BLUEPRINTS.filter(b => {
+    const c = filter === "All" || b.cat.includes(filter);
+    const q = !query || (b.t+" "+b.d+" "+b.tags.join(" ")).toLowerCase().includes(query.toLowerCase());
+    return c && q;
+  });
+  grid.innerHTML = list.map(b => `
+    <div class="gcard">
+      <div class="thumb gr-${b.g}">${letterFor(b.t)}</div>
+      <div class="body">
+        <div class="ttl">${b.t}</div>
+        <div class="dsc">${b.d}</div>
+        <div class="tags">${b.tags.map(x => `<span class="tag">${x}</span>`).join("")}</div>
+      </div>
+    </div>
+  `).join("");
+  document.getElementById('galleryCount').textContent = `${list.length} of ${BLUEPRINTS.length} blueprints · drag any onto the canvas`;
+}
+function renderSide(activeCat) {
+  const side = document.getElementById('gallerySide');
+  side.innerHTML = CATEGORIES.map(c => {
+    const ct = c === "All" ? BLUEPRINTS.length : BLUEPRINTS.filter(b => b.cat.includes(c)).length;
+    return `<div class="gs-item ${c===activeCat ? 'active':''}" data-cat="${c}"><span>${c}</span><span class="ct">${ct}</span></div>`;
+  }).join("");
+  side.querySelectorAll('.gs-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const c = el.getAttribute('data-cat');
+      renderSide(c);
+      renderGallery(c, document.getElementById('gallerySearch').value);
+    });
+  });
+}
+
+// State controls
+function setActiveTab(scope, key) {
+  scope.querySelectorAll('[data-rptab],[data-lptab]').forEach(el => el.classList.remove('active'));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
+
+  // Left panel tabs
+  document.querySelectorAll('.lp-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.lp-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const k = t.getAttribute('data-lptab');
+      document.getElementById('lp-layers').style.display = k === 'layers' ? '' : 'none';
+      document.getElementById('lp-assets').style.display = k === 'assets' ? '' : 'none';
+      if (window.lucide) lucide.createIcons();
+    });
+  });
+
+  // Right panel tabs
+  document.querySelectorAll('.rp-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.rp-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const k = t.getAttribute('data-rptab');
+      document.querySelectorAll('.tab-pane').forEach(p => {
+        p.classList.toggle('active', p.getAttribute('data-pane') === k);
+      });
+      if (window.lucide) lucide.createIcons();
+    });
+  });
+
+  // Gallery modal
+  const modal = document.getElementById('galleryModal');
+  function openGallery() {
+    modal.classList.add('open');
+    renderSide("All");
+    renderGallery("All", "");
+    if (window.lucide) lucide.createIcons();
+  }
+  function closeGallery() { modal.classList.remove('open'); }
+  document.getElementById('openGalleryBtn').addEventListener('click', openGallery);
+  document.getElementById('openGalleryBtn2').addEventListener('click', openGallery);
+  document.getElementById('closeGalleryBtn').addEventListener('click', closeGallery);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeGallery(); });
+  document.getElementById('gallerySearch').addEventListener('input', (e) => {
+    const activeCat = document.querySelector('.gs-item.active')?.getAttribute('data-cat') || "All";
+    renderGallery(activeCat, e.target.value);
+  });
+
+  // Dropdowns
+  function setupDropdown(btnId, ddId) {
+    const btn = document.getElementById(btnId);
+    const dd = document.getElementById(ddId);
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.dropdown, .popover').forEach(d => { if (d !== dd) d.classList.remove('open'); });
+      dd.classList.toggle('open');
+    });
+    dd.addEventListener('click', (e) => e.stopPropagation());
+  }
+  setupDropdown('newFrameBtn', 'newFrameDD');
+  setupDropdown('moreBtn', 'moreDD');
+  setupDropdown('settingsBtn', 'settingsPop');
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown, .popover').forEach(d => d.classList.remove('open'));
+  });
+
+  // Zoom controls (visual only)
+  const stage = document.getElementById('stage');
+  let zoom = 0.42;
+  let panX = 0, panY = -10;
+  function applyTransform() {
+    stage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    document.getElementById('zoomLabel').textContent = Math.round(zoom * 100) + '%';
+  }
+  applyTransform();
+  document.getElementById('zoomIn').addEventListener('click', () => { zoom = Math.min(2, zoom + 0.1); applyTransform(); });
+  document.getElementById('zoomOut').addEventListener('click', () => { zoom = Math.max(0.15, zoom - 0.1); applyTransform(); });
+  document.getElementById('fitAll').addEventListener('click', () => { zoom = 0.35; panX = 0; panY = -10; applyTransform(); });
+  document.getElementById('goFocus').addEventListener('click', () => { zoom = 0.7; panX = -20; panY = -30; applyTransform(); });
+
+  // State strip toggles
+  document.querySelectorAll('.state-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.state-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const s = b.getAttribute('data-state');
+      if (s === 'canvas') { zoom = 0.42; panX = 0; panY = -10; applyTransform(); }
+      if (s === 'focus') { zoom = 0.75; panX = -20; panY = -30; applyTransform(); }
+      if (s === 'boot') { zoom = 0.85; panX = -50; panY = -650; applyTransform(); }
+      if (s === 'gallery') { openGallery(); }
+      if (window.lucide) lucide.createIcons();
+    });
+  });
+
+  // Click frames in canvas to select
+  document.querySelectorAll('.frame').forEach(f => {
+    f.addEventListener('click', (e) => {
+      document.querySelectorAll('.frame').forEach(x => x.classList.remove('selected'));
+      f.classList.add('selected');
+    });
+  });
+
+  // Click layers to "select"
+  document.querySelectorAll('.layer').forEach(l => {
+    l.addEventListener('click', () => {
+      document.querySelectorAll('.layer').forEach(x => x.classList.remove('active'));
+      l.classList.add('active');
+    });
+  });
+
+  // Mobile preview
+  const mobile = document.getElementById('mobile');
+  document.getElementById('showMobile').addEventListener('click', () => mobile.classList.add('open'));
+  document.getElementById('closeMobile').addEventListener('click', () => mobile.classList.remove('open'));
+
+  // Re-render lucide after any DOM toggle
+  if (window.lucide) lucide.createIcons();
+});
+</script>
+</body>
+</html>
