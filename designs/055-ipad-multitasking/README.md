@@ -1,0 +1,13 @@
+# 055 — iPad multitasking
+
+## Thesis
+
+WordPress Playground is reimagined as an iPadOS multitasking environment. The WordPress iframe is the **primary app** taking the full canvas. Every other surface — Files, Blueprint, Logs, Database, Settings — is the **secondary app** in **Split View** next to it, swapped via the iPadOS three-dot pull-tab at the top of each pane. A draggable centre divider with snap zones at 30/50/70/100% lets you bias either pane. The Saved Playgrounds launcher and full 43-blueprint gallery arrive as a **Slide Over** card that floats over the canvas. Your saved playgrounds live in a frosted **Dock** along the bottom edge — tap to switch sites the way iPadOS switches apps. The top bar is the iPadOS status bar: name, address bar, time, and a control-centre tile for quick settings.
+
+## What I remixed / merged / removed
+
+The Site Manager's five tabs are **merged into the Split View pane chooser** — the same Settings / Files / Blueprint / Database / Logs content, but invoked via the multitasking pull-tab menu instead of via a sidebar tab strip, so there's only one place to swap secondary content. The "Saved Playgrounds" panel and the Site Manager's header (WP Admin, Homepage, additional-actions, title rename) are **merged into the Slide Over card** so the launcher and the per-site management surfaces share one transient overlay. "Apply Settings & Reset Playground" becomes a single confirm-sheet because, on iPadOS, destructive action sheets are how this is communicated. **Three settings entry points are collapsed into one** Control Centre tile in the status bar. Nothing is removed — every flow (Import .zip, WordPress PR, Gutenberg PR, From GitHub, Blueprint URL, Export to GitHub PR, Download .zip, search/filter the 43 blueprints, edit blueprint JSON, browse files, debug logs, browse DB, save locally, resume saved) is reachable from either the status bar, the pull-tab menu, the Slide Over card, or the Dock.
+
+## Trade-offs
+
+The metaphor leans hard on iPadOS literacy — first-time desktop visitors may not immediately understand that the grey pill at the top of a pane is the pane-swap affordance, so I labeled it on hover and on first launch. The Split View only shows one secondary pane at a time, so you can't see Files and Logs simultaneously — that's true on real iPadOS, and on smaller breakpoints I trade Split View for a Slide-Over secondary panel instead. The Dock metaphor scales gracefully to 8–10 saved sites but would feel cramped past that; an overflow chevron handles the long tail. On mobile (390×844) the metaphor degrades to a single primary app with the secondary surfaces in a bottom sheet, which is essentially iPhone behaviour — a deliberate, recognisable fallback.
