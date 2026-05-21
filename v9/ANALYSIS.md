@@ -1,11 +1,11 @@
 # V9 Analysis
 
-The v7 reference had the right core idea: quiet rail plus visual depth can reduce the Playground shell around the iframe. Its weak points were duplicated site identity, too many rail targets, blur doing too much work, and mobile overflow risk.
+The first V9 pass failed because it reused one shell and mostly changed color. This rebuild treats the v7 quiet rail as one possible answer, not the answer.
 
-V9 keeps the structure and changes the execution:
+The twenty proposals now cover different product theses:
 
-- Two rail doors only: Sites and Site Manager.
-- Persistent current-status widget is the single active-site identity.
-- One secondary pane swaps Sites and Manager content.
-- The full blueprint library and destructive reset confirmation are deeper temporary layers.
-- The twenty proposals differ by interaction framing, density, panel placement, and visual system rather than just color.
+- Live canvas, split launchpad, command center, right inspector, library stage, saved-site shelf.
+- Terminal/debug, notebook, boot timeline, mobile-native sheet, spatial map, browser tabs.
+- Files/database workbench, settings wizard, presentation frame, review rail, search launcher, compact utility, route map, and reset recovery.
+
+The common contract is preserved so the alternatives can be compared on workflow quality rather than feature gaps.

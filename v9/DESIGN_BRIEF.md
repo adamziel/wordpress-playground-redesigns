@@ -1,16 +1,14 @@
 # WordPress Playground Redesigns V9
 
-V9 revamps the V7 quiet-rail/depth-tier direction into twenty alternatives.
+V9 is rebuilt as twenty structural alternatives, not one design with twenty palettes.
 
-## Non-negotiables
+## Differentiation Bar
 
-- The live WordPress surface is a real iframe and remains the dominant surface.
-- Idle controls are limited to refresh, address/path, save, focus, Sites, Site Manager, and current status.
-- Sites, saved playgrounds, launch routes, and blueprint discovery share one Sites pane.
-- Site Manager features share one Manager pane: Settings, Files, Blueprint, Database, Logs, WP Admin, Homepage, Export PR, Download zip, and reset escalation.
-- Library and destructive reset are the only top-layer overlays.
-- Mobile uses bottom rail and full-width panes without horizontal overflow.
+Each proposal must change at least two of these: first viewport composition, default state, primary workflow, navigation model, secondary surface placement, or reset/library handling.
 
-## Review URL
+## Shared Product Contract
 
-https://adamziel.github.io/wordpress-playground-redesigns/v9/
+- Real live iframe.
+- Sparse persistent controls.
+- Saved Playgrounds, six start routes, blueprint discovery, Site Manager, settings, files, blueprint editor, database, logs, export/download, and reset recovery.
+- Mobile screenshots must not overflow horizontally.
