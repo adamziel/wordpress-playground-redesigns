@@ -1,0 +1,13 @@
+# V3 Design 049 - Saved Identity Inspector
+
+## Thesis
+This design treats WordPress Playground as a live browser tab with a precise, collapsible inspector attached. The first viewport keeps the real iframe central, while the top bar carries the strongest product signals: editable path, refresh, Save, a yellow unsaved warning, Saved Playgrounds, Site Manager, settings, and focus mode. The assigned saved-identity variation is handled as a first-class workflow: unsaved state explains reload loss, saving shows progress, the active name changes, a saved row appears, and saved rows expose resume, rename, and delete actions.
+
+## Remix / Merge / Remove Choices
+I kept the DevTools-style inspector from the strongest inspector direction, but collapsed it by default so the live WordPress site remains the product rather than a preview trapped beside tools. The gear button routes into the same Settings tab as Site Manager instead of creating a second settings form. The Saved Playgrounds launcher merges start routes, featured blueprints, full gallery, and local saved rows, but each route uses a concrete input: PR number or URL, Gutenberg PR or branch, GitHub repo/ref/path, Blueprint URL, and a real ZIP file input. Files, Blueprint, Database, and Logs remain explicit inspector tabs, with Database and Logs not buried under a generic More bucket.
+
+## Trade-offs
+The inspector model is strongest for developers, testers, and blueprint authors, so the default state keeps it as a narrow rail rather than a permanent dock. Opening the launcher shows a lot of route machinery, but that cost is intentional because V3 feedback repeatedly rejected generic route tiles. The design avoids adding non-brief database utilities and sticks to the current early-access browser. On mobile, the inspector becomes a bottom sheet and the bottom nav exposes Start, Files, Data, and Settings directly; this loses simultaneous site-plus-code visibility, but the focus mode restores a nearly full-size site with Save, path, WP Admin, Homepage, and Exit controls.
+
+## Self-Critique / Revision Note
+After checking `v3/INSIGHTS.md` and the audit notes, I revised the concept away from a dense always-open DevTools panel. The final pass keeps the iframe large, uses an actual `<iframe>` with mocked WordPress content, adds a real ZIP upload control, makes Apply & Reset require a typed confirmation, and shows save/reset consequences through progress, identity changes, rows, loading, and toasts. The remaining risk is first-open density in the launcher; the route forms are intentionally explicit, but a production build could progressively expand only the selected route.
