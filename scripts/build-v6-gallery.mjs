@@ -86,6 +86,40 @@ ${designs
       </div>`;
 }
 
+function renderSidebar(designs) {
+  if (designs.length === 0) {
+    return `<aside class="browser-sidebar" aria-label="Design browser">
+      <div class="browser-head">
+        <a class="browser-brand" href="../">Playground Redesigns</a>
+        <span>V6</span>
+      </div>
+      <div class="browser-empty">Designs will appear here as they integrate.</div>
+    </aside>`;
+  }
+
+  return `<aside class="browser-sidebar" aria-label="Design browser">
+    <div class="browser-head">
+      <a class="browser-brand" href="../">Playground Redesigns</a>
+      <span>V6</span>
+    </div>
+    <label class="browser-search">
+      <span>Filter designs</span>
+      <input id="designSearch" type="search" autocomplete="off" placeholder="Search title or number">
+    </label>
+    <nav class="browser-list" aria-label="Jump to design">
+${designs
+  .map((design) => {
+    const n = String(design.num).padStart(3, '0');
+    return `      <a class="browser-link" href="#v6-${n}" data-design-link data-filter-text="${esc(`${n} ${design.title} ${design.summary}`)}">
+        <span class="browser-num">${n}</span>
+        <span class="browser-title">${esc(design.title)}</span>
+      </a>`;
+  })
+  .join('\n')}
+    </nav>
+  </aside>`;
+}
+
 function renderIndex(designs) {
   const count = designs.length;
   return `<!doctype html>
@@ -104,6 +138,7 @@ function renderIndex(designs) {
       --panel: #fff;
       --accent: #3858e9;
       --accent-dark: #1f3fb8;
+      --sidebar: 292px;
     }
     * { box-sizing: border-box; }
     body {
@@ -111,6 +146,117 @@ function renderIndex(designs) {
       background: var(--bg);
       color: var(--fg);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+    .browser-sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      width: var(--sidebar);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 16px 14px;
+      background: rgba(255, 255, 255, 0.94);
+      border-right: 1px solid var(--line);
+      box-shadow: 10px 0 30px rgba(17, 21, 26, 0.06);
+      backdrop-filter: blur(18px);
+    }
+    .browser-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 2px 8px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .browser-brand {
+      color: var(--fg);
+      font-size: 13px;
+      font-weight: 760;
+      text-transform: none;
+    }
+    .browser-search {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+    .browser-search input {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--fg);
+      padding: 8px 10px;
+      font: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+    .browser-search input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 88, 233, 0.14);
+    }
+    .browser-list {
+      min-width: 0;
+      max-width: 100%;
+      display: grid;
+      gap: 4px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .browser-link {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 6px 8px;
+      color: #2b333c;
+      font-size: 13px;
+      font-weight: 620;
+    }
+    .browser-link:hover {
+      background: #f2f5f9;
+      color: var(--accent-dark);
+    }
+    .browser-link.active {
+      border-color: rgba(56, 88, 233, 0.28);
+      background: rgba(56, 88, 233, 0.1);
+      color: var(--accent-dark);
+    }
+    .browser-num {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-weight: 760;
+    }
+    .browser-link.active .browser-num {
+      color: var(--accent-dark);
+    }
+    .browser-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .browser-empty {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .page-shell {
+      width: calc(100vw - var(--sidebar));
+      min-width: 0;
+      margin-left: var(--sidebar);
+      overflow-x: hidden;
     }
     header.page {
       background: rgba(255, 255, 255, 0.92);
@@ -132,10 +278,13 @@ function renderIndex(designs) {
       padding: 28px 0 22px;
     }
     h1 {
+      max-width: 100%;
       margin: 0;
       font-size: clamp(28px, 4vw, 46px);
       line-height: 1.05;
       letter-spacing: 0;
+      overflow-wrap: break-word;
+      text-wrap: balance;
     }
     .lede {
       max-width: 1040px;
@@ -258,38 +407,89 @@ function renderIndex(designs) {
       .wrap { padding: 0 10px; }
       .preview-wrap { padding: 0; }
       .hero { padding: 24px 0 18px; }
+      h1 { font-size: 29px; }
       .toolbar { flex-direction: column; align-items: flex-start; padding: 0 10px; }
       .design-card > header { min-height: 0; flex-direction: column; }
       .frame-wrap { height: 244px; }
     }
+    @media (max-width: 980px) {
+      .browser-sidebar {
+        position: sticky;
+        top: 0;
+        width: 100%;
+        height: auto;
+        max-height: 158px;
+        padding: 10px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        box-shadow: 0 8px 22px rgba(17, 21, 26, 0.08);
+        overflow: hidden;
+      }
+      .browser-head {
+        padding: 0;
+        border-bottom: 0;
+      }
+      .browser-search {
+        display: none;
+      }
+      .browser-list {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 0 0 3px;
+      }
+      .browser-link {
+        grid-template-columns: auto;
+        min-width: 74px;
+        min-height: 36px;
+        justify-items: center;
+        padding: 6px 8px;
+      }
+      .browser-title {
+        display: none;
+      }
+      .page-shell {
+        width: 100%;
+        margin-left: 0;
+      }
+      header.page {
+        position: static;
+      }
+    }
   </style>
 </head>
 <body>
-  <header class="page">
-    <div class="wrap hero">
-      <h1>WordPress Playground Redesigns V6</h1>
-      <p class="lede">Forty additional redesigns guided by the V5 feedback: quiet-rail IA without the old skin, smart-resize interaction, Sites-widget expansion, and professional visual variety from TypeUI style skills. Each preview spans the page and renders with a desktop-width iframe viewport so layouts are not forced into mobile mode.</p>
-      <div class="meta">
-        <span class="pill">${count} / 40 V6 designs</span>
-        <span class="pill">V5 feedback-led design families</span>
-        <span class="pill">TypeUI-informed visual variety</span>
-        <span class="pill">Static HTML/CSS/JS</span>
+  ${renderSidebar(designs)}
+  <div class="page-shell">
+    <header class="page">
+      <div class="wrap hero">
+        <h1>WordPress Playground Redesigns V6</h1>
+        <p class="lede">Forty additional redesigns guided by the V5 feedback: quiet-rail IA without the old skin, smart-resize interaction, Sites-widget expansion, and professional visual variety from TypeUI style skills. Each preview spans the page and renders with a desktop-width iframe viewport so layouts are not forced into mobile mode.</p>
+        <div class="meta">
+          <span class="pill">${count} / 40 V6 designs</span>
+          <span class="pill">V5 feedback-led design families</span>
+          <span class="pill">TypeUI-informed visual variety</span>
+          <span class="pill">Static HTML/CSS/JS</span>
+        </div>
       </div>
-    </div>
-  </header>
-  <main>
-    <div class="wrap preview-wrap">
-      <div class="toolbar">
-        <strong>Full-Width Iframe Preview Gallery</strong>
-        <nav>
-          <a href="../">Original gallery</a>
-          <a href="INSIGHTS.md">V6 insights</a>
-          <a href="data/designs.json">V6 registry</a>
-        </nav>
+    </header>
+    <main>
+      <div class="wrap preview-wrap">
+        <div class="toolbar">
+          <strong>Full-Width Iframe Preview Gallery</strong>
+          <nav>
+            <a href="../">Original gallery</a>
+            <a href="INSIGHTS.md">V6 insights</a>
+            <a href="data/designs.json">V6 registry</a>
+          </nav>
+        </div>
+        ${renderCards(designs)}
       </div>
-      ${renderCards(designs)}
-    </div>
-  </main>
+    </main>
+  </div>
   <script>
     const previewWidth = 1440;
     const previewHeight = 900;
@@ -311,6 +511,38 @@ function renderIndex(designs) {
     window.addEventListener('resize', fitAllPreviews, { passive: true });
     window.addEventListener('load', fitAllPreviews);
     fitAllPreviews();
+
+    const designLinks = Array.from(document.querySelectorAll('[data-design-link]'));
+    const designSearch = document.getElementById('designSearch');
+    const designSections = designLinks
+      .map((link) => document.getElementById(link.getAttribute('href').slice(1)))
+      .filter(Boolean);
+
+    function setActiveDesign(id) {
+      designLinks.forEach((link) => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+      });
+    }
+
+    if (designSections.length > 0) {
+      setActiveDesign(designSections[0].id);
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveDesign(visible.target.id);
+      }, { rootMargin: '-20% 0px -55% 0px', threshold: [0.08, 0.2, 0.4, 0.6] });
+      designSections.forEach((section) => observer.observe(section));
+    }
+
+    if (designSearch) {
+      designSearch.addEventListener('input', () => {
+        const query = designSearch.value.trim().toLowerCase();
+        designLinks.forEach((link) => {
+          link.hidden = query.length > 0 && !link.dataset.filterText.toLowerCase().includes(query);
+        });
+      });
+    }
   </script>
 </body>
 </html>
