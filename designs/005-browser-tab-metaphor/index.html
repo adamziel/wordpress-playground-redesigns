@@ -1,0 +1,2167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WordPress Playground — Browser-tab metaphor (#005)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+:root {
+  /* Chrome-y chrome */
+  --chrome-bg: #dde1e6;
+  --chrome-bg-dark: #c8ced6;
+  --chrome-edge: #b6bdc6;
+  --chrome-surface: #ffffff;
+  --chrome-tab-inactive: #c4cad3;
+  --chrome-tab-hover: #d0d6de;
+  --chrome-tab-active: #ffffff;
+  --chrome-url-bg: #ecf0f4;
+  --chrome-url-border: #cfd5dd;
+
+  /* WordPress + Playground */
+  --wp-blue: #3858e9;
+  --wp-blue-dark: #2842c6;
+  --wp-ink: #0b1320;
+  --wp-ink-soft: #2b3447;
+  --wp-muted: #5b6577;
+  --wp-muted-2: #8590a2;
+  --wp-line: #e3e6ec;
+  --wp-line-soft: #eef0f4;
+  --wp-bg: #f4f5f8;
+  --wp-success: #1f8a3a;
+  --wp-warn: #ad6b00;
+  --wp-danger: #c4361b;
+
+  /* DevTools */
+  --dt-bg: #1e2230;
+  --dt-bg-2: #262b3b;
+  --dt-line: #353c52;
+  --dt-text: #d6dae7;
+  --dt-text-dim: #8b94ad;
+  --dt-accent: #6b8cff;
+  --dt-green: #6ee7a8;
+  --dt-yellow: #facc6c;
+  --dt-red: #ff8b8b;
+
+  --radius-tab: 10px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(15,22,40,.08);
+  --shadow-md: 0 6px 24px rgba(15,22,40,.10), 0 2px 6px rgba(15,22,40,.06);
+  --shadow-lg: 0 24px 56px rgba(15,22,40,.18), 0 4px 12px rgba(15,22,40,.08);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #c2c8d2;
+  color: var(--wp-ink);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.45;
+  padding: 28px 28px 80px;
+}
+
+.page-intro {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  color: #2b3447;
+  font-size: 12.5px;
+}
+.page-intro .badge {
+  background: #0b1320;
+  color: #fff;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  font-size: 11px;
+}
+.page-intro .dot { width: 4px; height: 4px; border-radius: 50%; background: #6b7383; }
+.page-intro a { color: #2842c6; text-decoration: none; border-bottom: 1px dotted #2842c6; }
+
+/* ---------- The faux browser window ---------- */
+.window {
+  max-width: 1280px;
+  margin: 0 auto 36px;
+  background: var(--chrome-bg);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  border: 1px solid var(--chrome-edge);
+  border-top: 1px dotted #9aa3b1; /* "this isn't your real browser" hint */
+}
+
+/* ---- top-most strip: traffic lights + tabs + window controls ---- */
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 10px 0 12px;
+  gap: 8px;
+  background: linear-gradient(to bottom, var(--chrome-bg-dark) 0%, var(--chrome-bg) 100%);
+}
+.traffic { display: flex; gap: 7px; }
+.traffic span {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.12);
+}
+.traffic .r { background: #ff605c; }
+.traffic .y { background: #ffbd44; }
+.traffic .g { background: #00ca4e; }
+
+.tabstrip {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 38px;
+  padding-top: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-left: 6px;
+}
+.tabstrip::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px 0 12px;
+  min-width: 0;
+  max-width: 220px;
+  font-size: 12.5px;
+  color: var(--wp-ink-soft);
+  background: var(--chrome-tab-inactive);
+  border-radius: var(--radius-tab) var(--radius-tab) 0 0;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  font-weight: 500;
+  transition: background .12s;
+}
+.tab:hover { background: var(--chrome-tab-hover); }
+.tab.active {
+  background: var(--chrome-tab-active);
+  color: var(--wp-ink);
+  box-shadow: 0 -1px 0 #cfd5dd inset, 1px 0 0 #cfd5dd, -1px 0 0 #cfd5dd;
+  z-index: 2;
+}
+.tab.active::after {
+  /* the "merge into toolbar" curve, simulated */
+  content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #fff;
+}
+.tab .favicon {
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  flex: none;
+}
+.tab .label {
+  overflow: hidden; text-overflow: ellipsis;
+}
+.tab .close {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--wp-muted);
+  margin-right: -4px;
+  flex: none;
+  opacity: .55;
+}
+.tab .close:hover { background: rgba(0,0,0,.08); opacity: 1; }
+.tab .pin { color: var(--wp-blue); }
+.tab.dirty .favicon::after {
+  content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--wp-warn); border: 2px solid #fff;
+  transform: translate(8px,-8px);
+}
+.tab .favicon { position: relative; }
+.tab .spinner {
+  width: 12px; height: 12px;
+  border: 2px solid #c8d0db; border-top-color: var(--wp-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.tab.newtab {
+  width: 32px; min-width: 32px; padding: 0;
+  justify-content: center; background: transparent;
+  color: var(--wp-muted);
+  border-radius: 999px;
+  align-self: center;
+  height: 26px;
+}
+.tab.newtab:hover { background: rgba(0,0,0,.06); color: var(--wp-ink); }
+
+.window-controls {
+  display: flex; gap: 6px;
+  color: var(--wp-muted-2);
+  padding-left: 6px;
+}
+.window-controls .iconbtn { padding: 4px; border-radius: 6px; }
+.window-controls .iconbtn:hover { background: rgba(0,0,0,.06); color: var(--wp-ink); }
+.tab-search {
+  width: 26px; height: 22px;
+  border-radius: 6px; background: rgba(0,0,0,.04);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--wp-muted);
+  margin-right: 4px;
+}
+.tab-search:hover { background: rgba(0,0,0,.10); color: var(--wp-ink); }
+
+/* ---- toolbar: nav buttons + URL/omnibox + chips + overflow ---- */
+.toolbar {
+  display: flex; align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-edge);
+}
+.navbtn {
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--wp-ink-soft);
+  cursor: pointer;
+}
+.navbtn:hover { background: rgba(0,0,0,.06); }
+.navbtn.disabled { color: #9aa3b1; cursor: default; }
+.navbtn.disabled:hover { background: transparent; }
+
+.url-bar {
+  flex: 1;
+  height: 34px;
+  display: flex; align-items: center;
+  background: var(--chrome-url-bg);
+  border-radius: 999px;
+  padding: 0 8px 0 8px;
+  gap: 8px;
+  border: 1px solid var(--chrome-url-border);
+  position: relative;
+  min-width: 0;
+}
+.url-bar:focus-within {
+  background: #fff; border-color: var(--wp-blue);
+  box-shadow: 0 0 0 3px rgba(56,88,233,.18);
+}
+.url-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff;
+  border: 1px solid #d0d6de;
+  border-radius: 999px;
+  padding: 3px 9px 3px 7px;
+  font-size: 11.5px;
+  color: var(--wp-ink-soft);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.url-chip:hover { border-color: var(--wp-blue); color: var(--wp-blue); }
+.url-chip .dot-green { width: 7px; height: 7px; border-radius: 50%; background: var(--wp-success); }
+.url-chip .dot-warn { width: 7px; height: 7px; border-radius: 50%; background: var(--wp-warn); }
+.url-chip .dot-blue { width: 7px; height: 7px; border-radius: 50%; background: var(--wp-blue); }
+
+.url-input {
+  flex: 1; min-width: 0;
+  border: none; background: transparent; outline: none;
+  font: inherit; font-size: 13px;
+  color: var(--wp-ink);
+  padding: 4px 4px;
+}
+.url-input::placeholder { color: var(--wp-muted-2); }
+.url-bar .scheme {
+  color: var(--wp-success); font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.url-bar .path-host {
+  color: var(--wp-muted); font-size: 13px;
+}
+.url-bar .submit {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--wp-blue); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+.url-bar .submit:hover { background: var(--wp-blue-dark); }
+
+.actions {
+  display: flex; align-items: center; gap: 4px;
+}
+.actions .iconbtn {
+  width: 30px; height: 30px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--wp-ink-soft); cursor: pointer;
+  position: relative;
+}
+.actions .iconbtn:hover { background: rgba(0,0,0,.06); }
+.actions .iconbtn.has-badge::after {
+  content: ""; position: absolute; top: 4px; right: 4px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--wp-blue); border: 2px solid var(--chrome-bg);
+}
+.save-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--wp-blue); color: #fff;
+  border: none;
+  font: inherit; font-weight: 600; font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.save-btn:hover { background: var(--wp-blue-dark); }
+.save-btn.saved {
+  background: #fff;
+  color: var(--wp-success);
+  border: 1px solid #bfe2c8;
+}
+.profile-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #d0d6de;
+  color: var(--wp-ink-soft);
+  font-weight: 600;
+  font-size: 12px;
+}
+.profile-pill .av {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: linear-gradient(135deg, #3858e9, #7c4dff);
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
+
+/* ---- bookmarks bar = blueprints ---- */
+.bookmarks {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 10px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-edge);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bookmarks::-webkit-scrollbar { display: none; }
+.bm {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--wp-ink-soft);
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 500;
+}
+.bm:hover { background: rgba(0,0,0,.06); }
+.bm .ico {
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+.bm-folder { color: var(--wp-muted); }
+.bm-sep { width: 1px; height: 18px; background: var(--chrome-edge); margin: 0 4px; }
+.bm-import {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--wp-blue);
+  padding: 4px 8px; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.bm-import:hover { background: rgba(56,88,233,.08); }
+
+/* ---- the iframe (content area) ---- */
+.content {
+  position: relative;
+  height: 640px;
+  background: #fff;
+  display: flex;
+}
+.iframe-stage {
+  flex: 1; position: relative;
+  background: #fff;
+  display: flex; flex-direction: column;
+}
+.iframe-stage iframe, .iframe-stage .iframe {
+  flex: 1;
+  background:
+    radial-gradient(circle at 20% 0%, #f3f4ff 0%, transparent 40%),
+    radial-gradient(circle at 90% 30%, #fff0f0 0%, transparent 40%),
+    #fbfbfd;
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* in-iframe WordPress mockup */
+.wp-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.wp-admin-bar {
+  height: 32px;
+  background: #1d2327;
+  color: #c3c4c7;
+  display: flex; align-items: center;
+  padding: 0 12px;
+  gap: 16px;
+  font-size: 12px;
+}
+.wp-admin-bar .wp-logo { color: #fff; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.wp-admin-bar .wp-item { color: #c3c4c7; font-size: 12px; }
+.wp-admin-bar .right { margin-left: auto; display: flex; gap: 14px; }
+
+.wp-body {
+  flex: 1; padding: 56px 80px;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.wp-body h1 {
+  font-size: 44px;
+  margin: 0 0 12px;
+  font-weight: 700;
+  color: #1d2327;
+  letter-spacing: -0.01em;
+}
+.wp-body .meta-line {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px; color: #6b6f76;
+  margin-bottom: 24px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.wp-body .lede {
+  font-size: 18px; line-height: 1.65; color: #2c3338;
+  max-width: 640px;
+}
+.wp-body .lede + .lede { margin-top: 16px; font-size: 15.5px; color: #50575e; }
+.wp-body .post-grid {
+  margin-top: 36px;
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 720px;
+}
+.wp-body .post-card {
+  border-top: 2px solid #1d2327;
+  padding-top: 12px;
+}
+.wp-body .post-card h3 {
+  margin: 0 0 6px; font-size: 18px; color: #1d2327;
+  font-weight: 700;
+}
+.wp-body .post-card p { font-family: 'Inter', sans-serif; font-size: 13px; color: #50575e; margin: 0; }
+
+/* loading overlay */
+.loading-overlay {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px;
+  backdrop-filter: blur(2px);
+  z-index: 5;
+}
+.loading-overlay.hidden { display: none; }
+.loading-overlay .progress {
+  width: 240px; height: 6px; border-radius: 999px;
+  background: #e8eaf0; overflow: hidden;
+}
+.loading-overlay .progress .bar {
+  width: 64%; height: 100%; background: linear-gradient(90deg, #3858e9, #7c4dff);
+  border-radius: 999px;
+}
+.loading-overlay .label { font-size: 13px; color: var(--wp-ink-soft); font-weight: 500; }
+.loading-overlay .step-list {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--wp-muted);
+  text-align: left;
+  list-style: none; padding: 0; margin: 0;
+}
+.loading-overlay .step-list li { margin: 3px 0; display: flex; gap: 8px; }
+.loading-overlay .step-list li.done { color: var(--wp-success); }
+.loading-overlay .step-list li.active { color: var(--wp-blue); }
+
+/* ---- "DevTools" bottom drawer ---- */
+.devtools {
+  background: var(--dt-bg);
+  color: var(--dt-text);
+  border-top: 1px solid var(--dt-line);
+  display: flex;
+  flex-direction: column;
+  height: 280px;
+  font-size: 12.5px;
+}
+.dt-tabbar {
+  display: flex; align-items: center;
+  background: var(--dt-bg-2);
+  border-bottom: 1px solid var(--dt-line);
+  padding: 0 6px;
+  gap: 2px;
+  flex: none;
+  height: 36px;
+}
+.dt-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dt-text-dim);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dt-tab:hover { color: var(--dt-text); }
+.dt-tab.active { color: var(--dt-text); border-bottom-color: var(--dt-accent); }
+.dt-tab .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  background: rgba(255,255,255,.07);
+  padding: 1px 6px; border-radius: 999px;
+  color: var(--dt-text-dim);
+}
+.dt-tab.active .count { background: rgba(107,140,255,.2); color: var(--dt-accent); }
+.dt-actions {
+  margin-left: auto;
+  display: flex; gap: 4px; padding-right: 8px;
+}
+.dt-actions .iconbtn {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--dt-text-dim); cursor: pointer;
+}
+.dt-actions .iconbtn:hover { background: rgba(255,255,255,.06); color: var(--dt-text); }
+.dt-actions .iconbtn.close:hover { color: var(--dt-red); }
+
+.dt-body { flex: 1; min-height: 0; display: flex; }
+.dt-pane { display: none; flex: 1; min-height: 0; }
+.dt-pane.active { display: flex; }
+
+/* file browser */
+.fb-tree {
+  width: 240px;
+  border-right: 1px solid var(--dt-line);
+  background: #181c28;
+  overflow: auto;
+  padding: 6px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.fb-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 12px 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--dt-text);
+}
+.fb-row:hover { background: rgba(255,255,255,.04); }
+.fb-row.selected { background: rgba(107,140,255,.16); color: #fff; }
+.fb-row.depth-1 { padding-left: 18px; }
+.fb-row.depth-2 { padding-left: 32px; }
+.fb-row.depth-3 { padding-left: 46px; }
+.fb-row .ico { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; color: var(--dt-text-dim); }
+.fb-row.folder .ico { color: var(--dt-yellow); }
+.fb-row.php .ico { color: #b07cff; }
+.fb-row.json .ico { color: var(--dt-green); }
+.fb-row.css .ico { color: #6cb8ff; }
+.fb-row.js .ico { color: var(--dt-yellow); }
+
+.fb-toolbar {
+  padding: 6px 8px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid var(--dt-line);
+}
+.fb-toolbar button {
+  background: rgba(255,255,255,.06); color: var(--dt-text);
+  border: none; padding: 4px 10px; font: inherit; font-size: 11.5px;
+  border-radius: 5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.fb-toolbar button:hover { background: rgba(255,255,255,.12); }
+
+.fb-editor {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+}
+.fb-editor-head {
+  display: flex; align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dt-line);
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--dt-text-dim);
+  font-size: 11.5px;
+  gap: 10px;
+}
+.fb-editor-head .filepath { color: var(--dt-text); }
+.fb-editor-head .lang { background: rgba(107,140,255,.16); color: var(--dt-accent); padding: 1px 7px; border-radius: 4px; font-size: 10px; }
+.fb-editor-body {
+  flex: 1; min-height: 0;
+  display: flex;
+  overflow: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: #14171f;
+}
+.fb-gutter {
+  background: #14171f;
+  color: #4a546b;
+  padding: 8px 8px;
+  text-align: right;
+  user-select: none;
+  flex: none;
+  min-width: 36px;
+}
+.fb-gutter div { height: 1.55em; }
+.fb-code {
+  flex: 1; padding: 8px 12px;
+  white-space: pre;
+  color: var(--dt-text);
+  line-height: 1.55;
+}
+.kw { color: #ff86c1; }
+.fn { color: var(--dt-accent); }
+.str { color: var(--dt-green); }
+.cmt { color: #6c7593; font-style: italic; }
+.num { color: var(--dt-yellow); }
+.var { color: #d4a8ff; }
+
+/* blueprint editor */
+.bp-editor { display: flex; flex: 1; min-height: 0; }
+.bp-side {
+  width: 220px;
+  border-right: 1px solid var(--dt-line);
+  background: #181c28;
+  display: flex; flex-direction: column;
+}
+.bp-side .head { padding: 8px 10px; font-size: 11px; color: var(--dt-text-dim); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--dt-line); }
+.bp-side .files {
+  flex: 1; overflow: auto; padding: 4px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.bp-side .actions {
+  border-top: 1px solid var(--dt-line);
+  padding: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.bp-side .actions button {
+  background: rgba(255,255,255,.06); color: var(--dt-text);
+  border: none; padding: 6px 8px; font: inherit; font-size: 11.5px;
+  border-radius: 5px; cursor: pointer; text-align: left;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.bp-side .actions button:hover { background: rgba(255,255,255,.12); }
+.bp-side .actions .run {
+  background: var(--wp-blue); color: #fff;
+}
+.bp-side .actions .run:hover { background: var(--wp-blue-dark); }
+
+/* database */
+.db-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.db-notice {
+  background: rgba(250, 204, 108, .1);
+  border-bottom: 1px solid rgba(250,204,108,.3);
+  color: var(--dt-yellow);
+  padding: 6px 12px;
+  font-size: 11.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.db-notice a { color: #ffd884; text-decoration: underline; }
+.db-tables {
+  width: 200px; border-right: 1px solid var(--dt-line);
+  background: #181c28;
+  overflow: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 6px 0;
+}
+.db-table-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 12px;
+  cursor: pointer; color: var(--dt-text);
+}
+.db-table-row:hover { background: rgba(255,255,255,.04); }
+.db-table-row.selected { background: rgba(107,140,255,.16); color: #fff; }
+.db-table-row .rows { margin-left: auto; color: var(--dt-text-dim); font-size: 10.5px; }
+.db-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.db-query {
+  border-bottom: 1px solid var(--dt-line);
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--dt-text);
+  background: #14171f;
+}
+.db-query .kw { color: #ff86c1; }
+.db-result {
+  flex: 1; overflow: auto;
+}
+.db-result table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+.db-result th {
+  position: sticky; top: 0;
+  background: #1c2031;
+  text-align: left;
+  padding: 6px 10px;
+  color: var(--dt-text-dim);
+  font-weight: 600;
+  border-bottom: 1px solid var(--dt-line);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.db-result td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  color: var(--dt-text);
+}
+
+/* logs */
+.logs-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.logs-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--dt-line);
+}
+.logs-search {
+  flex: 1;
+  background: rgba(255,255,255,.06);
+  border: 1px solid transparent;
+  color: var(--dt-text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font: inherit; font-size: 12px;
+  outline: none;
+}
+.logs-search::placeholder { color: var(--dt-text-dim); }
+.logs-search:focus { border-color: var(--dt-accent); background: #14171f; }
+.log-filter {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,.06);
+  padding: 4px 8px; border-radius: 6px;
+  font-size: 11.5px; cursor: pointer;
+}
+.log-filter.error { color: var(--dt-red); }
+.log-filter.warn { color: var(--dt-yellow); }
+.log-filter.info { color: var(--dt-accent); }
+.log-list {
+  flex: 1;
+  overflow: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 6px 0;
+}
+.log-line {
+  display: flex; gap: 12px;
+  padding: 3px 12px;
+  align-items: baseline;
+}
+.log-line:hover { background: rgba(255,255,255,.03); }
+.log-line .ts { color: var(--dt-text-dim); flex: none; }
+.log-line .lvl {
+  font-weight: 600; flex: none; width: 60px;
+}
+.log-line .lvl.err { color: var(--dt-red); }
+.log-line .lvl.warn { color: var(--dt-yellow); }
+.log-line .lvl.info { color: var(--dt-accent); }
+.log-line .lvl.dbg { color: var(--dt-text-dim); }
+.log-line .msg { color: var(--dt-text); }
+.log-line.group { color: var(--dt-text-dim); border-top: 1px solid var(--dt-line); margin-top: 6px; padding-top: 8px; font-style: italic; }
+
+/* ---- toast ---- */
+.toast-stack {
+  position: absolute;
+  bottom: 16px; left: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 9;
+  pointer-events: none;
+}
+.toast {
+  background: var(--wp-ink);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: var(--shadow-md);
+  max-width: 340px;
+  pointer-events: auto;
+}
+.toast .ico {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none;
+}
+.toast.success .ico { background: rgba(110, 231, 168, .2); color: #6ee7a8; }
+.toast.info .ico { background: rgba(107, 140, 255, .2); color: #6b8cff; }
+.toast .action { margin-left: auto; color: #8cb4ff; font-weight: 600; cursor: pointer; }
+.toast .close { color: rgba(255,255,255,.6); cursor: pointer; padding-left: 4px; }
+.toast .close:hover { color: #fff; }
+
+/* ---- "new tab" page (launcher) ---- */
+.newtab-page {
+  flex: 1;
+  padding: 32px 48px 36px;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 80% -20%, #eef2ff 0%, transparent 50%),
+    #fafbfd;
+}
+.newtab-head {
+  display: flex; align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.newtab-head .logo {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #3858e9, #7c4dff);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.newtab-head h1 {
+  font-size: 22px;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.newtab-head .subtitle {
+  color: var(--wp-muted); font-size: 13px;
+  margin-left: auto;
+}
+.newtab-omnibox {
+  display: flex; align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--wp-line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
+}
+.newtab-omnibox input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font: inherit; font-size: 14px;
+}
+.newtab-omnibox .kbd {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--wp-line-soft); border-radius: 4px;
+  padding: 2px 6px; font-size: 11px; color: var(--wp-muted);
+}
+
+.newtab-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--wp-muted);
+  margin: 20px 0 12px;
+}
+.newtab-section-title .count {
+  background: var(--wp-line-soft); color: var(--wp-muted);
+  padding: 1px 8px; border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.newtab-section-title .more {
+  margin-left: auto;
+  color: var(--wp-blue); font-weight: 600;
+  font-size: 12px; text-transform: none; letter-spacing: 0;
+  cursor: pointer;
+}
+
+.start-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+.start-tile {
+  background: #fff;
+  border: 1px solid var(--wp-line);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  cursor: pointer;
+  position: relative;
+  transition: transform .12s, border-color .12s, box-shadow .12s;
+  min-height: 96px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.start-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--wp-blue);
+  box-shadow: var(--shadow-md);
+}
+.start-tile .tile-ico {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--wp-line-soft);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--wp-ink-soft);
+}
+.start-tile.vanilla .tile-ico { background: linear-gradient(135deg, #eef2ff, #ddd6fe); color: var(--wp-blue); }
+.start-tile.wp-pr .tile-ico { background: #eef9ee; color: #1f8a3a; }
+.start-tile.gb-pr .tile-ico { background: #fff4e0; color: #ad6b00; }
+.start-tile.github .tile-ico { background: #f3f3f5; color: #24292f; }
+.start-tile.blueprint .tile-ico { background: #ffe9f3; color: #c4185d; }
+.start-tile.import .tile-ico { background: #e8f2ff; color: #1d4ed8; }
+.start-tile h4 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.start-tile p { margin: 0; color: var(--wp-muted); font-size: 11.5px; line-height: 1.4; }
+
+.your-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.your-tile {
+  display: flex; gap: 12px;
+  background: #fff;
+  border: 1px solid var(--wp-line);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  cursor: pointer;
+  align-items: flex-start;
+  transition: border-color .12s, box-shadow .12s;
+}
+.your-tile:hover { border-color: var(--wp-blue); box-shadow: var(--shadow-md); }
+.your-tile .preview {
+  width: 64px; height: 64px;
+  flex: none;
+  border-radius: var(--radius);
+  background-size: cover; background-position: center;
+  background-color: #f0f1f5;
+  position: relative;
+  overflow: hidden;
+}
+.your-tile .preview::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(56,88,233,.16), rgba(124,77,255,.10));
+}
+.your-tile .info { flex: 1; min-width: 0; }
+.your-tile .info h5 { margin: 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.your-tile .info .meta { font-size: 11px; color: var(--wp-muted); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+.your-tile .info .tag-row { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.tag {
+  display: inline-flex; align-items: center;
+  font-size: 10.5px; padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--wp-line-soft);
+  color: var(--wp-muted);
+}
+.tag.dot::before {
+  content: ""; width: 6px; height: 6px; background: var(--wp-success); border-radius: 50%; margin-right: 5px;
+}
+.tag.warn { background: #fff5dc; color: var(--wp-warn); }
+.tag.info { background: #e8efff; color: var(--wp-blue); }
+
+.blueprint-area {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 18px;
+  margin-top: 8px;
+}
+.bp-cats {
+  background: #fff;
+  border: 1px solid var(--wp-line);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  height: max-content;
+  position: sticky; top: 0;
+}
+.bp-cat {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--wp-ink-soft);
+  cursor: pointer;
+}
+.bp-cat:hover { background: var(--wp-line-soft); }
+.bp-cat.active { background: var(--wp-blue); color: #fff; font-weight: 600; }
+.bp-cat .count { margin-left: auto; font-size: 11px; color: var(--wp-muted); }
+.bp-cat.active .count { color: rgba(255,255,255,.7); }
+
+.bp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.bp-card {
+  background: #fff;
+  border: 1px solid var(--wp-line);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color .12s, box-shadow .12s;
+}
+.bp-card:hover { border-color: var(--wp-blue); box-shadow: var(--shadow-md); }
+.bp-card .thumb {
+  height: 80px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #eef2ff, #f8e8ff);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--wp-blue);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  position: relative;
+  overflow: hidden;
+}
+.bp-card .thumb.t1 { background: linear-gradient(135deg, #fde2e4, #f4d6ff); color: #c4185d; }
+.bp-card .thumb.t2 { background: linear-gradient(135deg, #ffe8d4, #ffd3a8); color: #b04a1f; }
+.bp-card .thumb.t3 { background: linear-gradient(135deg, #d4f4dd, #b3e9d8); color: #1f8a3a; }
+.bp-card .thumb.t4 { background: linear-gradient(135deg, #d4e3ff, #c8b5ff); color: #3858e9; }
+.bp-card .thumb.t5 { background: linear-gradient(135deg, #f2f3f5, #dde0e6); color: #2b3447; }
+.bp-card .thumb.t6 { background: linear-gradient(135deg, #fff3c4, #ffd285); color: #8a6500; }
+.bp-card h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.bp-card p { margin: 0; font-size: 11.5px; color: var(--wp-muted); line-height: 1.45; min-height: 2.6em; }
+.bp-card .tag-row { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* ---- popovers ---- */
+.popover {
+  position: absolute;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--wp-line);
+  z-index: 50;
+  display: none;
+}
+.popover.open { display: block; }
+.popover::before {
+  content: "";
+  position: absolute;
+  width: 12px; height: 12px;
+  background: #fff;
+  transform: rotate(45deg);
+  border-left: 1px solid var(--wp-line);
+  border-top: 1px solid var(--wp-line);
+}
+.popover.settings { width: 360px; }
+.popover.settings::before { top: -7px; right: 130px; }
+.popover.overflow { width: 280px; }
+.popover.overflow::before { top: -7px; right: 14px; }
+.popover.recently-closed { width: 320px; }
+.popover.recently-closed::before { top: -7px; left: 14px; }
+
+.po-head {
+  padding: 14px 16px 10px;
+  display: flex; align-items: center;
+  border-bottom: 1px solid var(--wp-line);
+}
+.po-head h4 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.po-head .sub { color: var(--wp-muted); font-size: 11px; margin-left: 6px; }
+.po-body { padding: 6px 10px; }
+
+.po-notice {
+  margin: 10px 12px;
+  background: #fff5dc;
+  border: 1px solid #f3d77a;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex; gap: 10px;
+  font-size: 12px;
+  color: var(--wp-warn);
+}
+.po-notice .ico { flex: none; color: #b8851e; }
+.po-notice .text { flex: 1; }
+.po-notice .save-here {
+  background: var(--wp-blue); color: #fff;
+  border: none; padding: 5px 10px; border-radius: 6px;
+  font: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer; margin-top: 6px;
+}
+
+.po-row {
+  display: flex; align-items: center;
+  padding: 8px 8px;
+  border-radius: 6px;
+  gap: 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.po-row:hover { background: var(--wp-line-soft); }
+.po-row .ico { color: var(--wp-muted); flex: none; width: 18px; height: 18px; }
+.po-row .label { flex: 1; }
+.po-row .value { color: var(--wp-muted); font-size: 11.5px; }
+.po-row .kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--wp-muted);
+  background: var(--wp-line-soft);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.field-row {
+  display: flex; align-items: center;
+  padding: 6px 8px;
+  gap: 8px;
+}
+.field-row label {
+  flex: 1; font-size: 12.5px; color: var(--wp-ink-soft);
+}
+.field-row select, .field-row .switch {
+  font: inherit; font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--wp-line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--wp-ink-soft);
+  min-width: 100px;
+}
+.switch {
+  width: 32px; height: 18px;
+  position: relative;
+  background: var(--wp-line);
+  border-radius: 999px; min-width: 0 !important; padding: 0 !important;
+  cursor: pointer;
+}
+.switch::after {
+  content: ""; position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  background: #fff; border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+  transition: left .15s;
+}
+.switch.on { background: var(--wp-blue); }
+.switch.on::after { left: 16px; }
+
+.danger-zone {
+  margin: 10px 12px 12px;
+  padding: 10px 12px;
+  background: #fef0ec;
+  border: 1px solid #f5b3a5;
+  border-radius: var(--radius);
+  display: flex; align-items: center; gap: 10px;
+}
+.danger-zone .text { flex: 1; font-size: 11.5px; color: var(--wp-danger); }
+.danger-zone .text strong { font-weight: 700; }
+.danger-zone button {
+  background: #fff; border: 1px solid var(--wp-danger); color: var(--wp-danger);
+  font: inherit; font-size: 11.5px; font-weight: 600;
+  padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; flex: none;
+}
+.danger-zone button:hover { background: var(--wp-danger); color: #fff; }
+.po-foot {
+  border-top: 1px solid var(--wp-line);
+  padding: 10px 12px;
+  display: flex; justify-content: flex-end; gap: 6px;
+}
+.po-foot button {
+  font: inherit; font-size: 12px;
+  border-radius: 6px; padding: 5px 11px;
+  cursor: pointer; border: 1px solid var(--wp-line); background: #fff; color: var(--wp-ink-soft);
+}
+.po-foot button.primary { background: var(--wp-blue); border-color: var(--wp-blue); color: #fff; }
+
+/* ---- caption above the second window ---- */
+.state-caption {
+  max-width: 1280px;
+  margin: 0 auto 8px;
+  font-size: 12px; color: #2b3447;
+  display: flex; align-items: center; gap: 8px;
+}
+.state-caption .pill {
+  background: #fff; border: 1px solid var(--chrome-edge);
+  padding: 2px 9px; border-radius: 999px;
+  font-weight: 600;
+}
+.state-caption .desc { color: #5b6577; }
+
+/* ---- mobile view block ---- */
+.mobile-row {
+  max-width: 1280px;
+  margin: 24px auto 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.mobile-frame {
+  width: 390px;
+  height: 844px;
+  background: #1d2532;
+  border-radius: 36px;
+  padding: 12px;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  flex: none;
+}
+.mobile-frame::before {
+  content: "";
+  position: absolute;
+  top: 16px; left: 50%; transform: translateX(-50%);
+  width: 110px; height: 24px; background: #0a0e16;
+  border-radius: 999px; z-index: 2;
+}
+.mobile-screen {
+  width: 100%; height: 100%;
+  background: #fff;
+  border-radius: 26px;
+  overflow: hidden;
+  position: relative;
+  display: flex; flex-direction: column;
+}
+.m-statusbar {
+  height: 38px; background: #fff;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  padding-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wp-ink);
+  flex: none;
+}
+.m-statusbar .icons { display: flex; align-items: center; gap: 4px; color: var(--wp-ink); }
+.m-titlebar {
+  padding: 8px 12px;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--chrome-bg);
+  flex: none;
+}
+.m-titlebar .urlbar {
+  flex: 1; background: var(--chrome-url-bg);
+  border-radius: 999px; padding: 6px 12px;
+  font-size: 12.5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.m-titlebar .urlbar .lock { color: var(--wp-success); }
+.m-titlebar .urlbar .text { color: var(--wp-ink-soft); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-titlebar .navbtn { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--wp-ink-soft); }
+.m-titlebar .navbtn .tab-count {
+  background: var(--wp-ink-soft); color: #fff; border-radius: 5px;
+  font-size: 10px; font-weight: 700; width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.m-content { flex: 1; overflow: auto; }
+.m-bottombar {
+  height: 56px;
+  border-top: 1px solid var(--wp-line);
+  display: flex;
+  background: #fff;
+  flex: none;
+}
+.m-bottombar .item {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  color: var(--wp-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.m-bottombar .item.active { color: var(--wp-blue); }
+
+/* mobile tab switcher */
+.m-tabs {
+  padding: 12px 12px 64px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  background: #f4f5f8;
+  height: 100%;
+  overflow: auto;
+}
+.m-tab-card {
+  background: #fff;
+  border: 1px solid var(--wp-line);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.m-tab-card .tabhead {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--wp-line);
+}
+.m-tab-card .tabhead .fav { width: 14px; height: 14px; border-radius: 3px; }
+.m-tab-card .tabhead .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.m-tab-card .preview {
+  height: 130px;
+  background:
+    radial-gradient(circle at 20% 0%, #f3f4ff 0%, transparent 60%),
+    #fafafd;
+  position: relative;
+  font-family: Georgia, serif; padding: 12px;
+}
+.m-tab-card .preview h6 { margin: 4px 0 4px; font-size: 12px; }
+.m-tab-card .preview .lines { display: flex; flex-direction: column; gap: 3px; }
+.m-tab-card .preview .lines div { background: #e3e6ec; height: 4px; border-radius: 2px; }
+.m-tab-card .preview .lines div:nth-child(1) { width: 90%; }
+.m-tab-card .preview .lines div:nth-child(2) { width: 70%; }
+.m-tab-card .preview .lines div:nth-child(3) { width: 80%; }
+.m-tabs-head {
+  padding: 12px 16px 6px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.m-tabs-head h3 { margin: 0; font-size: 16px; }
+.m-tabs-head .new {
+  font-size: 12px; color: var(--wp-blue); font-weight: 600;
+}
+
+/* small label utility */
+.kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--wp-muted);
+  background: var(--wp-line-soft);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* helpers */
+.flex-fill { flex: 1; }
+
+/* responsive */
+@media (max-width: 1100px) {
+  .start-row { grid-template-columns: repeat(3, 1fr); }
+  .your-row { grid-template-columns: repeat(2, 1fr); }
+  .bp-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  body { padding: 12px 12px 60px; }
+  .window { border-radius: 12px; }
+  .start-row { grid-template-columns: repeat(2, 1fr); }
+  .your-row { grid-template-columns: 1fr; }
+  .bp-grid { grid-template-columns: 1fr; }
+  .blueprint-area { grid-template-columns: 1fr; }
+  .content { height: 540px; }
+}
+
+/* footer note */
+.foot {
+  max-width: 1280px;
+  margin: 24px auto 0;
+  font-size: 11px;
+  color: #5b6577;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="page-intro">
+  <span class="badge">#005</span>
+  <strong>Browser-tab metaphor</strong>
+  <span class="dot"></span>
+  <span>Tabs = Playgrounds. URL bar = WP address bar. Bookmarks bar = blueprints. DevTools drawer for files / blueprint / DB / logs.</span>
+</div>
+
+<!-- ==================================================================== -->
+<!-- WINDOW 1: a working session (URL bar on /wp-admin), DevTools open      -->
+<!-- ==================================================================== -->
+
+<div class="state-caption">
+  <span class="pill">STATE 1 / 3</span>
+  <span class="desc">Working session — saved Playground "Coffee Shop demo", URL bar on <code>/wp-admin</code>, DevTools drawer open on Logs.</span>
+</div>
+
+<div class="window" id="window-1">
+
+  <!-- TITLEBAR + TABS -->
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+
+    <div class="tabstrip">
+      <div class="tab"><span class="favicon" style="background:#fde2e4;"><i data-lucide="coffee" style="width:11px;height:11px;color:#c4185d;"></i></span><span class="label">Coffee Shop demo</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab active"><span class="favicon" style="background:#eef2ff;"><i data-lucide="layout-dashboard" style="width:11px;height:11px;color:#3858e9;"></i></span><span class="label">wp-admin · Coffee Shop demo</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab dirty"><span class="favicon" style="background:#fff3c4;"><i data-lucide="palette" style="width:11px;height:11px;color:#8a6500;"></i></span><span class="label">Art Gallery (unsaved)</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab"><span class="favicon"><span class="spinner"></span></span><span class="label">Gutenberg PR #62301</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab"><span class="favicon" style="background:#d4f4dd;"><i data-lucide="newspaper" style="width:11px;height:11px;color:#1f8a3a;"></i></span><span class="label">Personal blog draft</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab newtab" title="New playground"><i data-lucide="plus" style="width:16px;height:16px;"></i></div>
+    </div>
+
+    <div class="tab-search" title="Search tabs (Ctrl+Shift+A)"><i data-lucide="chevron-down" style="width:13px;height:13px;"></i></div>
+
+    <div class="window-controls">
+      <div class="iconbtn"><i data-lucide="minus" style="width:14px;height:14px;"></i></div>
+      <div class="iconbtn"><i data-lucide="square" style="width:12px;height:12px;"></i></div>
+      <div class="iconbtn"><i data-lucide="x" style="width:14px;height:14px;"></i></div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR (nav + URL + chips) -->
+  <div class="toolbar">
+    <div class="navbtn disabled"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i></div>
+    <div class="navbtn"><i data-lucide="chevron-right" style="width:16px;height:16px;"></i></div>
+    <div class="navbtn" title="Refresh WordPress iframe"><i data-lucide="rotate-ccw" style="width:15px;height:15px;"></i></div>
+    <div class="navbtn" title="Homepage"><i data-lucide="home" style="width:15px;height:15px;"></i></div>
+
+    <div class="url-bar">
+      <div class="url-chip" id="settings-trigger" title="Edit Playground settings">
+        <i data-lucide="lock" style="width:11px;height:11px;color:#1f8a3a;"></i>
+        <span class="dot-green"></span>
+        <span>WP 6.7 · PHP 8.3</span>
+        <i data-lucide="chevron-down" style="width:11px;height:11px;"></i>
+      </div>
+
+      <span class="scheme">playground://</span>
+      <span class="path-host">coffee-shop-demo.local</span>
+      <input class="url-input" value="/wp-admin/edit.php?post_type=product" id="urlInput"/>
+
+      <button class="submit" title="Go"><i data-lucide="arrow-right" style="width:14px;height:14px;"></i></button>
+    </div>
+
+    <div class="actions">
+      <div class="iconbtn" title="WP Admin"><i data-lucide="gauge" style="width:16px;height:16px;"></i></div>
+      <div class="iconbtn" title="Toggle DevTools (F12)"><i data-lucide="terminal-square" style="width:16px;height:16px;color:#3858e9;"></i></div>
+      <button class="save-btn saved" title="Saved 2 minutes ago"><i data-lucide="check-circle-2" style="width:13px;height:13px;"></i> Saved</button>
+      <div class="iconbtn" id="overflow-trigger" title="More"><i data-lucide="more-vertical" style="width:16px;height:16px;"></i></div>
+    </div>
+  </div>
+
+  <!-- BOOKMARKS BAR = BLUEPRINTS -->
+  <div class="bookmarks">
+    <div class="bm"><span class="ico" style="background:#c4185d;">A</span>Art Gallery</div>
+    <div class="bm"><span class="ico" style="background:#b04a1f;">C</span>Coffee Shop</div>
+    <div class="bm"><span class="ico" style="background:#1d4ed8;">F</span>Feed Reader</div>
+    <div class="bm"><span class="ico" style="background:#1f8a3a;">G</span>Gaming News</div>
+    <div class="bm"><span class="ico" style="background:#7c4dff;">N</span>Non-profit</div>
+    <div class="bm-sep"></div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>WooCommerce</div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>Gutenberg experiments</div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>Themes</div>
+    <div class="bm-sep"></div>
+    <div class="bm"><i data-lucide="chevrons-right" style="width:13px;height:13px;color:#5b6577;"></i>All 43 blueprints</div>
+    <div class="flex-fill"></div>
+    <div class="bm-import"><i data-lucide="upload" style="width:13px;height:13px;"></i>Import .zip</div>
+  </div>
+
+  <!-- CONTENT: iframe stage + DevTools drawer -->
+  <div class="content">
+    <div class="iframe-stage">
+      <div class="iframe">
+        <div class="wp-page">
+          <div class="wp-admin-bar">
+            <div class="wp-logo"><i data-lucide="wordpress" style="width:14px;height:14px;"></i> Coffee Shop demo</div>
+            <div class="wp-item">+ New</div>
+            <div class="wp-item">Products</div>
+            <div class="wp-item">Orders</div>
+            <div class="right">
+              <div class="wp-item">Howdy, admin</div>
+            </div>
+          </div>
+          <div class="wp-body">
+            <div style="font-family:'Inter',sans-serif;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <h1 style="font-family:'Inter',sans-serif;font-size:23px;margin:0;">Products</h1>
+                <span style="background:#3858e9;color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;">Add New</span>
+              </div>
+              <div style="background:#fff;border:1px solid #dcdcde;border-radius:4px;">
+                <div style="display:grid;grid-template-columns:40px 80px 1fr 120px 100px 100px;font-size:12px;color:#50575e;padding:10px 14px;border-bottom:1px solid #dcdcde;background:#f6f7f7;font-weight:600;">
+                  <div>☐</div><div></div><div>Name</div><div>SKU</div><div>Price</div><div>Stock</div>
+                </div>
+                <div style="display:grid;grid-template-columns:40px 80px 1fr 120px 100px 100px;font-size:13px;color:#1d2327;padding:10px 14px;border-bottom:1px solid #f0f0f1;align-items:center;font-family:'Inter',sans-serif;">
+                  <div>☐</div><div style="width:48px;height:48px;background:linear-gradient(135deg,#fde2e4,#f4d6ff);border-radius:4px;"></div><div><strong>Ethiopia Yirgacheffe</strong><br><span style="color:#787c82;font-size:11px;">Single-origin beans</span></div><div>COF-001</div><div>$18.00</div><div style="color:#1f8a3a;">In stock</div>
+                </div>
+                <div style="display:grid;grid-template-columns:40px 80px 1fr 120px 100px 100px;font-size:13px;color:#1d2327;padding:10px 14px;border-bottom:1px solid #f0f0f1;align-items:center;font-family:'Inter',sans-serif;">
+                  <div>☐</div><div style="width:48px;height:48px;background:linear-gradient(135deg,#ffe8d4,#ffd3a8);border-radius:4px;"></div><div><strong>House Blend</strong><br><span style="color:#787c82;font-size:11px;">Medium roast</span></div><div>COF-002</div><div>$14.00</div><div style="color:#1f8a3a;">In stock</div>
+                </div>
+                <div style="display:grid;grid-template-columns:40px 80px 1fr 120px 100px 100px;font-size:13px;color:#1d2327;padding:10px 14px;border-bottom:1px solid #f0f0f1;align-items:center;font-family:'Inter',sans-serif;">
+                  <div>☐</div><div style="width:48px;height:48px;background:linear-gradient(135deg,#d4f4dd,#b3e9d8);border-radius:4px;"></div><div><strong>Decaf Sumatra</strong><br><span style="color:#787c82;font-size:11px;">Swiss water process</span></div><div>COF-003</div><div>$16.00</div><div style="color:#ad6b00;">Low stock (4)</div>
+                </div>
+                <div style="display:grid;grid-template-columns:40px 80px 1fr 120px 100px 100px;font-size:13px;color:#1d2327;padding:10px 14px;align-items:center;font-family:'Inter',sans-serif;">
+                  <div>☐</div><div style="width:48px;height:48px;background:linear-gradient(135deg,#d4e3ff,#c8b5ff);border-radius:4px;"></div><div><strong>Cold Brew Concentrate</strong><br><span style="color:#787c82;font-size:11px;">32oz bottle</span></div><div>COF-004</div><div>$22.00</div><div style="color:#1f8a3a;">In stock</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- toast -->
+      <div class="toast-stack">
+        <div class="toast info">
+          <span class="ico"><i data-lucide="git-pull-request" style="width:13px;height:13px;"></i></span>
+          <div>
+            <div style="font-weight:600;">Gutenberg PR #62301 is booting…</div>
+            <div style="color:rgba(255,255,255,.65);font-size:11px;">Cloning, applying patches, mounting…</div>
+          </div>
+          <span class="action">View</span>
+          <span class="close"><i data-lucide="x" style="width:13px;height:13px;"></i></span>
+        </div>
+        <div class="toast success">
+          <span class="ico"><i data-lucide="check" style="width:13px;height:13px;"></i></span>
+          <div>
+            <div style="font-weight:600;">Saved “Coffee Shop demo” locally</div>
+            <div style="color:rgba(255,255,255,.65);font-size:11px;">Stored in browser (OPFS) — 38 MB</div>
+          </div>
+          <span class="close"><i data-lucide="x" style="width:13px;height:13px;"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- popover: SETTINGS (anchored to chip; shown for State 1) -->
+    <div class="popover settings open" style="top: 8px; right: 250px;">
+      <div class="po-head"><h4>Playground settings</h4><span class="sub">— scoped to this tab</span></div>
+
+      <div class="po-notice" style="display:none;">
+        <span class="ico"><i data-lucide="alert-triangle" style="width:14px;height:14px;"></i></span>
+        <div class="text">
+          <strong>Unsaved Playground.</strong> Your changes will be lost on page refresh.
+          <button class="save-here">Save site locally</button>
+        </div>
+      </div>
+
+      <div class="po-body">
+        <div class="field-row"><label>WordPress version</label>
+          <select><option>6.7</option><option>6.6</option><option>6.5</option><option>nightly</option></select>
+        </div>
+        <div class="field-row"><label>PHP version</label>
+          <select><option>8.3</option><option>8.2</option><option>8.1</option><option>8.0</option><option>7.4</option></select>
+        </div>
+        <div class="field-row"><label>Language</label>
+          <select><option>English (US)</option><option>English (UK)</option><option>日本語</option><option>Polski</option></select>
+        </div>
+        <div class="field-row"><label>Network access</label><div class="switch on"></div></div>
+        <div class="field-row"><label>Multisite</label><div class="switch"></div></div>
+      </div>
+
+      <div class="danger-zone">
+        <i data-lucide="alert-octagon" style="width:16px;height:16px;flex:none;color:#c4361b;"></i>
+        <div class="text"><strong>Apply &amp; reset</strong> wipes this Playground's database and files.</div>
+        <button>Apply &amp; reset</button>
+      </div>
+    </div>
+
+    <!-- popover: OVERFLOW (closed by default; shown here for visibility) -->
+    <div class="popover overflow" style="top: 8px; right: 14px; display:none;">
+      <div class="po-body">
+        <div class="po-row"><i data-lucide="save" class="ico" style="width:16px;height:16px;"></i><span class="label">Save Playground</span><span class="kbd">⌘S</span></div>
+        <div class="po-row"><i data-lucide="archive" class="ico" style="width:16px;height:16px;"></i><span class="label">Download as .zip</span></div>
+        <div class="po-row"><i data-lucide="github" class="ico" style="width:16px;height:16px;"></i><span class="label">Export to GitHub PR</span></div>
+        <div class="po-row" style="border-top:1px solid var(--wp-line);margin-top:6px;padding-top:10px;"><i data-lucide="terminal-square" class="ico" style="width:16px;height:16px;"></i><span class="label">DevTools</span><span class="kbd">F12</span></div>
+        <div class="po-row"><i data-lucide="copy" class="ico" style="width:16px;height:16px;"></i><span class="label">Copy share link</span></div>
+        <div class="po-row"><i data-lucide="trash-2" class="ico" style="width:16px;height:16px;color:#c4361b;"></i><span class="label" style="color:#c4361b;">Reset Playground…</span></div>
+      </div>
+    </div>
+
+    <!-- DEVTOOLS DRAWER (open in this state, on Logs tab) -->
+    <div class="devtools">
+      <div class="dt-tabbar">
+        <div class="dt-tab"><i data-lucide="folder-tree" style="width:13px;height:13px;"></i> Files</div>
+        <div class="dt-tab"><i data-lucide="file-json-2" style="width:13px;height:13px;"></i> Blueprint</div>
+        <div class="dt-tab"><i data-lucide="database" style="width:13px;height:13px;"></i> Database <span class="count">12</span></div>
+        <div class="dt-tab active"><i data-lucide="scroll-text" style="width:13px;height:13px;"></i> Logs <span class="count">214</span></div>
+        <div class="dt-actions">
+          <div class="iconbtn" title="Clear"><i data-lucide="ban" style="width:13px;height:13px;"></i></div>
+          <div class="iconbtn" title="Pop out"><i data-lucide="external-link" style="width:13px;height:13px;"></i></div>
+          <div class="iconbtn close" title="Close drawer"><i data-lucide="x" style="width:14px;height:14px;"></i></div>
+        </div>
+      </div>
+
+      <div class="dt-body">
+        <div class="logs-pane">
+          <div class="logs-toolbar">
+            <input class="logs-search" placeholder="Filter logs… (e.g. WP_DEBUG, ‘undefined function’, /wp-admin)" />
+            <div class="log-filter error"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span> Errors (4)</div>
+            <div class="log-filter warn"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span> Warnings (11)</div>
+            <div class="log-filter info"><span style="width:8px;height:8px;border-radius:50%;background:currentColor;"></span> Info</div>
+          </div>
+          <div class="log-list">
+            <div class="log-line group">— Request: GET /wp-admin/edit.php?post_type=product  ·  12:42:18.331</div>
+            <div class="log-line"><span class="ts">12:42:18.342</span><span class="lvl info">INFO</span><span class="msg">Loaded plugin: woocommerce/woocommerce.php (8.4.0)</span></div>
+            <div class="log-line"><span class="ts">12:42:18.351</span><span class="lvl info">INFO</span><span class="msg">Theme “coffeeshop” active; child of twentytwentyfive</span></div>
+            <div class="log-line"><span class="ts">12:42:18.401</span><span class="lvl warn">WARN</span><span class="msg">Trying to access array offset on value of type null in <code>wp-content/plugins/woocommerce/includes/class-wc-product-data-store-cpt.php:482</code></span></div>
+            <div class="log-line"><span class="ts">12:42:18.412</span><span class="lvl dbg">DEBUG</span><span class="msg">SQL: SELECT post_id FROM wp_postmeta WHERE meta_key = '_stock' AND meta_value &lt; 5 (1 row, 4.2 ms)</span></div>
+            <div class="log-line"><span class="ts">12:42:18.448</span><span class="lvl warn">WARN</span><span class="msg">Deprecated: rest_validate_value_from_schema() called incorrectly. (wp-includes/rest-api.php:1392)</span></div>
+            <div class="log-line group">— Request: POST /wp-admin/admin-ajax.php (heartbeat)  ·  12:42:33.090</div>
+            <div class="log-line"><span class="ts">12:42:33.092</span><span class="lvl info">INFO</span><span class="msg">Heartbeat tick (interval=15s)</span></div>
+            <div class="log-line"><span class="ts">12:42:33.118</span><span class="lvl info">INFO</span><span class="msg">Response 200 in 26 ms</span></div>
+            <div class="log-line group">— Request: GET /wp-json/wp/v2/product?per_page=10  ·  12:43:01.500</div>
+            <div class="log-line"><span class="ts">12:43:01.510</span><span class="lvl err">ERROR</span><span class="msg">Uncaught TypeError: count(): Argument #1 ($value) must be of type Countable|array, null given in <code>wp-includes/post.php:3210</code></span></div>
+            <div class="log-line"><span class="ts">12:43:01.514</span><span class="lvl err">ERROR</span><span class="msg">PHP stack trace: <code>get_pages()</code> → <code>WP_REST_Pages_Controller::get_items()</code> → <code>do_filter('rest_pre_dispatch')</code></span></div>
+            <div class="log-line"><span class="ts">12:43:01.540</span><span class="lvl info">INFO</span><span class="msg">Response 500 in 40 ms</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================================== -->
+<!-- WINDOW 2: New Tab page = the launcher                                 -->
+<!-- ==================================================================== -->
+
+<div class="state-caption">
+  <span class="pill">STATE 2 / 3</span>
+  <span class="desc">New Tab page — the launcher. Start tiles, “Your Playgrounds” (saved sites), and the full blueprint gallery.</span>
+</div>
+
+<div class="window" id="window-2">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+
+    <div class="tabstrip">
+      <div class="tab"><span class="favicon" style="background:#fde2e4;"><i data-lucide="coffee" style="width:11px;height:11px;color:#c4185d;"></i></span><span class="label">Coffee Shop demo</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab"><span class="favicon" style="background:#fff3c4;"><i data-lucide="palette" style="width:11px;height:11px;color:#8a6500;"></i></span><span class="label">Art Gallery</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab active"><span class="favicon" style="background:#eef2ff;"><i data-lucide="sparkles" style="width:11px;height:11px;color:#3858e9;"></i></span><span class="label">New Playground</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab newtab"><i data-lucide="plus" style="width:16px;height:16px;"></i></div>
+    </div>
+
+    <div class="tab-search" title="Search tabs"><i data-lucide="chevron-down" style="width:13px;height:13px;"></i></div>
+
+    <div class="window-controls">
+      <div class="iconbtn"><i data-lucide="minus" style="width:14px;height:14px;"></i></div>
+      <div class="iconbtn"><i data-lucide="square" style="width:12px;height:12px;"></i></div>
+      <div class="iconbtn"><i data-lucide="x" style="width:14px;height:14px;"></i></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="navbtn disabled"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i></div>
+    <div class="navbtn disabled"><i data-lucide="chevron-right" style="width:16px;height:16px;"></i></div>
+    <div class="navbtn"><i data-lucide="rotate-ccw" style="width:15px;height:15px;"></i></div>
+    <div class="navbtn"><i data-lucide="home" style="width:15px;height:15px;"></i></div>
+
+    <div class="url-bar">
+      <div class="url-chip">
+        <i data-lucide="sparkles" style="width:11px;height:11px;color:#3858e9;"></i>
+        <span>New playground</span>
+      </div>
+      <input class="url-input" placeholder="Type a path, blueprint URL, GitHub repo, or PR number…" />
+      <button class="submit"><i data-lucide="arrow-right" style="width:14px;height:14px;"></i></button>
+    </div>
+
+    <div class="actions">
+      <div class="iconbtn"><i data-lucide="gauge" style="width:16px;height:16px;"></i></div>
+      <div class="iconbtn"><i data-lucide="terminal-square" style="width:16px;height:16px;"></i></div>
+      <button class="save-btn"><i data-lucide="save" style="width:13px;height:13px;"></i> Save</button>
+      <div class="iconbtn"><i data-lucide="more-vertical" style="width:16px;height:16px;"></i></div>
+    </div>
+  </div>
+
+  <div class="bookmarks">
+    <div class="bm"><span class="ico" style="background:#c4185d;">A</span>Art Gallery</div>
+    <div class="bm"><span class="ico" style="background:#b04a1f;">C</span>Coffee Shop</div>
+    <div class="bm"><span class="ico" style="background:#1d4ed8;">F</span>Feed Reader</div>
+    <div class="bm"><span class="ico" style="background:#1f8a3a;">G</span>Gaming News</div>
+    <div class="bm"><span class="ico" style="background:#7c4dff;">N</span>Non-profit</div>
+    <div class="bm-sep"></div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>WooCommerce</div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>Gutenberg experiments</div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>Themes</div>
+    <div class="bm-sep"></div>
+    <div class="bm"><i data-lucide="chevrons-right" style="width:13px;height:13px;color:#5b6577;"></i>All 43 blueprints</div>
+    <div class="flex-fill"></div>
+    <div class="bm-import"><i data-lucide="upload" style="width:13px;height:13px;"></i>Import .zip</div>
+  </div>
+
+  <div class="content" style="height: 760px;">
+    <div class="newtab-page">
+
+      <div class="newtab-head">
+        <div class="logo"><i data-lucide="wordpress" style="width:20px;height:20px;"></i></div>
+        <h1>New Playground</h1>
+        <span class="subtitle">A WordPress sandbox in your browser — nothing leaves this device.</span>
+      </div>
+
+      <!-- Omnibox / unified search -->
+      <div class="newtab-omnibox">
+        <i data-lucide="search" style="width:16px;height:16px;color:#8590a2;"></i>
+        <input placeholder="Search blueprints, paste a blueprint URL, GitHub repo, or PR number…" />
+        <span class="kbd">⌘K</span>
+      </div>
+
+      <!-- Start a new playground -->
+      <div class="newtab-section-title">Start a new playground</div>
+      <div class="start-row">
+        <div class="start-tile vanilla">
+          <div class="tile-ico"><i data-lucide="wordpress" style="width:18px;height:18px;"></i></div>
+          <h4>Vanilla WordPress</h4>
+          <p>Empty WP 6.7 + PHP 8.3</p>
+        </div>
+        <div class="start-tile wp-pr">
+          <div class="tile-ico"><i data-lucide="git-pull-request" style="width:18px;height:18px;"></i></div>
+          <h4>WordPress PR</h4>
+          <p>Boot from a core PR number</p>
+        </div>
+        <div class="start-tile gb-pr">
+          <div class="tile-ico"><i data-lucide="layout-grid" style="width:18px;height:18px;"></i></div>
+          <h4>Gutenberg PR</h4>
+          <p>Test a Gutenberg PR</p>
+        </div>
+        <div class="start-tile github">
+          <div class="tile-ico"><i data-lucide="github" style="width:18px;height:18px;"></i></div>
+          <h4>From GitHub</h4>
+          <p>Theme/plugin from a repo</p>
+        </div>
+        <div class="start-tile blueprint">
+          <div class="tile-ico"><i data-lucide="link-2" style="width:18px;height:18px;"></i></div>
+          <h4>Blueprint URL</h4>
+          <p>Paste any blueprint JSON URL</p>
+        </div>
+        <div class="start-tile import">
+          <div class="tile-ico"><i data-lucide="upload" style="width:18px;height:18px;"></i></div>
+          <h4>Import .zip</h4>
+          <p>Restore a previous Playground</p>
+        </div>
+      </div>
+
+      <!-- Your Playgrounds -->
+      <div class="newtab-section-title">
+        Your Playgrounds <span class="count">3</span>
+        <span class="more">Recently closed (5) ›</span>
+      </div>
+      <div class="your-row">
+        <div class="your-tile">
+          <div class="preview" style="background-image: linear-gradient(135deg, #fde2e4, #f4d6ff);"></div>
+          <div class="info">
+            <h5>Coffee Shop demo</h5>
+            <div class="meta"><i data-lucide="clock" style="width:11px;height:11px;"></i> 2 min ago · 38 MB</div>
+            <div class="tag-row"><span class="tag dot">Open</span><span class="tag info">WooCommerce</span></div>
+          </div>
+        </div>
+        <div class="your-tile">
+          <div class="preview" style="background-image: linear-gradient(135deg, #d4f4dd, #b3e9d8);"></div>
+          <div class="info">
+            <h5>Personal blog draft</h5>
+            <div class="meta"><i data-lucide="clock" style="width:11px;height:11px;"></i> Yesterday · 14 MB</div>
+            <div class="tag-row"><span class="tag">Saved</span><span class="tag info">Substrata theme</span></div>
+          </div>
+        </div>
+        <div class="your-tile">
+          <div class="preview" style="background-image: linear-gradient(135deg, #fff3c4, #ffd285);"></div>
+          <div class="info">
+            <h5>Art Gallery</h5>
+            <div class="meta"><i data-lucide="alert-triangle" style="width:11px;height:11px;color:#ad6b00;"></i> Unsaved · 22 MB</div>
+            <div class="tag-row"><span class="tag warn">Not in browser storage</span></div>
+          </div>
+        </div>
+        <div class="your-tile">
+          <div class="preview" style="background-image: linear-gradient(135deg, #d4e3ff, #c8b5ff);"></div>
+          <div class="info">
+            <h5>WPGraphQL playground</h5>
+            <div class="meta"><i data-lucide="clock" style="width:11px;height:11px;"></i> 3 days ago · 27 MB</div>
+            <div class="tag-row"><span class="tag">Saved</span><span class="tag info">API</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blueprint gallery -->
+      <div class="newtab-section-title">
+        Start from a blueprint <span class="count">43</span>
+        <span class="more">Open full gallery ›</span>
+      </div>
+
+      <div class="blueprint-area">
+        <div class="bp-cats">
+          <div class="bp-cat active"><i data-lucide="layout-grid" style="width:14px;height:14px;"></i> All <span class="count">43</span></div>
+          <div class="bp-cat"><i data-lucide="star" style="width:14px;height:14px;"></i> Featured <span class="count">5</span></div>
+          <div class="bp-cat"><i data-lucide="globe" style="width:14px;height:14px;"></i> Website <span class="count">10</span></div>
+          <div class="bp-cat"><i data-lucide="user" style="width:14px;height:14px;"></i> Personal <span class="count">4</span></div>
+          <div class="bp-cat"><i data-lucide="file-text" style="width:14px;height:14px;"></i> Content <span class="count">4</span></div>
+          <div class="bp-cat"><i data-lucide="palette" style="width:14px;height:14px;"></i> Themes <span class="count">6</span></div>
+          <div class="bp-cat"><i data-lucide="component" style="width:14px;height:14px;"></i> Gutenberg <span class="count">3</span></div>
+          <div class="bp-cat"><i data-lucide="flask-conical" style="width:14px;height:14px;"></i> Experiments <span class="count">3</span></div>
+          <div class="bp-cat"><i data-lucide="shopping-bag" style="width:14px;height:14px;"></i> WooCommerce <span class="count">4</span></div>
+          <div class="bp-cat"><i data-lucide="newspaper" style="width:14px;height:14px;"></i> News <span class="count">2</span></div>
+        </div>
+
+        <div class="bp-grid" id="bp-grid">
+          <!-- 12 cards rendered by JS -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================================== -->
+<!-- WINDOW 3: Booting state + DevTools showing Blueprint editor          -->
+<!-- ==================================================================== -->
+
+<div class="state-caption">
+  <span class="pill">STATE 3 / 3</span>
+  <span class="desc">Booting a Playground from a Blueprint, with the Blueprint editor + File browser visible in the DevTools drawer. Database + Files tabs swappable.</span>
+</div>
+
+<div class="window" id="window-3">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+
+    <div class="tabstrip">
+      <div class="tab"><span class="favicon" style="background:#fde2e4;"><i data-lucide="coffee" style="width:11px;height:11px;color:#c4185d;"></i></span><span class="label">Coffee Shop demo</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab active"><span class="favicon"><span class="spinner"></span></span><span class="label">Booting Gutenberg PR #62301…</span><span class="close"><i data-lucide="x" style="width:11px;height:11px;"></i></span></div>
+      <div class="tab newtab"><i data-lucide="plus" style="width:16px;height:16px;"></i></div>
+    </div>
+
+    <div class="tab-search"><i data-lucide="chevron-down" style="width:13px;height:13px;"></i></div>
+
+    <div class="window-controls">
+      <div class="iconbtn"><i data-lucide="minus" style="width:14px;height:14px;"></i></div>
+      <div class="iconbtn"><i data-lucide="square" style="width:12px;height:12px;"></i></div>
+      <div class="iconbtn"><i data-lucide="x" style="width:14px;height:14px;"></i></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="navbtn disabled"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i></div>
+    <div class="navbtn disabled"><i data-lucide="chevron-right" style="width:16px;height:16px;"></i></div>
+    <div class="navbtn"><i data-lucide="rotate-ccw" style="width:15px;height:15px;color:#3858e9;"></i></div>
+    <div class="navbtn"><i data-lucide="home" style="width:15px;height:15px;"></i></div>
+
+    <div class="url-bar">
+      <div class="url-chip">
+        <i data-lucide="loader-2" style="width:11px;height:11px;color:#ad6b00;"></i>
+        <span class="dot-warn"></span>
+        <span>Booting · WP 6.7 · PHP 8.2</span>
+        <i data-lucide="chevron-down" style="width:11px;height:11px;"></i>
+      </div>
+
+      <span class="scheme">playground://</span>
+      <span class="path-host">gutenberg-pr-62301</span>
+      <input class="url-input" value="/" />
+
+      <button class="submit"><i data-lucide="arrow-right" style="width:14px;height:14px;"></i></button>
+    </div>
+
+    <div class="actions">
+      <div class="iconbtn"><i data-lucide="gauge" style="width:16px;height:16px;"></i></div>
+      <div class="iconbtn"><i data-lucide="terminal-square" style="width:16px;height:16px;color:#3858e9;"></i></div>
+      <button class="save-btn"><i data-lucide="save" style="width:13px;height:13px;"></i> Save</button>
+      <div class="iconbtn"><i data-lucide="more-vertical" style="width:16px;height:16px;"></i></div>
+    </div>
+  </div>
+
+  <div class="bookmarks">
+    <div class="bm"><span class="ico" style="background:#c4185d;">A</span>Art Gallery</div>
+    <div class="bm"><span class="ico" style="background:#b04a1f;">C</span>Coffee Shop</div>
+    <div class="bm"><span class="ico" style="background:#1d4ed8;">F</span>Feed Reader</div>
+    <div class="bm"><span class="ico" style="background:#1f8a3a;">G</span>Gaming News</div>
+    <div class="bm"><span class="ico" style="background:#7c4dff;">N</span>Non-profit</div>
+    <div class="bm-sep"></div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>WooCommerce</div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>Gutenberg experiments</div>
+    <div class="bm bm-folder"><i data-lucide="folder" style="width:13px;height:13px;"></i>Themes</div>
+    <div class="bm-sep"></div>
+    <div class="bm"><i data-lucide="chevrons-right" style="width:13px;height:13px;color:#5b6577;"></i>All 43 blueprints</div>
+    <div class="flex-fill"></div>
+    <div class="bm-import"><i data-lucide="upload" style="width:13px;height:13px;"></i>Import .zip</div>
+  </div>
+
+  <div class="content">
+    <div class="iframe-stage">
+      <div class="iframe">
+        <!-- loading overlay -->
+        <div class="loading-overlay">
+          <div style="display:flex;align-items:center;gap:10px;color:#3858e9;font-weight:600;">
+            <span class="spinner" style="width:18px;height:18px;border-width:3px;"></span>
+            <span style="font-size:16px;">Booting Playground…</span>
+          </div>
+          <div class="progress"><div class="bar"></div></div>
+          <ul class="step-list">
+            <li class="done">✓ writeFile  /wordpress/wp-config.php</li>
+            <li class="done">✓ defineWpConfigConsts  WP_DEBUG=true</li>
+            <li class="done">✓ login  username=admin</li>
+            <li class="active">→ installPlugin  gutenberg (from PR #62301)</li>
+            <li>  installTheme  twentytwentyfive</li>
+            <li>  importWxr  starter-content.xml</li>
+            <li>  setSiteOptions  blogname, permalink_structure</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- DevTools drawer in Blueprint mode + Files split -->
+    <div class="devtools">
+      <div class="dt-tabbar">
+        <div class="dt-tab"><i data-lucide="folder-tree" style="width:13px;height:13px;"></i> Files</div>
+        <div class="dt-tab active"><i data-lucide="file-json-2" style="width:13px;height:13px;"></i> Blueprint</div>
+        <div class="dt-tab"><i data-lucide="database" style="width:13px;height:13px;"></i> Database <span class="count">12</span></div>
+        <div class="dt-tab"><i data-lucide="scroll-text" style="width:13px;height:13px;"></i> Logs <span class="count">7</span></div>
+        <div class="dt-actions">
+          <div class="iconbtn" title="Copy link to blueprint"><i data-lucide="link" style="width:13px;height:13px;"></i></div>
+          <div class="iconbtn" title="Download bundle"><i data-lucide="download" style="width:13px;height:13px;"></i></div>
+          <div class="iconbtn" title="Pop out"><i data-lucide="external-link" style="width:13px;height:13px;"></i></div>
+          <div class="iconbtn close" title="Close"><i data-lucide="x" style="width:14px;height:14px;"></i></div>
+        </div>
+      </div>
+
+      <div class="dt-body">
+        <div class="bp-editor">
+          <!-- file tree side-by-side with blueprint JSON -->
+          <div class="bp-side">
+            <div class="head">Blueprint bundle</div>
+            <div class="files">
+              <div class="fb-row folder" style="color:#facc6c;"><i data-lucide="folder-open" class="ico" style="width:14px;height:14px;"></i> gutenberg-pr-62301/</div>
+              <div class="fb-row json depth-1 selected"><i data-lucide="braces" class="ico" style="width:14px;height:14px;"></i> blueprint.json</div>
+              <div class="fb-row depth-1 php"><i data-lucide="file-code-2" class="ico" style="width:14px;height:14px;"></i> mu-plugin.php</div>
+              <div class="fb-row depth-1"><i data-lucide="file" class="ico" style="width:14px;height:14px;"></i> starter-content.xml</div>
+              <div class="fb-row depth-1"><i data-lucide="file-image" class="ico" style="width:14px;height:14px;"></i> hero.jpg</div>
+              <div class="fb-row depth-1"><i data-lucide="file" class="ico" style="width:14px;height:14px;"></i> README.md</div>
+            </div>
+            <div class="actions">
+              <button><i data-lucide="file-plus" style="width:13px;height:13px;"></i> New file</button>
+              <button><i data-lucide="folder-plus" style="width:13px;height:13px;"></i> New folder</button>
+              <button class="run"><i data-lucide="play" style="width:13px;height:13px;"></i> Run blueprint</button>
+            </div>
+          </div>
+
+          <!-- JSON editor -->
+          <div class="fb-editor">
+            <div class="fb-editor-head">
+              <span class="filepath">gutenberg-pr-62301/blueprint.json</span>
+              <span class="lang">JSON</span>
+              <span class="flex-fill"></span>
+              <span style="color:#6ee7a8;">● Valid</span>
+            </div>
+            <div class="fb-editor-body">
+              <div class="fb-gutter">
+                <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div>
+              </div>
+              <pre class="fb-code">{
+  <span class="str">"$schema"</span>: <span class="str">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+  <span class="str">"preferredVersions"</span>: { <span class="str">"php"</span>: <span class="str">"8.2"</span>, <span class="str">"wp"</span>: <span class="str">"6.7"</span> },
+  <span class="str">"login"</span>: <span class="kw">true</span>,
+  <span class="str">"steps"</span>: [
+    { <span class="str">"step"</span>: <span class="str">"installPlugin"</span>,
+      <span class="str">"pluginData"</span>: { <span class="str">"resource"</span>: <span class="str">"wordpress.org/plugins"</span>, <span class="str">"slug"</span>: <span class="str">"gutenberg"</span> },
+      <span class="str">"options"</span>: { <span class="str">"activate"</span>: <span class="kw">true</span> } },
+    { <span class="str">"step"</span>: <span class="str">"writeFile"</span>,
+      <span class="str">"path"</span>: <span class="str">"/wordpress/wp-content/mu-plugins/pr.php"</span>,
+      <span class="str">"data"</span>: <span class="str">"&lt;?php apply_pr( <span class="num">62301</span> );"</span> },
+    { <span class="str">"step"</span>: <span class="str">"importWxr"</span>,
+      <span class="str">"file"</span>: { <span class="str">"resource"</span>: <span class="str">"vfs"</span>, <span class="str">"path"</span>: <span class="str">"starter-content.xml"</span> } }
+  ]
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================================== -->
+<!-- MOBILE: tab switcher (left) + tab content (right)                    -->
+<!-- ==================================================================== -->
+
+<div class="state-caption">
+  <span class="pill">MOBILE · 390 × 844</span>
+  <span class="desc">Tab strip collapses into a Safari-style tab switcher. Bottom bar carries Tabs / Bookmarks / DevTools / Menu.</span>
+</div>
+
+<div class="mobile-row">
+
+  <!-- mobile state A: tab switcher -->
+  <div class="mobile-frame">
+    <div class="mobile-screen">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="icons">
+          <i data-lucide="signal" style="width:14px;height:14px;"></i>
+          <i data-lucide="wifi" style="width:14px;height:14px;"></i>
+          <i data-lucide="battery-full" style="width:18px;height:18px;"></i>
+        </span>
+      </div>
+
+      <div class="m-tabs-head">
+        <h3>3 Playgrounds</h3>
+        <span class="new">+ New</span>
+      </div>
+
+      <div class="m-tabs">
+        <div class="m-tab-card">
+          <div class="tabhead"><span class="fav" style="background:#fde2e4;"></span><span class="lbl">Coffee Shop demo</span><i data-lucide="x" style="width:12px;height:12px;color:#8590a2;"></i></div>
+          <div class="preview">
+            <span class="kbd" style="font-size:9px;">/wp-admin/edit.php</span>
+            <h6>Products</h6>
+            <div class="lines"><div></div><div></div><div></div></div>
+          </div>
+        </div>
+        <div class="m-tab-card">
+          <div class="tabhead"><span class="fav" style="background:#fff3c4;"></span><span class="lbl">Art Gallery</span><i data-lucide="x" style="width:12px;height:12px;color:#8590a2;"></i></div>
+          <div class="preview">
+            <span class="kbd" style="font-size:9px;">/</span>
+            <h6>Welcome to the Gallery</h6>
+            <div class="lines"><div></div><div></div><div></div></div>
+          </div>
+        </div>
+        <div class="m-tab-card">
+          <div class="tabhead"><span class="fav" style="background:#d4f4dd;"></span><span class="lbl">Personal blog draft</span><i data-lucide="x" style="width:12px;height:12px;color:#8590a2;"></i></div>
+          <div class="preview">
+            <span class="kbd" style="font-size:9px;">/?p=12</span>
+            <h6>First post</h6>
+            <div class="lines"><div></div><div></div><div></div></div>
+          </div>
+        </div>
+        <div class="m-tab-card" style="border:1px dashed #c0c6d2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#3858e9;font-weight:600;font-size:12px;padding:20px;">
+          <i data-lucide="plus" style="width:22px;height:22px;"></i>
+          New Playground
+        </div>
+      </div>
+
+      <div class="m-bottombar">
+        <div class="item active"><i data-lucide="copy" style="width:18px;height:18px;"></i>Tabs</div>
+        <div class="item"><i data-lucide="bookmark" style="width:18px;height:18px;"></i>Blueprints</div>
+        <div class="item"><i data-lucide="terminal-square" style="width:18px;height:18px;"></i>DevTools</div>
+        <div class="item"><i data-lucide="menu" style="width:18px;height:18px;"></i>Menu</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- mobile state B: a tab open -->
+  <div class="mobile-frame">
+    <div class="mobile-screen">
+      <div class="m-statusbar">
+        <span>9:41</span>
+        <span class="icons">
+          <i data-lucide="signal" style="width:14px;height:14px;"></i>
+          <i data-lucide="wifi" style="width:14px;height:14px;"></i>
+          <i data-lucide="battery-full" style="width:18px;height:18px;"></i>
+        </span>
+      </div>
+
+      <div class="m-titlebar">
+        <div class="navbtn"><i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i></div>
+        <div class="urlbar">
+          <i data-lucide="lock" style="width:11px;height:11px;color:#1f8a3a;"></i>
+          <span class="text">coffee-shop-demo /wp-admin</span>
+          <i data-lucide="chevron-down" style="width:11px;height:11px;color:#5b6577;"></i>
+        </div>
+        <div class="navbtn"><span class="tab-count">3</span></div>
+      </div>
+
+      <div class="m-content" style="background: #fafafd;">
+        <div style="padding:12px;font-family:'Inter',sans-serif;font-size:11px;color:#5b6577;text-transform:uppercase;letter-spacing:.06em;">Active tab</div>
+        <div style="padding:0 12px;">
+          <div style="background:#fff;border:1px solid var(--wp-line);border-radius:10px;overflow:hidden;">
+            <div style="background:#1d2327;color:#fff;padding:8px 10px;font-size:11px;display:flex;align-items:center;gap:8px;">
+              <i data-lucide="wordpress" style="width:13px;height:13px;"></i> Coffee Shop demo
+            </div>
+            <div style="padding:14px;">
+              <h3 style="font-family:Georgia,serif;margin:0 0 6px;font-size:18px;color:#1d2327;">Products</h3>
+              <div style="display:flex;gap:8px;margin:8px 0;align-items:center;font-size:11px;font-family:'Inter',sans-serif;color:#50575e;">
+                <span style="width:32px;height:32px;background:linear-gradient(135deg,#fde2e4,#f4d6ff);border-radius:6px;"></span>
+                <div><strong style="color:#1d2327;">Ethiopia Yirgacheffe</strong><br>$18.00 · In stock</div>
+              </div>
+              <div style="display:flex;gap:8px;margin:8px 0;align-items:center;font-size:11px;font-family:'Inter',sans-serif;color:#50575e;">
+                <span style="width:32px;height:32px;background:linear-gradient(135deg,#ffe8d4,#ffd3a8);border-radius:6px;"></span>
+                <div><strong style="color:#1d2327;">House Blend</strong><br>$14.00 · In stock</div>
+              </div>
+              <div style="display:flex;gap:8px;margin:8px 0;align-items:center;font-size:11px;font-family:'Inter',sans-serif;color:#50575e;">
+                <span style="width:32px;height:32px;background:linear-gradient(135deg,#d4f4dd,#b3e9d8);border-radius:6px;"></span>
+                <div><strong style="color:#1d2327;">Decaf Sumatra</strong><br>$16.00 · Low stock</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:12px;font-family:'Inter',sans-serif;font-size:11px;color:#5b6577;text-transform:uppercase;letter-spacing:.06em;margin-top:8px;">Quick blueprints</div>
+        <div style="padding:0 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:#fff;border:1px solid var(--wp-line);border-radius:10px;padding:10px;font-size:11px;">
+            <div style="height:40px;background:linear-gradient(135deg,#fde2e4,#f4d6ff);border-radius:6px;margin-bottom:6px;"></div>
+            <strong>Art Gallery</strong><br><span style="color:#5b6577;">Vueo theme</span>
+          </div>
+          <div style="background:#fff;border:1px solid var(--wp-line);border-radius:10px;padding:10px;font-size:11px;">
+            <div style="height:40px;background:linear-gradient(135deg,#d4e3ff,#c8b5ff);border-radius:6px;margin-bottom:6px;"></div>
+            <strong>Personal Blog</strong><br><span style="color:#5b6577;">Substrata</span>
+          </div>
+          <div style="background:#fff;border:1px solid var(--wp-line);border-radius:10px;padding:10px;font-size:11px;">
+            <div style="height:40px;background:linear-gradient(135deg,#d4f4dd,#b3e9d8);border-radius:6px;margin-bottom:6px;"></div>
+            <strong>Gaming News</strong><br><span style="color:#5b6577;">Spiel</span>
+          </div>
+          <div style="background:#fff;border:1px solid var(--wp-line);border-radius:10px;padding:10px;font-size:11px;">
+            <div style="height:40px;background:linear-gradient(135deg,#fff3c4,#ffd285);border-radius:6px;margin-bottom:6px;"></div>
+            <strong>Coffee Shop</strong><br><span style="color:#5b6577;">WooCommerce</span>
+          </div>
+        </div>
+        <div style="padding:14px;font-size:12px;color:#3858e9;font-weight:600;text-align:center;">See all 43 blueprints ›</div>
+      </div>
+
+      <div class="m-bottombar">
+        <div class="item"><i data-lucide="copy" style="width:18px;height:18px;"></i>Tabs</div>
+        <div class="item"><i data-lucide="bookmark" style="width:18px;height:18px;"></i>Blueprints</div>
+        <div class="item active"><i data-lucide="terminal-square" style="width:18px;height:18px;"></i>DevTools</div>
+        <div class="item"><i data-lucide="menu" style="width:18px;height:18px;"></i>Menu</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">Design #005 · Browser-tab metaphor · self-contained HTML/CSS · fonts: Inter, JetBrains Mono · icons: Lucide</div>
+
+<script>
+// blueprint cards (12+ from BLUEPRINTS.md, see brief)
+const blueprints = [
+  {n:1, t:"Art Gallery", d:"An art gallery created with the Vueo theme.", tags:["Website","Personal"], thumb:"t1"},
+  {n:2, t:"Coffee Shop", d:"A stylish WooCommerce coffee shop storefront with custom theme, products, and content.", tags:["WooCommerce","Store"], thumb:"t2"},
+  {n:3, t:"Feed Reader with the Friends Plugin", d:"Read feeds (incl. ActivityPub) in Playground via the Friends plugin.", tags:["rss","social","web"], thumb:"t4"},
+  {n:4, t:"Gaming News", d:"A gaming news site created with the Spiel theme.", tags:["Website","News"], thumb:"t3"},
+  {n:5, t:"Non-profit Organization", d:"A non-profit organization site created with the Koinonia theme.", tags:["Website","Organization"], thumb:"t5"},
+  {n:6, t:"Personal Blog", d:"A personal blog site created with the Substrata theme.", tags:["Website","Personal","Blog"], thumb:"t6"},
+  {n:14, t:"Demo of Twenty-Twenty-Five", d:"Demo content for the Twenty-Twenty-Five default theme.", tags:["Themes","default"], thumb:"t4"},
+  {n:24, t:"Latest Gutenberg plugin", d:"A preview of the latest Gutenberg plugin.", tags:["plugins","Gutenberg"], thumb:"t1"},
+  {n:28, t:"Minimal WooCommerce Setup", d:"WooCommerce + custom flat-rate shipping + sample products + direct bank transfer.", tags:["woocommerce","shipping"], thumb:"t2"},
+  {n:38, t:"Use WPGraphQL to query WordPress", d:"Loads WordPress with WPGraphQL active and the WPGraphQL IDE page.", tags:["API","wpgraphql"], thumb:"t4"},
+  {n:43, t:"WordPress Beta", d:"Test the latest WordPress Beta/RC with theme test data and debugging plugins.", tags:["Testing"], thumb:"t3"},
+  {n:8, t:"Photography Portfolio", d:"A photography portfolio created with the Grammer theme.", tags:["Website","Photography"], thumb:"t5"}
+];
+
+const grid = document.getElementById('bp-grid');
+if (grid) {
+  blueprints.forEach(bp => {
+    const card = document.createElement('div');
+    card.className = 'bp-card';
+    const initials = bp.t.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    card.innerHTML = `
+      <div class="thumb ${bp.thumb}">${initials}</div>
+      <h4>${bp.t}</h4>
+      <p>${bp.d}</p>
+      <div class="tag-row">${bp.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// initialize lucide icons
+if (window.lucide) {
+  // map wordpress icon to a fallback if not present
+  lucide.createIcons({
+    nameAttr: 'data-lucide',
+  });
+  // lucide doesn't ship "wordpress"; swap any unrendered i[data-lucide=wordpress] for a "W"
+  document.querySelectorAll('i[data-lucide="wordpress"]').forEach(el => {
+    if (!el.querySelector('svg')) {
+      el.outerHTML = '<span style="font-family:Georgia,serif;font-weight:700;font-size:14px;line-height:1;display:inline-block;">W</span>';
+    }
+  });
+}
+
+// tiny interactivity: clicking the settings chip toggles the popover (purely visual)
+document.querySelectorAll('#settings-trigger').forEach(t => {
+  t.addEventListener('click', () => {
+    const po = t.closest('.window').querySelector('.popover.settings');
+    if (po) po.classList.toggle('open');
+  });
+});
+document.querySelectorAll('#overflow-trigger').forEach(t => {
+  t.addEventListener('click', () => {
+    const po = t.closest('.window').querySelector('.popover.overflow');
+    if (po) po.style.display = (po.style.display === 'block' ? 'none' : 'block');
+  });
+});
+</script>
+
+</body>
+</html>
