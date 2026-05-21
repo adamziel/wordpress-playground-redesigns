@@ -1,0 +1,13 @@
+# V6 Design 009 - Paper Rail Playground
+
+## Thesis
+Paper Rail Playground uses the assigned TypeUI **paper** style as a product system, not just a palette: Montserrat/Roboto/PT Mono define the hierarchy, the neutral paper field uses visible ink borders and low-radius tactile surfaces, violet is reserved for active state, and the resize seam shows the active ratio in plain mono labels. The quiet rail is always present, but it only has three doors: Sites, Tools, and Settings. Selecting one turns the single secondary surface into a louder paper deck while the WordPress iframe remains the primary working surface.
+
+## Remix / Merge / Remove
+I kept the information architecture from quiet-rail-to-loud, but removed the separate Blueprints rail door so all launch, saved-site, import, and blueprint discovery flows live behind the compact Sites widget and Sites rail item. I merged smart-resize into the shell through two explicit detents, visible ratio labels, a gauge, and site/deck focus buttons. I borrowed three-layer-depth only as surface polish: stacked shadows, subtle paper texture, and a raised deck, without using depth as the navigation model. I did not use the two-row top bar pattern; the horizontal toolbar is one slim capsule for refresh, path, identity, save, Sites, and fullscreen, with Tools and Settings on the rail.
+
+## Trade-offs
+The single deck is intentionally busy when Tools is open because it has to preserve Settings, Files, Blueprint, Database, Logs, WP Admin, Homepage, Export to GitHub PR, and Download .zip without creating a second drawer. The design favors one reliable place over maximum simultaneous visibility. On mobile the rail rotates to the bottom and the deck becomes a lower paper sheet, so the iframe is smaller during management work but never disappears unless the user explicitly enters fullscreen. The gallery renders all 43 blueprint records, but only the first featured items use screenshot-derived previews; the rest use consistent paper preview placeholders.
+
+## Self-Critique / Revision Note
+After checking the V6 insights, I revised the concept toward one Sites door rather than separate launcher and blueprint doors, added visible ratio copy and a gauge so the focus shift teaches itself, and kept the two-row top-bar lesson out of the design. Feature preservation is covered in the static UI: refresh/path/name/save, Sites launcher with all six start routes, full 43-blueprint gallery with search and category chips, saved playgrounds, manager tabs, database/logs, route inputs, save/resume, booting/loading, toast, destructive reset confirm, and fullscreen focus mode. The biggest residual risk is density in the deck at 390px, but it keeps the same product logic instead of switching to a separate mobile IA.
