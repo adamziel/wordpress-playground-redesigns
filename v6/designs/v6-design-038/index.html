@@ -1,0 +1,2091 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V6 Design 038 - Consequence Resize</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;500;600;700&family=Poppins:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap");
+
+    :root {
+      --primary: #3b82f6;
+      --secondary: #8b5cf6;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --surface: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #d9dee7;
+      --soft: #f4f7fb;
+      --softer: #f8fafc;
+      --ink-2: #374151;
+      --shadow: 0 18px 44px rgba(17, 24, 39, .14);
+      --shadow-sm: 0 8px 22px rgba(17, 24, 39, .08);
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --panel: 0px;
+      --panel-size: 0px;
+      color-scheme: light;
+      font-family: Roboto, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #eef2f7;
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      position: relative;
+      display: grid;
+      grid-template-rows: 1fr;
+      isolation: isolate;
+    }
+
+    .shell {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--panel);
+      gap: 8px;
+      padding: 8px;
+      height: 100vh;
+      transition: grid-template-columns .28s ease;
+    }
+
+    .app[data-mode="sites"] {
+      --panel: minmax(420px, 34vw);
+      --panel-size: max(420px, 34vw);
+    }
+
+    .app[data-mode="manager"],
+    .app[data-mode="settings"],
+    .app[data-mode="reset"] {
+      --panel: minmax(500px, 40vw);
+      --panel-size: max(500px, 40vw);
+    }
+
+    .app[data-mode="preview"] {
+      --panel: 72px;
+      --panel-size: 72px;
+    }
+
+    .app.is-fullscreen .shell {
+      grid-template-columns: 1fr 0;
+      padding: 0;
+      gap: 0;
+    }
+
+    .site-frame-wrap {
+      position: relative;
+      min-width: 0;
+      border: 1px solid #c9d1dc;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .site-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: white;
+    }
+
+    .command {
+      position: absolute;
+      top: 16px;
+      left: calc((100vw - var(--panel-size)) / 2);
+      z-index: 30;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: min(1060px, calc(100vw - var(--panel-size) - 56px));
+      min-height: 48px;
+      padding: 6px;
+      border: 1px solid rgba(17, 24, 39, .12);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, .94);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(16px);
+      transition: width .28s ease, opacity .2s ease;
+    }
+
+    .app.is-fullscreen .command,
+    .app.is-fullscreen .sites-widget,
+    .app.is-fullscreen .panel,
+    .app.is-fullscreen .seam {
+      display: none;
+    }
+
+    .icon-button,
+    .chip,
+    .primary,
+    .ghost,
+    .danger,
+    .tab,
+    .route-card,
+    .site-row,
+    .tool-button {
+      min-height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      width: 36px;
+      color: var(--ink-2);
+      background: transparent;
+    }
+
+    .icon-button:hover,
+    .ghost:hover {
+      background: #eef4ff;
+      border-color: #cfe0ff;
+    }
+
+    .path {
+      min-width: 220px;
+      flex: 1 1 auto;
+      height: 36px;
+      border: 1px solid #c8d1dd;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      padding: 0 10px;
+    }
+
+    .path input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: Inconsolata, ui-monospace, monospace;
+      font-size: 16px;
+    }
+
+    .identity {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      background: #f0f3f8;
+      border: 1px solid #d7dde7;
+      max-width: 220px;
+      overflow: hidden;
+    }
+
+    .identity .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--warning);
+      flex: 0 0 auto;
+    }
+
+    .app.saved .dot {
+      background: var(--success);
+    }
+
+    .chip,
+    .ghost {
+      padding: 0 12px;
+      color: var(--ink-2);
+      background: var(--surface);
+      border-color: #cfd7e3;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .primary {
+      padding: 0 14px;
+      color: white;
+      background: var(--primary);
+      border-color: var(--primary);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .danger {
+      padding: 0 14px;
+      color: white;
+      background: var(--danger);
+      border-color: var(--danger);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .primary:disabled,
+    .danger:disabled {
+      cursor: not-allowed;
+      background: #cbd5e1;
+      border-color: #cbd5e1;
+      color: #64748b;
+    }
+
+    .sites-widget {
+      position: absolute;
+      z-index: 32;
+      left: 16px;
+      bottom: 16px;
+      width: 308px;
+      border-radius: var(--radius-md);
+      border: 1px solid #c9d3e2;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      backdrop-filter: blur(14px);
+    }
+
+    .sites-widget:hover {
+      border-color: #8bb9ff;
+    }
+
+    .wp-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--text);
+      font-family: Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+      background: white;
+    }
+
+    .widget-title {
+      display: block;
+      font-family: Poppins, Roboto, sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0;
+      margin: 0 0 3px;
+    }
+
+    .widget-meta {
+      display: block;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .sites-widget > span:nth-child(2) {
+      min-width: 0;
+    }
+
+    .state-pill {
+      font-family: Inconsolata, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #854d0e;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 999px;
+      padding: 5px 8px;
+    }
+
+    .app.saved .state-pill {
+      color: #166534;
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+
+    .panel {
+      min-width: 0;
+      height: calc(100vh - 16px);
+      border-radius: var(--radius-md);
+      border: 1px solid #c9d1dc;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(16px);
+      transition: opacity .2s ease, transform .28s ease;
+    }
+
+    .app[data-mode="sites"] .panel,
+    .app[data-mode="manager"] .panel,
+    .app[data-mode="settings"] .panel,
+    .app[data-mode="reset"] .panel,
+    .app[data-mode="preview"] .panel {
+      opacity: 1;
+      pointer-events: auto;
+      transform: none;
+    }
+
+    .app[data-mode="preview"] .panel {
+      padding: 8px;
+      grid-template-rows: 1fr;
+      align-items: start;
+    }
+
+    .panel-head,
+    .panel-context {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .app[data-mode="preview"] .panel-head,
+    .app[data-mode="preview"] .panel-context,
+    .app[data-mode="preview"] .panel-body {
+      display: none;
+    }
+
+    .preview-rail {
+      display: none;
+      gap: 8px;
+      flex-direction: column;
+    }
+
+    .app[data-mode="preview"] .preview-rail {
+      display: flex;
+    }
+
+    .panel-kicker {
+      font-family: Inconsolata, monospace;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .panel-title {
+      font-family: Poppins, Roboto, sans-serif;
+      margin: 4px 0 0;
+      font-size: 24px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: end;
+    }
+
+    .tabs,
+    .filters {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      height: 32px;
+      padding: 0 11px;
+      background: #f3f6fa;
+      color: var(--ink-2);
+      border-color: #d8dfe9;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .tab.active {
+      color: white;
+      background: var(--text);
+      border-color: var(--text);
+    }
+
+    .panel-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+      background: linear-gradient(180deg, #ffffff 0, #f7f9fd 100%);
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .section-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: #fbfcff;
+    }
+
+    .section h3 {
+      font-family: Poppins, Roboto, sans-serif;
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .section-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .section-body {
+      padding: 14px;
+    }
+
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .route-card {
+      min-height: 76px;
+      justify-content: start;
+      padding: 12px;
+      background: #fff;
+      border-color: var(--line);
+      text-align: left;
+    }
+
+    .route-card.active {
+      border-color: var(--primary);
+      box-shadow: inset 3px 0 0 var(--primary);
+      background: #f7fbff;
+    }
+
+    .route-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .route-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .route-detail,
+    .notice,
+    .reset-flow,
+    .result-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #fbfcff;
+      padding: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      font-size: 13px;
+      color: var(--ink-2);
+      font-weight: 700;
+    }
+
+    .label-caps {
+      font-family: Inconsolata, monospace;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      min-width: 0;
+      min-height: 36px;
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius-sm);
+      background: white;
+      color: var(--text);
+      padding: 8px 10px;
+      outline-color: var(--primary);
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      font-family: Inconsolata, ui-monospace, monospace;
+      line-height: 1.4;
+    }
+
+    .dropzone {
+      border: 1px dashed #94a3b8;
+      border-radius: var(--radius-md);
+      background: white;
+      min-height: 86px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 16px;
+      color: var(--muted);
+    }
+
+    .dropzone strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .saved-list,
+    .tool-list,
+    .file-browser {
+      display: grid;
+      gap: 8px;
+    }
+
+    .site-row {
+      width: 100%;
+      min-height: 64px;
+      justify-content: start;
+      padding: 10px 12px;
+      background: #fff;
+      border-color: var(--line);
+      text-align: left;
+    }
+
+    .site-row.active {
+      border-color: var(--success);
+      box-shadow: inset 3px 0 0 var(--success);
+      background: #f7fff9;
+    }
+
+    .site-row .row-text {
+      min-width: 0;
+    }
+
+    .site-row strong,
+    .tool-button strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .site-row span,
+    .tool-button span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .gallery-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .search {
+      width: 100%;
+      height: 40px;
+    }
+
+    .blueprint-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .blueprint-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: white;
+      overflow: hidden;
+    }
+
+    .thumb {
+      height: 84px;
+      background:
+        linear-gradient(135deg, rgba(59, 130, 246, .16), rgba(139, 92, 246, .08)),
+        repeating-linear-gradient(90deg, #e8eef7 0 24px, #f8fafc 24px 48px);
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+
+    .thumb:after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      height: 28px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .72);
+      border: 1px solid rgba(17, 24, 39, .08);
+    }
+
+    .blueprint-body {
+      padding: 12px;
+    }
+
+    .blueprint-card h4 {
+      font-size: 14px;
+      margin: 0 0 6px;
+      line-height: 1.25;
+    }
+
+    .blueprint-card p {
+      color: var(--muted);
+      margin: 0 0 10px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .tag {
+      font-family: Inconsolata, monospace;
+      font-size: 12px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #4338ca;
+      border: 1px solid #dbe2ff;
+    }
+
+    .manager-layout {
+      display: grid;
+      grid-template-columns: 124px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .manager-nav {
+      display: grid;
+      gap: 6px;
+      position: sticky;
+      top: 0;
+    }
+
+    .tool-tab {
+      height: 36px;
+      justify-content: start;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--ink-2);
+      border: 1px solid transparent;
+      font-weight: 700;
+    }
+
+    .tool-tab.active {
+      background: #111827;
+      color: white;
+    }
+
+    .tool-view {
+      display: none;
+    }
+
+    .tool-view.active {
+      display: block;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--ink-2);
+      margin-top: 10px;
+    }
+
+    .checkbox-row input {
+      min-height: auto;
+      width: 16px;
+      height: 16px;
+      padding: 0;
+    }
+
+    .file-browser {
+      grid-template-columns: 160px minmax(0, 1fr);
+    }
+
+    .tree {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .tree div {
+      padding: 9px 10px;
+      border-bottom: 1px solid #eef2f7;
+      font-family: Inconsolata, monospace;
+      font-size: 13px;
+    }
+
+    .tree div.active {
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 700;
+    }
+
+    .code {
+      min-height: 260px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #0f172a;
+      color: #dbeafe;
+      padding: 14px;
+      overflow: auto;
+      font-family: Inconsolata, ui-monospace, monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
+    .db-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      background: white;
+    }
+
+    .db-table th,
+    .db-table td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+    }
+
+    .db-table th {
+      background: #f1f5f9;
+      font-family: Inconsolata, monospace;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-size: 12px;
+    }
+
+    .log-stream {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #fff;
+      padding: 12px;
+      font-family: Inconsolata, monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    .log-stream p {
+      margin: 0 0 10px;
+    }
+
+    .warn {
+      color: #92400e;
+    }
+
+    .notice {
+      display: flex;
+      gap: 12px;
+      align-items: start;
+      background: #f8fbff;
+      border-color: #bfdbfe;
+    }
+
+    .notice.warning {
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
+
+    .notice.danger-note {
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .notice strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .reset-flow {
+      display: grid;
+      gap: 12px;
+      background: #fff;
+      border-color: #fecaca;
+    }
+
+    .diff {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .diff-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      background: #f8fafc;
+    }
+
+    .diff-card strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--primary);
+      transition: width .4s ease;
+    }
+
+    .app.resetting .progress span {
+      width: 100%;
+    }
+
+    .toast {
+      position: absolute;
+      left: 344px;
+      bottom: 18px;
+      z-index: 60;
+      min-width: 280px;
+      max-width: min(420px, calc(100vw - 380px));
+      display: none;
+      align-items: start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid #bbf7d0;
+      background: #f0fdf4;
+      color: #14532d;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: flex;
+    }
+
+    .toast strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .seam {
+      position: absolute;
+      z-index: 28;
+      top: 76px;
+      right: calc(var(--panel-size) + 8px);
+      width: 48px;
+      border: 1px solid #ccd6e4;
+      background: rgba(255, 255, 255, .92);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 8px 6px;
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      transform: translateX(50%);
+      transition: right .28s ease, opacity .2s ease;
+    }
+
+    .app[data-mode="quiet"] .seam {
+      opacity: .92;
+      right: 16px;
+      transform: none;
+    }
+
+    .app.is-fullscreen .seam {
+      opacity: 0;
+    }
+
+    .ratio {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-family: Inconsolata, monospace;
+      font-weight: 700;
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+
+    .gauge {
+      width: 8px;
+      height: 120px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      padding: 2px;
+      display: flex;
+      align-items: end;
+    }
+
+    .gauge-fill {
+      width: 100%;
+      height: 92%;
+      border-radius: 999px;
+      background: var(--primary);
+      transition: height .28s ease;
+    }
+
+    .app[data-mode="sites"] .gauge-fill {
+      height: 66%;
+    }
+
+    .app[data-mode="manager"] .gauge-fill,
+    .app[data-mode="settings"] .gauge-fill,
+    .app[data-mode="reset"] .gauge-fill {
+      height: 60%;
+    }
+
+    .app[data-mode="preview"] .gauge-fill {
+      height: 92%;
+    }
+
+    .loading-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 25;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(248, 250, 252, .78);
+      backdrop-filter: blur(2px);
+    }
+
+    .app.booting .loading-layer {
+      display: flex;
+    }
+
+    .loader-card {
+      width: min(360px, calc(100% - 32px));
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius-md);
+      background: white;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .loader-card h3 {
+      margin: 0 0 8px;
+      font-family: Poppins, Roboto, sans-serif;
+    }
+
+    .loader-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .fullscreen-exit {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      z-index: 70;
+      transform: translateX(-50%);
+      display: none;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid #cbd5e1;
+      background: rgba(255, 255, 255, .95);
+      box-shadow: var(--shadow-sm);
+      font-size: 14px;
+    }
+
+    .app.is-fullscreen .fullscreen-exit {
+      display: flex;
+    }
+
+    .export-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .tool-button {
+      width: 100%;
+      min-height: 92px;
+      justify-content: start;
+      align-items: start;
+      padding: 12px;
+      text-align: left;
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .tool-button.primary-tool {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .compact-only {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      html,
+      body {
+        overflow: hidden;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) var(--panel);
+        height: 100dvh;
+      }
+
+      .app[data-mode="sites"],
+      .app[data-mode="manager"],
+      .app[data-mode="settings"],
+      .app[data-mode="reset"] {
+        --panel: minmax(390px, 52dvh);
+        --panel-size: max(390px, 52dvh);
+      }
+
+      .app[data-mode="preview"] {
+        --panel: 72px;
+        --panel-size: 72px;
+      }
+
+      .site-frame-wrap {
+        min-height: 0;
+      }
+
+      .panel {
+        height: auto;
+        min-height: 0;
+        transform: translateY(16px);
+      }
+
+      .app[data-mode="sites"] .panel,
+      .app[data-mode="manager"] .panel,
+      .app[data-mode="settings"] .panel,
+      .app[data-mode="reset"] .panel,
+      .app[data-mode="preview"] .panel {
+        transform: none;
+      }
+
+      .command {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        transform: none;
+        width: auto;
+        max-width: none;
+        min-height: 44px;
+        gap: 4px;
+      }
+
+      .path {
+        min-width: 0;
+        padding: 0 8px;
+      }
+
+      .identity {
+        max-width: 110px;
+      }
+
+      .hide-mobile {
+        display: none !important;
+      }
+
+      .sites-widget {
+        left: 12px;
+        bottom: calc(var(--panel-size) + 18px);
+        width: min(344px, calc(100vw - 24px));
+        grid-template-columns: 40px 1fr auto;
+      }
+
+      .app[data-mode="quiet"] .sites-widget,
+      .app[data-mode="preview"] .sites-widget {
+        bottom: 12px;
+      }
+
+      .wp-mark {
+        width: 40px;
+        height: 40px;
+        font-size: 23px;
+      }
+
+      .seam {
+        top: auto;
+        left: 50%;
+        right: auto;
+        bottom: calc(var(--panel-size) + 2px);
+        width: min(300px, calc(100vw - 56px));
+        height: 42px;
+        padding: 6px 8px;
+        transform: translateX(-50%);
+        display: flex;
+      }
+
+      .app[data-mode="quiet"] .seam {
+        right: auto;
+        bottom: 86px;
+        transform: translateX(-50%);
+      }
+
+      .ratio {
+        writing-mode: horizontal-tb;
+      }
+
+      .gauge {
+        flex: 1;
+        height: 8px;
+        width: auto;
+        align-items: stretch;
+      }
+
+      .gauge-fill {
+        height: 100% !important;
+        width: 92%;
+      }
+
+      .app[data-mode="sites"] .gauge-fill {
+        width: 66%;
+      }
+
+      .app[data-mode="manager"] .gauge-fill,
+      .app[data-mode="settings"] .gauge-fill,
+      .app[data-mode="reset"] .gauge-fill {
+        width: 60%;
+      }
+
+      .panel-head,
+      .panel-context,
+      .panel-body {
+        padding: 12px;
+      }
+
+      .panel-title {
+        font-size: 20px;
+      }
+
+      .route-grid,
+      .blueprint-grid,
+      .form-grid,
+      .settings-grid,
+      .file-browser,
+      .export-grid,
+      .diff,
+      .manager-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .manager-nav {
+        position: static;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .tool-tab {
+        justify-content: center;
+        padding: 0 6px;
+      }
+
+      .toast {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .shell {
+        padding: 6px;
+        gap: 6px;
+      }
+
+      .command {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        padding: 4px;
+      }
+
+      .icon-button,
+      .chip,
+      .primary,
+      .ghost,
+      .danger {
+        min-height: 34px;
+      }
+
+      .primary,
+      .ghost,
+      .chip {
+        padding: 0 9px;
+        font-size: 13px;
+      }
+
+      .identity {
+        display: none;
+      }
+
+      .path input {
+        font-size: 14px;
+      }
+
+      .path {
+        flex: 1 1 120px;
+        max-width: 190px;
+      }
+
+      .path .label-caps {
+        display: none;
+      }
+
+      .command .icon-button {
+        width: 32px;
+        min-width: 32px;
+      }
+
+      .command [data-open="preview"] {
+        display: none;
+      }
+
+      .command .primary {
+        width: 34px;
+        min-width: 34px;
+        padding: 0;
+        font-size: 0;
+      }
+
+      .command .primary:after {
+        content: "S";
+        font-size: 13px;
+      }
+
+      .panel-actions .ghost,
+      .panel-actions .primary {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      .panel-actions .icon-button {
+        flex: 0 0 36px;
+      }
+
+      .panel-head {
+        display: grid;
+        grid-template-columns: 1fr;
+        position: relative;
+        padding-right: 52px;
+      }
+
+      .panel-actions [data-close] {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: #fff;
+        border-color: #cbd5e1;
+      }
+
+      .panel-actions {
+        justify-content: start;
+        width: 100%;
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 2px;
+      }
+
+      .tab {
+        flex: 0 0 auto;
+      }
+
+      .filters {
+        max-height: 76px;
+        overflow: auto;
+      }
+
+      .sites-widget {
+        left: 8px;
+        width: calc(100vw - 16px);
+        bottom: calc(var(--panel-size) + 10px);
+        padding: 10px;
+      }
+
+      .app[data-mode="quiet"] .sites-widget,
+      .app[data-mode="preview"] .sites-widget {
+        bottom: 8px;
+      }
+
+      .widget-title {
+        font-size: 15px;
+      }
+
+      .widget-meta {
+        font-size: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app" data-mode="quiet">
+    <div class="shell">
+      <section class="site-frame-wrap" aria-label="Live WordPress site">
+        <iframe class="site-frame" title="WordPress Playground site" srcdoc='
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111;background:#fff}
+              .admin{height:32px;background:#1d2327;color:#f0f0f1;display:flex;align-items:center;gap:18px;padding:0 16px;font-size:13px}
+              .admin b{font-weight:600}
+              .top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 54px;border-bottom:1px solid #eee}
+              .brand{font-size:24px;font-weight:700}
+              nav{display:flex;gap:26px;color:#333}
+              .hero{display:grid;grid-template-columns:minmax(280px,520px) 1fr;gap:44px;align-items:center;padding:120px 9vw 80px}
+              h1{font-family:Georgia,serif;font-size:52px;line-height:1.12;font-weight:400;margin:0 0 24px}
+              h1 span{color:#3157f6}
+              p{font-size:22px;line-height:1.48;margin:0 0 20px}
+              mark{background:#fde68a;padding:0 2px}
+              .button{display:inline-block;margin-top:10px;background:#3157f6;color:white;padding:14px 22px;border-radius:3px;text-decoration:none;font-weight:700}
+              .art{height:560px;min-width:360px;position:relative;overflow:hidden}
+              .ring{position:absolute;right:-110px;top:60px;width:560px;height:560px;border:70px solid #32e875;border-radius:50%}
+              .ring:after{content:"";position:absolute;left:60px;right:60px;top:220px;height:120px;border:60px solid #32e875;border-left-color:transparent;border-right-color:transparent;border-bottom:0;border-radius:50% 50% 0 0}
+              .wp{position:absolute;right:48px;top:0;width:300px;height:300px;border:20px solid #18181b;border-radius:50%;display:grid;place-items:center;background:white;font-family:Georgia,serif;font-size:210px;font-weight:700;line-height:.8}
+              @media(max-width:760px){.admin{font-size:12px;padding:0 10px;gap:10px}.top{padding:0 20px}.brand{font-size:20px}nav{gap:14px}.hero{grid-template-columns:1fr;padding:96px 32px 80px}h1{font-size:40px}p{font-size:20px}.art{height:360px;min-width:0}.ring{right:-180px;top:10px;width:420px;height:420px}.wp{right:-20px;width:230px;height:230px;font-size:160px}}
+            </style>
+          </head>
+          <body>
+            <div class="admin"><b>My WordPress Website</b><span>Edit Site</span><span>+ New</span><span>Edit Page</span><span style="margin-left:auto">Howdy, admin</span></div>
+            <header class="top"><div class="brand">My WordPress Website</div><nav><span>Hello from WordPress Playground!</span><span>Sample Page</span></nav></header>
+            <main class="hero">
+              <section>
+                <h1>Hello from <span>WordPress Playground!</span></h1>
+                <p>This is Playground, a WordPress that runs client-side in your browser. It is perfect for training, demonstrating plugins and themes, and for testing purposes.</p>
+                <p><mark>Note that you are logged-in as admin!</mark><br>Thus, you can modify this site as you like: edit content, install plugins and play around.</p>
+                <p>To start over, simply reload the page!</p>
+                <a class="button" href="#">Discover the mission behind Playground</a>
+              </section>
+              <section class="art"><div class="ring"></div><div class="wp">W</div></section>
+            </main>
+          </body>
+          </html>'></iframe>
+        <div class="loading-layer" aria-live="polite">
+          <div class="loader-card">
+            <h3>Booting selected Playground</h3>
+            <p id="bootCopy">Importing ZIP bundle, applying blueprint steps, and refreshing the live site.</p>
+            <div class="progress"><span></span></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel" aria-label="Resize surface">
+        <div class="preview-rail">
+          <button class="icon-button" data-open="sites" title="Open Sites">S</button>
+          <button class="icon-button" data-open="manager" title="Open Manager">M</button>
+          <button class="icon-button" data-tool="settings" title="Open Settings">G</button>
+          <button class="icon-button" id="exitPreview" title="Return to split">R</button>
+        </div>
+        <header class="panel-head">
+          <div>
+            <div class="panel-kicker" id="panelKicker">Sites widget</div>
+            <h1 class="panel-title" id="panelTitle">Saved identity and launch</h1>
+          </div>
+          <div class="panel-actions">
+            <button class="ghost" id="wpAdmin">WP Admin</button>
+            <button class="ghost" id="homePage">Homepage</button>
+            <button class="icon-button" data-close title="Close panel">X</button>
+          </div>
+        </header>
+        <div class="panel-context">
+          <div class="tabs" id="sitesTabs">
+            <button class="tab active" data-sites-view="your">Your Playgrounds</button>
+            <button class="tab" data-sites-view="new">Start New</button>
+            <button class="tab" data-sites-view="blueprints">Blueprints</button>
+            <button class="tab" data-sites-view="consequence">Consequences</button>
+          </div>
+          <div class="tabs" id="managerTabs" hidden>
+            <button class="tab active" data-manager-view="settings">Settings</button>
+            <button class="tab" data-manager-view="files">Files</button>
+            <button class="tab" data-manager-view="blueprint">Blueprint</button>
+            <button class="tab" data-manager-view="database">Database</button>
+            <button class="tab" data-manager-view="logs">Logs</button>
+            <button class="tab" data-manager-view="export">Export</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="sitesContent">
+            <section class="view active" data-view="your">
+              <div class="section">
+                <div class="section-head">
+                  <div>
+                    <h3>Before save</h3>
+                    <p class="section-note">This session is named Unsaved Playground and will be lost on refresh.</p>
+                  </div>
+                  <button class="primary" data-save>Save locally</button>
+                </div>
+                <div class="section-body saved-list">
+                  <button class="site-row active" data-resume="Unsaved Playground">
+                    <span class="wp-mark" style="width:34px;height:34px;font-size:20px;border-width:1px">W</span>
+                    <span class="row-text"><strong>Unsaved Playground</strong><span>Not saved to browser storage. Current active state.</span></span>
+                  </button>
+                  <button class="site-row" data-resume="Coffee Shop QA">
+                    <span class="wp-mark" style="width:34px;height:34px;font-size:20px;border-width:1px">W</span>
+                    <span class="row-text"><strong>Coffee Shop QA</strong><span>Saved locally. WordPress latest, PHP 8.3.</span></span>
+                  </button>
+                  <button class="site-row" data-resume="Plugin PR 7712">
+                    <span class="wp-mark" style="width:34px;height:34px;font-size:20px;border-width:1px">W</span>
+                    <span class="row-text"><strong>Plugin PR 7712</strong><span>Saved locally. Gutenberg branch preview.</span></span>
+                  </button>
+                  <button class="site-row" data-resume="Theme Regression Lab">
+                    <span class="wp-mark" style="width:34px;height:34px;font-size:20px;border-width:1px">W</span>
+                    <span class="row-text"><strong>Theme Regression Lab</strong><span>Saved locally. Twenty Twenty-Five test data.</span></span>
+                  </button>
+                </div>
+              </div>
+              <div class="result-card">
+                <div class="label-caps">Resume consequence</div>
+                <h3 style="margin:6px 0 6px;font-family:Poppins,Roboto,sans-serif">Selecting a saved playground replaces the active site.</h3>
+                <p class="section-note">The panel keeps the iframe visible, shows a booting overlay, then the identity widget changes to the selected saved name.</p>
+              </div>
+            </section>
+
+            <section class="view" data-view="new">
+              <div class="section">
+                <div class="section-head">
+                  <div>
+                    <h3>Start a new Playground</h3>
+                    <p class="section-note">Every route shows the input that will replace the active session.</p>
+                  </div>
+                </div>
+                <div class="section-body">
+                  <div class="route-grid">
+                    <button class="route-card active" data-route="vanilla"><span><strong>Vanilla WordPress</strong><span>Latest WordPress with admin login.</span></span></button>
+                    <button class="route-card" data-route="wppr"><span><strong>WordPress PR</strong><span>Boot from a core PR number or URL.</span></span></button>
+                    <button class="route-card" data-route="gutenberg"><span><strong>Gutenberg PR</strong><span>Use a PR, branch, or plugin build.</span></span></button>
+                    <button class="route-card" data-route="github"><span><strong>From GitHub</strong><span>Load a plugin or theme repository.</span></span></button>
+                    <button class="route-card" data-route="blueprinturl"><span><strong>Blueprint URL</strong><span>Paste any blueprint JSON URL.</span></span></button>
+                    <button class="route-card" data-route="zip"><span><strong>Import .zip</strong><span>Upload an exported Playground bundle.</span></span></button>
+                  </div>
+                  <div class="route-detail" style="margin-top:12px" id="routeDetail"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="view" data-view="blueprints">
+              <div class="section">
+                <div class="section-head">
+                  <div>
+                    <h3>Start from a Blueprint</h3>
+                    <p class="section-note">Featured choices and the full 43-blueprint gallery live in the same Sites surface.</p>
+                  </div>
+                </div>
+                <div class="section-body">
+                  <div class="gallery-tools">
+                    <input class="search" id="blueprintSearch" placeholder="Search 43 blueprints" aria-label="Search blueprints">
+                    <div class="filters" id="blueprintFilters"></div>
+                  </div>
+                  <div class="blueprint-grid" id="blueprintGrid"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="view" data-view="consequence">
+              <div class="section">
+                <div class="section-head">
+                  <div>
+                    <h3>Replacement and final states</h3>
+                    <p class="section-note">Save, resume, import, export, and reset all describe the before and after state.</p>
+                  </div>
+                </div>
+                <div class="section-body" style="display:grid;gap:10px">
+                  <div class="notice warning"><span class="label-caps">Save</span><div><strong>Before</strong> Unsaved Playground is not in browser storage. <strong>After</strong> the widget changes to Saved: Local Starter.</div></div>
+                  <div class="notice"><span class="label-caps">Import</span><div><strong>Before</strong> active site is Unsaved Playground. <strong>After</strong> imported ZIP becomes the active saved identity.</div></div>
+                  <div class="notice"><span class="label-caps">Export</span><div><strong>Export to GitHub PR</strong> sends selected theme/plugin/wp-content. <strong>Download .zip</strong> creates a local bundle.</div></div>
+                  <div class="notice danger-note"><span class="label-caps">Reset</span><div><strong>Before</strong> WordPress 7.0, PHP 8.3, unsaved content. <strong>After</strong> WordPress latest with clean database.</div></div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div id="managerContent" hidden>
+            <div class="manager-layout">
+              <nav class="manager-nav" aria-label="Site Manager tools">
+                <button class="tool-tab active" data-tool-view="settings">Settings</button>
+                <button class="tool-tab" data-tool-view="files">Files</button>
+                <button class="tool-tab" data-tool-view="blueprint">Blueprint</button>
+                <button class="tool-tab" data-tool-view="database">Database</button>
+                <button class="tool-tab" data-tool-view="logs">Logs</button>
+                <button class="tool-tab" data-tool-view="export">Export</button>
+              </nav>
+              <div>
+                <section class="tool-view active" data-tool="settings">
+                  <div class="section">
+                    <div class="section-head">
+                      <div>
+                        <h3>Settings</h3>
+                        <p class="section-note">Canonical home for WordPress, PHP, language, network, and multisite.</p>
+                      </div>
+                      <button class="danger" data-open-reset>Apply and reset</button>
+                    </div>
+                    <div class="section-body">
+                      <div class="notice warning" style="margin-bottom:12px"><span class="label-caps">Unsaved</span><div><strong>This is an Unsaved Playground.</strong> Changes will be lost on refresh unless you save locally.</div></div>
+                      <div class="settings-grid">
+                        <label>WordPress Version<select><option>7.0</option><option>Latest nightly</option><option>6.9</option></select></label>
+                        <label>PHP Version<select><option>PHP 8.3</option><option>PHP 8.2</option><option>PHP 8.1</option></select></label>
+                        <label>Language<select><option>English (United States)</option><option>Japanese</option><option>German</option></select></label>
+                        <label>Storage<select><option>Browser OPFS after save</option><option>Temporary memory</option></select></label>
+                      </div>
+                      <label class="checkbox-row"><input type="checkbox" checked>Allow network access</label>
+                      <label class="checkbox-row"><input type="checkbox">Create a multisite network</label>
+                    </div>
+                  </div>
+                  <div class="reset-flow" id="resetFlow">
+                    <div>
+                      <div class="label-caps">Destructive reset flow</div>
+                      <h3 style="font-family:Poppins,Roboto,sans-serif;margin:6px 0">Type reset playground to confirm</h3>
+                      <p class="section-note">Cancel keeps the current active session. Confirm wipes the database and reloads WordPress with the selected versions.</p>
+                    </div>
+                    <div class="diff">
+                      <div class="diff-card"><strong>Before</strong><span class="section-note">Unsaved Playground, WordPress 7.0, PHP 8.3, local edits present.</span></div>
+                      <div class="diff-card"><strong>After</strong><span class="section-note">Clean Playground, latest WordPress, selected settings applied.</span></div>
+                    </div>
+                    <label>Confirmation phrase<input id="resetPhrase" placeholder="reset playground"></label>
+                    <div class="progress"><span></span></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <button class="ghost" id="cancelReset">Cancel</button>
+                      <button class="danger" id="confirmReset" disabled>Confirm reset</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="tool-view" data-tool="files">
+                  <div class="section">
+                    <div class="section-head">
+                      <div><h3>File browser</h3><p class="section-note">Inspect and edit files in /wordpress/.</p></div>
+                      <div class="panel-actions"><button class="ghost">New File</button><button class="ghost">New Folder</button></div>
+                    </div>
+                    <div class="section-body file-browser">
+                      <div class="tree"><div class="active">/wordpress</div><div>wp-admin</div><div>wp-content</div><div>wp-includes</div><div>index.php</div><div>wp-config.php</div><div>wp-login.php</div></div>
+                      <pre class="code">&lt;?php
+define( "DB_NAME", "database_name_here" );
+define( "DB_USER", "username_here" );
+define( "DB_PASSWORD", "password_here" );
+define( "DB_HOST", "localhost" );
+
+/* That is all, stop editing. Happy publishing. */</pre>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="tool-view" data-tool="blueprint">
+                  <div class="section">
+                    <div class="section-head">
+                      <div><h3>Blueprint editor</h3><p class="section-note">Author JSON and run it against the active Playground.</p></div>
+                      <div class="panel-actions"><button class="ghost">Copy link</button><button class="ghost">Download bundle</button><button class="primary" data-boot="Running blueprint">Run Blueprint</button></div>
+                    </div>
+                    <div class="section-body">
+                      <textarea spellcheck="false">{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "meta": {
+    "title": "Playground Welcome Landing Page",
+    "author": "WordPress Playground"
+  },
+  "login": true,
+  "landingPage": "/hello-from-playground/",
+  "steps": [
+    { "step": "runPHPWithOptions", "options": { "code": "&lt;?php /* create welcome page */" } }
+  ],
+  "preferredVersions": { "php": "8.3", "wp": "latest" }
+}</textarea>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="tool-view" data-tool="database">
+                  <div class="section">
+                    <div class="section-head">
+                      <div><h3>Database</h3><p class="section-note">Early-access SQLite-backed database browser.</p></div>
+                    </div>
+                    <div class="section-body">
+                      <div class="notice" style="margin-bottom:12px"><span class="label-caps">Early access</span><div><strong>WordPress Playground emulates MySQL using SQLite.</strong> The database tools are a work in progress.</div></div>
+                      <p><span class="label-caps">Driver</span> MySQL emulation backed by SQLite</p>
+                      <p><span class="label-caps">Path</span> /wordpress/wp-content/database/.ht.sqlite</p>
+                      <table class="db-table">
+                        <thead><tr><th>Table</th><th>Rows</th><th>Size</th></tr></thead>
+                        <tbody><tr><td>wp_posts</td><td>12</td><td>96 KB</td></tr><tr><td>wp_options</td><td>184</td><td>224 KB</td></tr><tr><td>wp_users</td><td>1</td><td>16 KB</td></tr></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="tool-view" data-tool="logs">
+                  <div class="section">
+                    <div class="section-head">
+                      <div><h3>Logs</h3><p class="section-note">Search PHP notices and warnings for the active session.</p></div>
+                    </div>
+                    <div class="section-body">
+                      <input class="search" placeholder="Search logs" aria-label="Search logs" style="margin-bottom:12px">
+                      <div class="log-stream">
+                        <p class="warn">[21-May-2026 10:18:21 UTC] PHP Warning: file_get_contents(/wordpress/wp-admin/css/view-transitions.min.css): Failed to open stream.</p>
+                        <p>[21-May-2026 10:18:20 UTC] PHP Notice: Function wp_maybe_inline_styles was called incorrectly. Unable to read path for stylesheet wp-block-library.</p>
+                        <p>[21-May-2026 10:18:20 UTC] PHP Notice: Function wp_maybe_inline_styles was called incorrectly. Unable to read path for stylesheet twenty-twenty-five-style.</p>
+                        <p>[21-May-2026 10:18:18 UTC] Blueprint step finished: installPlugin friends.zip.</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="tool-view" data-tool="export">
+                  <div class="section">
+                    <div class="section-head">
+                      <div><h3>Export and download</h3><p class="section-note">Current additional actions live here, inside Site Manager.</p></div>
+                    </div>
+                    <div class="section-body export-grid">
+                      <button class="tool-button primary-tool" data-boot="Preparing GitHub PR export"><span><strong>Export to GitHub PR</strong><span>Export a theme, plugin, or wp-content directory to a GitHub repository as a pull request.</span></span></button>
+                      <button class="tool-button" data-boot="Preparing ZIP download"><span><strong>Download .zip</strong><span>Download the current Playground as a portable ZIP bundle.</span></span></button>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="command" role="toolbar" aria-label="Playground toolbar">
+      <button class="icon-button" id="refresh" title="Refresh iframe">R</button>
+      <form class="path" id="pathForm"><span class="label-caps">Path</span><input value="/hello-from-playground/" aria-label="Address path"></form>
+      <div class="identity"><span class="dot"></span><span class="name" id="topName">Unsaved Playground</span></div>
+      <button class="primary" data-save>Save</button>
+      <button class="ghost hide-mobile" data-open="sites">Sites</button>
+      <button class="ghost hide-mobile" data-open="manager">Manager</button>
+      <button class="icon-button" data-tool="settings" title="Settings">G</button>
+      <button class="icon-button" data-open="preview" title="Preview focus">P</button>
+      <button class="icon-button" id="full" title="Fullscreen site">F</button>
+    </div>
+
+    <button class="sites-widget" data-open="sites" aria-label="Open saved playgrounds and launcher">
+      <span class="wp-mark">W</span>
+      <span>
+        <span class="widget-title" id="widgetName">Unsaved Playground</span>
+        <span class="widget-meta" id="widgetMeta">Not saved. Sites opens save, resume, launch, import, and blueprints.</span>
+      </span>
+      <span class="state-pill" id="statePill">unsaved</span>
+    </button>
+
+    <div class="seam" aria-label="Resize ratio">
+      <div class="ratio" id="ratioText">site 92 / tools 8</div>
+      <div class="gauge"><span class="gauge-fill"></span></div>
+      <button class="icon-button" data-open="preview" title="Preview focus" style="width:30px;height:30px;min-height:30px">P</button>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <span class="dot" style="background:var(--success);margin-top:6px"></span>
+      <span><strong id="toastTitle">Saved locally</strong><span id="toastBody">The active identity is now Local Starter.</span></span>
+    </div>
+
+    <div class="fullscreen-exit">
+      <span>Full-size WordPress preview</span>
+      <button class="ghost" id="exitFull">Exit Esc</button>
+    </div>
+  </main>
+
+  <script>
+    const app = document.getElementById('app');
+    const panelKicker = document.getElementById('panelKicker');
+    const panelTitle = document.getElementById('panelTitle');
+    const sitesTabs = document.getElementById('sitesTabs');
+    const managerTabs = document.getElementById('managerTabs');
+    const sitesContent = document.getElementById('sitesContent');
+    const managerContent = document.getElementById('managerContent');
+    const ratioText = document.getElementById('ratioText');
+    const toast = document.getElementById('toast');
+    const toastTitle = document.getElementById('toastTitle');
+    const toastBody = document.getElementById('toastBody');
+    const topName = document.getElementById('topName');
+    const widgetName = document.getElementById('widgetName');
+    const widgetMeta = document.getElementById('widgetMeta');
+    const statePill = document.getElementById('statePill');
+    const routeDetail = document.getElementById('routeDetail');
+
+    const blueprints = [
+      ['Art Gallery','An art gallery created with the Vueo theme.','Website, Personal'],
+      ['Coffee Shop','A stylish WooCommerce coffee shop storefront with custom theme, products, and content.','WooCommerce, Store'],
+      ['Feed Reader with the Friends Plugin','Read feeds including ActivityPub in Playground via the Friends plugin.','rss, social, web'],
+      ['Gaming News','A gaming news site created with the Spiel theme.','Website, News'],
+      ['Non-profit Organization','A non-profit organization site created with the Koinonia theme.','Website, Organization'],
+      ['Personal Blog','A personal blog site created with the Substrata theme.','Website, Personal, Blog'],
+      ['Personal Resume','A resume site created with the Readymade theme.','Website, Personal'],
+      ['Photography Portfolio','A photography portfolio created with the Grammer theme.','Website, Personal, Photography'],
+      ['Skincare Blog','A skincare blog created with the Piel theme.','Website, News, Blog'],
+      ['University Website','A university website created with the Kentwood theme.','Website, Organization, Education'],
+      ['Create Block Theme','Install Create Block Theme and start editing right away.','Editor, theme'],
+      ['Creating a new user for the blog','Update user meta data.','meta'],
+      ['Custom Post Type: Books','Add a custom post type to Playground.','Content, CPT'],
+      ['Demo of Twenty-Twenty-Five theme','Demo content for the Twenty-Twenty-Five default theme.','Themes, default'],
+      ['Display Admin Notice','Add a tiny mu-plugin and display an admin notice.','Admin notices'],
+      ['Enable all three Dataview Experiments in Gutenberg','Enable multiple Experiments within the Gutenberg plugin.','Gutenberg, Experiments'],
+      ['Fancy Dashboard Widget','Display statistics about users, posts and comments.',''],
+      ['Grid Variations Experiments enabled','Toggle a Gutenberg Experiments feature on.','Gutenberg, Experiments'],
+      ['Gutenberg Guidelines Experiment enabled','Enable Gutenberg Guidelines experiment.','Gutenberg, Experiments'],
+      ['Import Theme Starter Content','Install a theme with starter content.','Themes, Starter Content'],
+      ['Import a standalone starter content via a blueprint step','Use a stand-alone starter content file and import it.','Themes, Starter Content'],
+      ['Install WordPress language packs','Install and activate the latest Japanese translation pack.','core'],
+      ['Install plugin from a gist','Install and activate a WordPress plugin from a PHP gist.','plugins'],
+      ['Latest Gutenberg plugin','A preview of the latest Gutenberg plugin.','plugins'],
+      ['Loading, activating, and configuring a theme from a GitHub repository','Typical theme load, activate, and configure steps.','theme'],
+      ['Login as an editor','Test as an editor rather than an administrator.','User Role'],
+      ['Markdown and Trac Syntax Editor','Edit Markdown and Trac formatting in the block editor.','block-editor'],
+      ['Minimal WooCommerce Setup with Sample Products, Shipping, and Payment Method','WooCommerce sample products, shipping, and bank transfer.','woocommerce, shipping, flat_rate'],
+      ['My WordPress','A welcome experience for persistent Playground instances.','Playground, Onboarding'],
+      ['Playground Welcome Landing Page','Landing page for the WordPress Playground.','meta'],
+      ['Pretty permalinks','Set the permalink structure to pretty permalinks.','Settings'],
+      ['Reset data and import content (with logs)','Reset default data before importing custom content; log each step.','reset, log, debug'],
+      ['Serve media files from another host','Redirect upload requests to an external host.','Settings'],
+      ['Set the admin color scheme','Set admin color scheme to Modern via updateUserMeta step.','user meta'],
+      ['Showcase plugin','Showcase a custom plugin with imported media and content.','plugin, demo, media'],
+      ['Stylish Press','A Woo store with custom theme, content, and products.','WooCommerce, Site'],
+      ['Theme Tester','Add content and plugins to explore a theme.','themes, content'],
+      ['Use WPGraphQL to query WordPress','Loads WordPress with WPGraphQL active and the IDE page.','API, wpgraphql'],
+      ['Use wp-cli command to add posts','Add posts via a wp-cli command.','Content, wpcli'],
+      ['Use wp-cli to add a post with image','Create a post with featured image via wp-cli.','Content, wpcli'],
+      ['Weather Shortcode Plugin','Connect weather API and show data as a shortcode.',''],
+      ['WooCommerce product feed','Create a WooCommerce product and export an XML or CSV feed.','WooCommerce, Content'],
+      ['WordPress Beta','Test the latest WordPress Beta or RC with debugging plugins.','Testing']
+    ];
+
+    const categories = ['All','Featured','Website','Personal','Content','Themes','Gutenberg','Experiments','WooCommerce','News'];
+    let activeCategory = 'All';
+
+    function setMode(mode) {
+      app.dataset.mode = mode;
+      if (mode === 'sites') showSites();
+      if (mode === 'manager' || mode === 'settings' || mode === 'reset') showManager(mode === 'settings' || mode === 'reset' ? 'settings' : null);
+      const labels = {
+        quiet: 'site 92 / tools 8',
+        preview: 'site 92 / tools 8',
+        sites: 'site 66 / sites 34',
+        manager: 'site 60 / tools 40',
+        settings: 'site 60 / settings 40',
+        reset: 'site 60 / reset 40'
+      };
+      ratioText.textContent = labels[mode] || labels.quiet;
+    }
+
+    function showSites() {
+      panelKicker.textContent = 'Sites widget';
+      panelTitle.textContent = 'Saved identity and launch';
+      sitesTabs.hidden = false;
+      managerTabs.hidden = true;
+      sitesContent.hidden = false;
+      managerContent.hidden = true;
+    }
+
+    function showManager(tool) {
+      panelKicker.textContent = 'Site Manager';
+      panelTitle.textContent = 'Tools with consequences';
+      sitesTabs.hidden = true;
+      managerTabs.hidden = false;
+      sitesContent.hidden = true;
+      managerContent.hidden = false;
+      if (tool) activateTool(tool);
+    }
+
+    function showToast(title, body) {
+      toastTitle.textContent = title;
+      toastBody.textContent = body;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 3800);
+    }
+
+    function setSavedName(name, body) {
+      topName.textContent = name;
+      widgetName.textContent = name;
+      widgetMeta.textContent = body;
+      statePill.textContent = 'saved';
+      app.classList.add('saved');
+    }
+
+    function boot(label, done) {
+      app.classList.add('booting');
+      document.getElementById('bootCopy').textContent = label + '. The live iframe stays visible while the session changes.';
+      window.setTimeout(() => {
+        app.classList.remove('booting');
+        done && done();
+      }, 1400);
+    }
+
+    function activateSitesView(name) {
+      document.querySelectorAll('[data-sites-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.sitesView === name));
+      document.querySelectorAll('#sitesContent .view').forEach(view => view.classList.toggle('active', view.dataset.view === name));
+    }
+
+    function activateTool(name) {
+      document.querySelectorAll('[data-manager-view], [data-tool-view]').forEach(btn => {
+        const value = btn.dataset.managerView || btn.dataset.toolView;
+        btn.classList.toggle('active', value === name);
+      });
+      document.querySelectorAll('.tool-view').forEach(view => view.classList.toggle('active', view.dataset.tool === name));
+      if (name === 'settings') app.dataset.mode = 'settings';
+    }
+
+    function routeMarkup(route) {
+      const forms = {
+        vanilla: '<p class="section-note">Starts a fresh WordPress Playground with admin login, latest WordPress, and PHP 8.3.</p><div class="form-grid"><label>WordPress<select><option>Latest</option><option>7.0</option></select></label><label>PHP<select><option>PHP 8.3</option><option>PHP 8.2</option></select></label></div>',
+        wppr: '<div class="form-grid"><label>Core PR number or URL<input value="https://github.com/WordPress/wordpress-develop/pull/7712"></label><label>Base version<select><option>trunk</option><option>latest stable</option></select></label></div>',
+        gutenberg: '<div class="form-grid"><label>Gutenberg PR, branch, or URL<input value="gutenberg/trunk"></label><label>WordPress version<select><option>latest</option><option>7.0</option></select></label></div>',
+        github: '<div class="form-grid"><label>Repository<input value="wordpress/twentytwentyfive"></label><label>Type<select><option>Theme</option><option>Plugin</option><option>wp-content</option></select></label><label>Path<input value="/"></label><label>Branch<input value="trunk"></label></div>',
+        blueprinturl: '<label>Blueprint JSON URL<input value="https://playground.wordpress.net/blueprints/playground-welcome.json"></label>',
+        zip: '<div class="dropzone"><span><strong>Drop exported-playground.zip here</strong>or browse files to import a saved bundle.</span></div>'
+      };
+      return '<div class="label-caps">Replacement route</div><h3 style="font-family:Poppins,Roboto,sans-serif;margin:6px 0 8px">' + document.querySelector('[data-route="' + route + '"] strong').textContent + '</h3>' + forms[route] + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="ghost">Cancel</button><button class="primary" data-boot="Starting ' + document.querySelector('[data-route="' + route + '"] strong').textContent + '">Boot and replace active site</button></div>';
+    }
+
+    function renderBlueprints() {
+      const search = (document.getElementById('blueprintSearch')?.value || '').toLowerCase();
+      const grid = document.getElementById('blueprintGrid');
+      grid.innerHTML = '';
+      blueprints
+        .filter((item, index) => activeCategory === 'All' || (activeCategory === 'Featured' ? index < 5 : item[2].toLowerCase().includes(activeCategory.toLowerCase())))
+        .filter(item => (item[0] + item[1] + item[2]).toLowerCase().includes(search))
+        .forEach((item, index) => {
+          const card = document.createElement('article');
+          card.className = 'blueprint-card';
+          card.innerHTML = '<div class="thumb"></div><div class="blueprint-body"><h4>' + item[0] + '</h4><p>' + item[1] + '</p><div class="tags">' + (item[2] || 'general').split(',').map(tag => '<span class="tag">' + tag.trim() + '</span>').join('') + '</div><button class="primary" data-boot="Booting ' + item[0] + '" style="margin-top:10px;width:100%">Boot blueprint</button></div>';
+          grid.appendChild(card);
+        });
+    }
+
+    function initFilters() {
+      const box = document.getElementById('blueprintFilters');
+      box.innerHTML = categories.map(cat => '<button class="tab ' + (cat === 'All' ? 'active' : '') + '" data-filter="' + cat + '">' + cat + '</button>').join('');
+    }
+
+    document.addEventListener('click', event => {
+      const open = event.target.closest('[data-open]');
+      if (open) {
+        setMode(open.dataset.open);
+      }
+
+      if (event.target.closest('[data-close]')) setMode('quiet');
+
+      if (event.target.closest('[data-save]')) {
+        setSavedName('Local Starter', 'Saved to browser storage. Appears in Your Playgrounds.');
+        showToast('Saved locally', 'Before: unsaved and disposable. After: Local Starter is resumable from Sites.');
+      }
+
+      const sitesView = event.target.closest('[data-sites-view]');
+      if (sitesView) activateSitesView(sitesView.dataset.sitesView);
+
+      const managerView = event.target.closest('[data-manager-view], [data-tool-view]');
+      if (managerView) {
+        setMode('manager');
+        activateTool(managerView.dataset.managerView || managerView.dataset.toolView);
+      }
+
+      const tool = event.target.closest('[data-tool]');
+      if (tool) {
+        setMode('settings');
+        activateTool(tool.dataset.tool);
+      }
+
+      const route = event.target.closest('[data-route]');
+      if (route) {
+        document.querySelectorAll('[data-route]').forEach(btn => btn.classList.toggle('active', btn === route));
+        routeDetail.innerHTML = routeMarkup(route.dataset.route);
+      }
+
+      const filter = event.target.closest('[data-filter]');
+      if (filter) {
+        activeCategory = filter.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach(btn => btn.classList.toggle('active', btn === filter));
+        renderBlueprints();
+      }
+
+      const resume = event.target.closest('[data-resume]');
+      if (resume && resume.dataset.resume !== 'Unsaved Playground') {
+        const name = resume.dataset.resume;
+        boot('Resuming ' + name, () => {
+          setSavedName(name, 'Resumed from browser storage. Current active site changed.');
+          showToast('Playground resumed', name + ' is now the active iframe session.');
+        });
+      }
+
+      const bootButton = event.target.closest('[data-boot]');
+      if (bootButton) {
+        boot(bootButton.dataset.boot, () => showToast('Ready', bootButton.dataset.boot.replace('Booting ', '').replace('Starting ', '') + ' is now active.'));
+      }
+
+      if (event.target.closest('[data-open-reset]')) {
+        setMode('reset');
+        activateTool('settings');
+        document.getElementById('resetFlow').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+
+      if (event.target.id === 'cancelReset') {
+        document.getElementById('resetPhrase').value = '';
+        document.getElementById('confirmReset').disabled = true;
+        app.classList.remove('resetting');
+        showToast('Reset canceled', 'The current Unsaved Playground remains active.');
+      }
+
+      if (event.target.id === 'confirmReset') {
+        app.classList.add('resetting');
+        boot('Applying settings and resetting WordPress', () => {
+          app.classList.remove('resetting');
+          setSavedName('Clean Playground', 'Reset complete. Latest WordPress is active with a clean database.');
+          showToast('Reset complete', 'Before state was replaced. Clean Playground is the active session.');
+        });
+      }
+
+      if (event.target.id === 'full') app.classList.add('is-fullscreen');
+      if (event.target.id === 'exitFull') app.classList.remove('is-fullscreen');
+      if (event.target.id === 'exitPreview') setMode('quiet');
+      if (event.target.id === 'wpAdmin') document.querySelector('.path input').value = '/wp-admin/';
+      if (event.target.id === 'homePage') document.querySelector('.path input').value = '/';
+    });
+
+    document.getElementById('resetPhrase').addEventListener('input', event => {
+      document.getElementById('confirmReset').disabled = event.target.value.trim().toLowerCase() !== 'reset playground';
+    });
+
+    document.getElementById('blueprintSearch').addEventListener('input', renderBlueprints);
+
+    document.getElementById('pathForm').addEventListener('submit', event => {
+      event.preventDefault();
+      showToast('Path changed', 'The iframe navigated to ' + event.currentTarget.querySelector('input').value + '.');
+    });
+
+    document.getElementById('refresh').addEventListener('click', () => showToast('Refreshed', 'The live WordPress iframe was refreshed.'));
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        if (app.classList.contains('is-fullscreen')) app.classList.remove('is-fullscreen');
+        else setMode('quiet');
+      }
+      if (event.key.toLowerCase() === 'f') app.classList.toggle('is-fullscreen');
+    });
+
+    initFilters();
+    renderBlueprints();
+    routeDetail.innerHTML = routeMarkup('vanilla');
+
+    const demoState = window.location.hash.replace('#', '');
+    if (demoState === 'sites') setMode('sites');
+    if (demoState === 'blueprints') {
+      setMode('sites');
+      activateSitesView('blueprints');
+    }
+    if (demoState === 'manager') setMode('manager');
+    if (demoState === 'reset') {
+      setMode('reset');
+      activateTool('settings');
+    }
+    if (demoState === 'preview') setMode('preview');
+  </script>
+</body>
+</html>
