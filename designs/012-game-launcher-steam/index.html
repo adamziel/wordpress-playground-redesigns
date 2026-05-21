@@ -1,0 +1,1713 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Playground — Steam-style launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Motiva+Sans:wght@400;500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --bg:#1b2838;
+    --bg-2:#171a21;
+    --bg-3:#0e141b;
+    --panel:#16202d;
+    --panel-2:#1f2a3a;
+    --panel-3:#243447;
+    --panel-hi:#2a475e;
+    --line:#0d1620;
+    --text:#c7d5e0;
+    --text-dim:#8f98a0;
+    --text-faint:#67707b;
+    --blue:#66c0f4;
+    --blue-2:#1a9fff;
+    --blue-bg:#417a9b;
+    --green:#5ba32b;
+    --green-2:#a4d007;
+    --green-3:#90ba3c;
+    --yellow:#e1b85b;
+    --red:#c44141;
+    --magenta:#b16ce6;
+    --header-h:48px;
+    --library-w:300px;
+    --rail-w:64px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg-3);color:var(--text);font-family:"Motiva Sans","Inter",system-ui,Arial,sans-serif;font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  a{color:var(--blue);text-decoration:none}
+  ::selection{background:#3e7ba8;color:#fff}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+  .i{width:14px;height:14px;stroke-width:2;flex:none}
+  .i-lg{width:18px;height:18px;stroke-width:2;flex:none}
+  .i-xl{width:22px;height:22px;stroke-width:2;flex:none}
+
+  /* ===== Top frame (Steam window chrome) ===== */
+  .frame{
+    width:1440px;
+    height:900px;
+    margin:24px auto;
+    background:linear-gradient(180deg,#1b2838 0%, #16202d 100%);
+    border-radius:6px;
+    overflow:hidden;
+    box-shadow:0 24px 80px rgba(0,0,0,.55), 0 0 0 1px #0a0f15;
+    display:flex;flex-direction:column;
+    position:relative;
+  }
+  .titlebar{
+    height:30px;background:linear-gradient(180deg,#23364c 0%, #1b2838 100%);
+    border-bottom:1px solid #0c131a;
+    display:flex;align-items:center;gap:10px;padding:0 12px;font-size:12px;color:#9ba6b3;
+    user-select:none;
+  }
+  .traffic{display:flex;gap:6px}
+  .traffic span{width:11px;height:11px;border-radius:50%;display:block}
+  .traffic .r{background:#ff5f57}
+  .traffic .y{background:#febc2e}
+  .traffic .g{background:#28c840}
+  .titlebar .title{font-weight:600;color:#c7d5e0}
+  .titlebar .crumbs{color:#67707b}
+  .titlebar .right{margin-left:auto;display:flex;gap:14px;align-items:center;color:#8f98a0}
+
+  /* main menu bar */
+  .menubar{
+    height:var(--header-h);background:linear-gradient(180deg,#1f3247 0%, #1b2838 100%);
+    border-bottom:1px solid #0c131a;
+    display:flex;align-items:center;padding:0 16px;gap:24px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.5px}
+  .brand .logo{
+    width:30px;height:30px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #66c0f4 0%, #1a9fff 40%, #0c2c43 100%);
+    box-shadow:inset 0 0 0 2px #0c2c43, 0 0 14px rgba(102,192,244,.25);
+    position:relative;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"Motiva Sans";color:#0c2c43;font-weight:900;font-size:14px;
+  }
+  .brand .name{color:#c7d5e0;font-size:14px}
+  .brand .name b{color:#fff}
+  .menu{display:flex;gap:18px}
+  .menu a{color:#b8c6d3;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+  .menu a.active{color:#fff}
+  .menu a.dim{color:#67707b}
+  .menubar .grow{flex:1}
+  .userpill{
+    display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.25);padding:4px 10px;border-radius:3px;
+    font-size:12px;color:#b8c6d3;
+  }
+  .avatar{width:22px;height:22px;border-radius:3px;background:linear-gradient(135deg,#66c0f4,#b16ce6);display:flex;align-items:center;justify-content:center;font-weight:800;color:#0e141b;font-size:11px}
+
+  /* sub nav under menu (Library / Store / etc style) */
+  .subnav{
+    height:36px;background:#1b2838;border-bottom:1px solid #0c131a;
+    display:flex;align-items:center;padding:0 16px;gap:18px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#8f98a0;
+  }
+  .subnav a{color:#8f98a0;font-weight:700}
+  .subnav a.on{color:#fff;border-bottom:2px solid #66c0f4;height:36px;display:flex;align-items:center}
+  .subnav .grow{flex:1}
+  .subnav .session{
+    display:flex;align-items:center;gap:8px;color:#a4d007;font-weight:700;
+  }
+  .session-dot{width:8px;height:8px;border-radius:50%;background:#a4d007;box-shadow:0 0 8px #a4d007}
+
+  /* main grid */
+  .main{
+    flex:1;display:grid;grid-template-columns:var(--library-w) 1fr;min-height:0;
+  }
+
+  /* ===== LIBRARY (left) ===== */
+  .library{
+    background:#1b2838;border-right:1px solid #0c131a;display:flex;flex-direction:column;min-height:0;
+  }
+  .lib-head{
+    padding:12px 12px 6px;border-bottom:1px solid #0c131a;background:#16202d;
+  }
+  .lib-search{
+    display:flex;align-items:center;gap:8px;background:#316282;padding:6px 8px;border-radius:2px;
+  }
+  .lib-search input{
+    flex:1;background:transparent;border:0;outline:0;color:#fff;font-size:12px;font-family:inherit;
+  }
+  .lib-search input::placeholder{color:#9bbcd2}
+  .lib-toolbar{display:flex;gap:6px;margin-top:8px;align-items:center}
+  .pill{
+    display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:2px;
+    background:rgba(103,124,141,.18);color:#b8c6d3;font-size:11px;font-weight:600;
+  }
+  .pill.on{background:#316282;color:#fff}
+  .lib-toolbar .grow{flex:1}
+  .lib-toolbar .icon-btn{color:#67707b}
+
+  .lib-add{
+    margin:10px 12px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:8px 10px;border-radius:2px;background:linear-gradient(180deg,#75b022,#588a1b);
+    color:#fff;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.6px;cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 1px 0 #0a0f15;
+  }
+  .lib-add:hover{filter:brightness(1.07)}
+
+  .lib-scroll{flex:1;overflow:auto;padding:6px 0 16px}
+  .lib-section{padding:6px 12px 4px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#67707b;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:8px}
+  .lib-section .count{color:#4a5562}
+  .lib-section .caret{margin-left:auto;color:#4a5562}
+
+  .lib-item{
+    display:flex;align-items:center;gap:9px;padding:5px 12px;cursor:pointer;font-size:13px;color:#b8c6d3;
+    border-left:2px solid transparent;
+  }
+  .lib-item:hover{background:#22364c;color:#fff}
+  .lib-item.active{background:#3e6989;color:#fff;border-left-color:#66c0f4}
+  .lib-item.playing{color:#a4d007}
+  .lib-item .ic{width:20px;height:20px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0e141b}
+  .lib-item .ic.b1{background:linear-gradient(135deg,#f7b733,#fc4a1a)}
+  .lib-item .ic.b2{background:linear-gradient(135deg,#8e54e9,#4776e6)}
+  .lib-item .ic.b3{background:linear-gradient(135deg,#11998e,#38ef7d)}
+  .lib-item .ic.b4{background:linear-gradient(135deg,#ff512f,#dd2476)}
+  .lib-item .ic.b5{background:linear-gradient(135deg,#fc466b,#3f5efb)}
+  .lib-item .ic.b6{background:linear-gradient(135deg,#1d976c,#93f9b9);color:#0c3c2a}
+  .lib-item .ic.b7{background:linear-gradient(135deg,#373b44,#4286f4)}
+  .lib-item .ic.b8{background:linear-gradient(135deg,#cb356b,#bd3f32)}
+  .lib-item .ic.b9{background:linear-gradient(135deg,#3a7bd5,#3a6073)}
+  .lib-item .ic.b10{background:linear-gradient(135deg,#834d9b,#d04ed6)}
+  .lib-item .ic.b11{background:linear-gradient(135deg,#ee9ca7,#ffdde1);color:#7a2a3b}
+  .lib-item .ic.b12{background:linear-gradient(135deg,#42275a,#734b6d)}
+  .lib-item .ic.b13{background:linear-gradient(135deg,#f7971e,#ffd200);color:#5a3a00}
+  .lib-item .ic.b14{background:linear-gradient(135deg,#0f2027,#2c5364)}
+  .lib-item .ic.b15{background:linear-gradient(135deg,#43cea2,#185a9d)}
+  .lib-item .ic.b16{background:linear-gradient(135deg,#ff9966,#ff5e62)}
+  .lib-item .ic.b17{background:linear-gradient(135deg,#1f4037,#99f2c8);color:#0c3320}
+  .lib-item .ic.b18{background:linear-gradient(135deg,#16a085,#f4d03f);color:#3a2c00}
+  .lib-item .label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+  .lib-item .meta{font-size:10px;color:#67707b}
+  .lib-item.playing .meta{color:#a4d007}
+
+  /* ===== CENTER (hero + content) ===== */
+  .canvas{
+    background:#1b2838;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;
+  }
+
+  /* Hero — Steam library "game" view */
+  .hero{
+    position:relative;flex:none;padding:24px 32px 18px;
+    background:
+      radial-gradient(ellipse at 70% 0%, rgba(102,192,244,.18) 0%, transparent 55%),
+      linear-gradient(180deg, #1b2838 0%, #16202d 100%);
+    overflow:hidden;
+    border-bottom:1px solid #0c131a;
+  }
+  .hero::before{
+    content:"";position:absolute;inset:0;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='400'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23f7b733'/><stop offset='1' stop-color='%23fc4a1a'/></linearGradient></defs><rect width='1000' height='400' fill='url(%23g)'/><g opacity='.35' fill='%23ffffff'><circle cx='820' cy='90' r='50'/><circle cx='880' cy='150' r='25'/><circle cx='770' cy='150' r='15'/></g><g opacity='.25' fill='%23000'><path d='M0 320 Q 250 220 500 280 T 1000 260 L 1000 400 L 0 400 Z'/></g><g transform='translate(60,90)' opacity='.85' fill='%23fff'><rect x='0' y='100' width='250' height='180' rx='6'/><rect x='0' y='100' width='250' height='28' fill='%23222'/><rect x='20' y='150' width='210' height='12' fill='%23ddd'/><rect x='20' y='170' width='180' height='8' fill='%23eee'/><rect x='20' y='190' width='160' height='8' fill='%23eee'/><rect x='20' y='220' width='90' height='40' fill='%231a9fff'/></g></svg>");
+    background-size:cover;background-position:center top;opacity:.7;filter:blur(1px) saturate(1.1);
+    transform:scale(1.02);
+  }
+  .hero::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(22,32,45,.30) 0%, rgba(22,32,45,.78) 70%, rgba(22,32,45,1) 100%);
+  }
+  .hero-inner{position:relative;z-index:2;display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:end;min-height:280px}
+  .capsule{
+    width:240px;height:340px;border-radius:4px;overflow:hidden;
+    box-shadow:0 18px 40px rgba(0,0,0,.55), 0 0 0 1px #0a0f15;
+    background:linear-gradient(160deg,#f7b733,#fc4a1a);
+    position:relative;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;
+  }
+  .capsule .cap-art{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 30% 25%, #ffe27a 0%, transparent 35%),
+      linear-gradient(160deg,#f7b733 0%, #fc4a1a 100%);
+  }
+  .capsule .cap-art svg{position:absolute;inset:0;width:100%;height:100%}
+  .capsule .cap-foot{position:relative;padding:12px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.65));}
+  .capsule .cap-foot .t{font-weight:900;font-size:14px;letter-spacing:.3px}
+  .capsule .cap-foot .s{font-size:11px;opacity:.85}
+
+  .hero-meta{padding-bottom:8px;min-width:0}
+  .hero-cat{font-size:11px;color:#8f98a0;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:6px;display:flex;gap:8px;align-items:center}
+  .hero-cat .dot{width:4px;height:4px;background:#8f98a0;border-radius:50%}
+  .hero-title{font-size:38px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1.05;margin:0 0 6px;font-family:"Motiva Sans"}
+  .hero-byline{font-size:13px;color:#b8c6d3;margin-bottom:14px}
+  .hero-byline b{color:#fff}
+  .hero-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+  .tag{
+    font-size:11px;padding:3px 8px;border-radius:2px;background:rgba(103,124,141,.32);color:#cfdae5;
+  }
+  .hero-cta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-play{
+    display:inline-flex;align-items:center;gap:10px;
+    background:linear-gradient(180deg,#a4d007 0%, #75b022 50%, #588a1b 100%);
+    color:#1c2912;font-weight:900;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;
+    padding:0 26px;height:42px;border-radius:2px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 2px 0 #2c4209;
+  }
+  .btn-play:hover{filter:brightness(1.08)}
+  .btn-play .i{width:18px;height:18px;stroke-width:3}
+  .btn-secondary{
+    display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 16px;border-radius:2px;
+    background:linear-gradient(180deg,#67c1f5 0%, #417a9b 60%, #2a475e 100%);
+    color:#fff;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .btn-ghost{
+    display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:2px;
+    background:rgba(103,124,141,.25);color:#c7d5e0;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;
+  }
+  .btn-ghost:hover{background:rgba(103,124,141,.45)}
+  .kebab{
+    width:42px;height:42px;border-radius:2px;background:rgba(103,124,141,.25);color:#c7d5e0;
+    display:inline-flex;align-items:center;justify-content:center;position:relative;
+  }
+  .kebab:hover{background:rgba(103,124,141,.45)}
+  .kebab-menu{
+    position:absolute;top:calc(100% + 6px);right:0;width:280px;background:#23364c;border:1px solid #0a0f15;
+    box-shadow:0 18px 40px rgba(0,0,0,.6);border-radius:3px;padding:6px 0;z-index:30;display:none;
+  }
+  .kebab.open .kebab-menu{display:block}
+  .kebab-menu .mi{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:12px;color:#c7d5e0;text-transform:none;letter-spacing:0;font-weight:500;text-align:left;width:100%}
+  .kebab-menu .mi:hover{background:#3e6989;color:#fff}
+  .kebab-menu .mi .i{color:#8f98a0}
+  .kebab-menu .sep{height:1px;background:#0a0f15;margin:4px 0}
+  .kebab-menu .lbl{padding:4px 12px;font-size:10px;color:#67707b;letter-spacing:1.2px;text-transform:uppercase}
+
+  /* Content below hero */
+  .stage{flex:1;display:flex;flex-direction:column;min-height:0;background:#1b2838}
+
+  /* In-session viewport (the iframe) */
+  .viewport{
+    flex:1;min-height:0;display:flex;flex-direction:column;
+    background:#0e141b;border-top:1px solid #0c131a;
+    position:relative;
+  }
+  .viewport-hud{
+    height:38px;background:linear-gradient(180deg,#1f3247,#1b2838);border-bottom:1px solid #0c131a;
+    display:flex;align-items:center;gap:10px;padding:0 14px;
+  }
+  .hud-btn{width:26px;height:26px;border-radius:2px;background:rgba(103,124,141,.22);color:#c7d5e0;display:flex;align-items:center;justify-content:center}
+  .hud-btn:hover{background:rgba(103,124,141,.45)}
+  .urlbar{flex:1;display:flex;align-items:center;gap:8px;background:#0e141b;padding:5px 10px;border-radius:2px;border:1px solid #0a0f15}
+  .urlbar .scheme{color:#67707b;font-size:11px}
+  .urlbar input{flex:1;background:transparent;border:0;outline:0;color:#c7d5e0;font-family:"JetBrains Mono",monospace;font-size:12px}
+  .urlbar .go{background:#316282;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:2px;text-transform:uppercase;letter-spacing:.6px}
+  .hud-right{display:flex;align-items:center;gap:8px;color:#8f98a0;font-size:11px}
+  .hud-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:2px;background:rgba(103,124,141,.18);color:#b8c6d3;font-size:11px;font-weight:600}
+  .hud-chip .d{width:6px;height:6px;border-radius:50%;background:#a4d007;box-shadow:0 0 6px #a4d007}
+  .hud-chip.warn{color:#e1b85b}
+  .hud-chip.warn .d{background:#e1b85b;box-shadow:0 0 6px #e1b85b}
+
+  .iframe{
+    flex:1;background:
+      linear-gradient(180deg,#fff 0%, #fff 60px, #f6f7f7 60px),
+      #fff;
+    color:#1d2327;position:relative;overflow:hidden;
+    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  .wp-bar{
+    position:absolute;top:0;left:0;right:0;height:32px;background:#1d2327;color:#a7aaad;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:13px;
+  }
+  .wp-bar .wp-logo{color:#fff;font-weight:700}
+  .wp-bar .item{color:#a7aaad}
+  .wp-bar .item.hi{color:#fff}
+  .wp-bar .right{margin-left:auto;display:flex;gap:14px}
+  .wp-content{position:absolute;top:32px;left:0;right:0;bottom:0;padding:36px 56px;overflow:hidden}
+  .wp-content h1{font-family:Georgia,serif;font-size:42px;margin:0 0 4px;color:#1d2327;font-weight:700}
+  .wp-content .tagline{color:#646970;font-size:14px;margin-bottom:24px}
+  .wp-content .nav{display:flex;gap:18px;border-bottom:1px solid #dcdcde;padding-bottom:12px;margin-bottom:24px;font-size:13px;color:#2271b1}
+  .wp-content .post{max-width:680px}
+  .wp-content .post h2{font-family:Georgia,serif;color:#1d2327;font-size:24px;margin:0 0 6px}
+  .wp-content .post .meta{color:#646970;font-size:12px;margin-bottom:8px}
+  .wp-content .post p{color:#3c434a;font-size:14px;line-height:1.6;margin:0 0 8px}
+  .wp-content .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;max-width:520px}
+  .wp-content .gallery div{aspect-ratio:1;background:linear-gradient(135deg,#f7b733,#fc4a1a);border-radius:2px}
+  .wp-content .gallery div:nth-child(2){background:linear-gradient(135deg,#8e54e9,#4776e6)}
+  .wp-content .gallery div:nth-child(3){background:linear-gradient(135deg,#11998e,#38ef7d)}
+  .wp-content .gallery div:nth-child(4){background:linear-gradient(135deg,#fc466b,#3f5efb)}
+  .wp-content .gallery div:nth-child(5){background:linear-gradient(135deg,#1d976c,#93f9b9)}
+  .wp-content .gallery div:nth-child(6){background:linear-gradient(135deg,#834d9b,#d04ed6)}
+
+  /* Boot overlay (loading state) */
+  .booting{
+    position:absolute;inset:0;background:rgba(14,20,27,.92);z-index:5;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#c7d5e0;
+  }
+  .boot-cap{
+    width:160px;height:230px;border-radius:4px;background:linear-gradient(160deg,#f7b733,#fc4a1a);
+    box-shadow:0 12px 30px rgba(0,0,0,.6);position:relative;overflow:hidden;
+  }
+  .boot-cap::after{
+    content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+    animation:shine 1.6s linear infinite;
+  }
+  @keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  .boot-title{font-size:18px;font-weight:900;color:#fff;letter-spacing:.4px}
+  .boot-sub{font-size:12px;color:#8f98a0}
+  .boot-bar{width:320px;height:6px;background:#16202d;border-radius:3px;overflow:hidden;border:1px solid #0a0f15}
+  .boot-bar i{display:block;height:100%;width:62%;background:linear-gradient(90deg,#66c0f4,#a4d007);border-radius:3px}
+  .boot-step{font-family:"JetBrains Mono",monospace;font-size:11px;color:#8f98a0}
+  .boot-step b{color:#a4d007}
+
+  /* In-game overlay (Site Manager) */
+  .overlay{
+    position:absolute;top:60px;left:50%;transform:translateX(-50%);
+    width:min(960px,calc(100% - 64px));max-height:calc(100% - 110px);
+    background:rgba(22,32,45,.96);
+    border:1px solid #2a475e;
+    border-radius:6px;
+    box-shadow:0 30px 80px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter:blur(10px);
+    z-index:10;
+    display:flex;flex-direction:column;min-height:0;
+    color:#c7d5e0;
+  }
+  .ov-head{
+    height:46px;display:flex;align-items:center;gap:16px;padding:0 14px;border-bottom:1px solid #0c131a;
+    background:linear-gradient(180deg,#23364c,#1b2838);
+  }
+  .ov-head .ov-title{font-weight:800;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:#fff;display:flex;align-items:center;gap:8px}
+  .ov-tabs{display:flex;gap:4px;margin-left:8px}
+  .ov-tab{
+    padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#8f98a0;border-radius:2px;
+  }
+  .ov-tab.on{background:#2a475e;color:#fff}
+  .ov-head .right{margin-left:auto;display:flex;align-items:center;gap:10px;color:#8f98a0;font-size:11px}
+  .kbd{font-family:"JetBrains Mono",monospace;font-size:10px;background:#0e141b;border:1px solid #0a0f15;padding:2px 6px;border-radius:2px;color:#b8c6d3}
+  .ov-body{flex:1;display:flex;min-height:0;overflow:hidden}
+  .ov-col{display:flex;flex-direction:column;min-height:0;min-width:0}
+  .ov-side{
+    width:220px;border-right:1px solid #0c131a;padding:10px 6px;overflow:auto;background:#172230;
+  }
+  .ov-side .h{padding:6px 8px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#67707b;font-weight:700}
+  .ov-side .row{
+    display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:2px;font-size:12px;color:#b8c6d3;cursor:pointer;
+  }
+  .ov-side .row:hover{background:#22364c;color:#fff}
+  .ov-side .row.on{background:#316282;color:#fff}
+  .ov-side .row .ch{color:#67707b}
+  .ov-side .row.on .ch{color:#fff}
+  .ov-main{flex:1;padding:16px 18px;overflow:auto;min-width:0}
+
+  /* settings form (overlay) */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+  .field label{display:block;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#67707b;font-weight:700;margin-bottom:4px}
+  .field select, .field input[type=text]{
+    width:100%;background:#0e141b;border:1px solid #0a0f15;color:#c7d5e0;padding:7px 8px;border-radius:2px;font-family:inherit;font-size:12px;outline:0;
+  }
+  .switch{display:flex;align-items:center;gap:10px;font-size:12px;color:#c7d5e0;margin-top:6px}
+  .switch .t{width:34px;height:18px;background:#0e141b;border-radius:9px;position:relative;border:1px solid #0a0f15}
+  .switch .t::after{content:"";position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:#67707b;transition:.2s}
+  .switch.on .t{background:#316282}
+  .switch.on .t::after{left:17px;background:#a4d007}
+
+  .notice{
+    margin-top:14px;padding:10px 12px;background:rgba(225,184,91,.10);border-left:3px solid #e1b85b;color:#e1b85b;font-size:12px;border-radius:2px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .notice b{color:#fff}
+  .notice .btn-secondary{height:30px;padding:0 12px;font-size:11px;margin-left:auto}
+  .destructive{
+    margin-top:14px;padding:10px 12px;background:rgba(196,65,65,.10);border-left:3px solid #c44141;color:#e8a4a4;font-size:12px;border-radius:2px;
+  }
+  .actions-row{display:flex;gap:10px;margin-top:14px}
+  .btn-apply{
+    background:linear-gradient(180deg,#a4d007,#588a1b);color:#1c2912;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-radius:2px;
+  }
+  .btn-reset{
+    background:rgba(196,65,65,.18);color:#e8a4a4;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;padding:8px 14px;border-radius:2px;
+  }
+
+  /* Recently played / featured carousels */
+  .rails{padding:18px 24px 24px;display:flex;flex-direction:column;gap:18px;overflow:auto}
+  .rail-h{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .rail-h h3{margin:0;font-size:13px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff}
+  .rail-h .more{margin-left:auto;font-size:11px;color:#67c1f5;text-transform:uppercase;font-weight:700;letter-spacing:.8px}
+  .rail{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .card{
+    background:#16202d;border:1px solid #0a0f15;border-radius:3px;overflow:hidden;cursor:pointer;
+    display:flex;flex-direction:column;transition:transform .12s ease, border-color .12s ease;
+  }
+  .card:hover{transform:translateY(-2px);border-color:#316282}
+  .card .art{aspect-ratio:460/215;background:linear-gradient(135deg,#11998e,#38ef7d);position:relative;overflow:hidden}
+  .card .art .mark{position:absolute;left:12px;bottom:10px;font-family:"Motiva Sans";font-weight:900;color:#fff;font-size:16px;text-shadow:0 2px 6px rgba(0,0,0,.45);letter-spacing:.5px}
+  .card .body{padding:8px 10px}
+  .card .name{font-size:12px;font-weight:700;color:#c7d5e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .tags{font-size:10px;color:#67707b;margin-top:3px;display:flex;gap:6px;flex-wrap:wrap}
+  .card .tags span{background:rgba(103,124,141,.22);padding:1px 5px;border-radius:2px}
+
+  /* Library/Gallery panel — the big browser */
+  .gallery{
+    flex:1;display:flex;flex-direction:column;min-height:0;background:#1b2838;
+  }
+  .gal-head{
+    padding:16px 24px 8px;border-bottom:1px solid #0c131a;background:linear-gradient(180deg,#1b2838,#16202d);
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  .gal-head h2{margin:0;color:#fff;font-size:18px;font-weight:900;letter-spacing:.4px}
+  .gal-head .sub{color:#8f98a0;font-size:12px}
+  .gal-search{
+    flex:1;min-width:240px;display:flex;align-items:center;gap:8px;background:#0e141b;border:1px solid #0a0f15;border-radius:2px;padding:6px 10px;
+  }
+  .gal-search input{flex:1;background:transparent;border:0;outline:0;color:#c7d5e0;font-size:12px;font-family:inherit}
+  .gal-filters{display:flex;gap:6px;padding:10px 24px;border-bottom:1px solid #0c131a;flex-wrap:wrap;background:#16202d}
+  .chip{
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:5px 10px;border-radius:2px;color:#b8c6d3;background:rgba(103,124,141,.18);cursor:pointer;
+  }
+  .chip.on{background:#316282;color:#fff}
+  .chip:hover{background:rgba(103,124,141,.34)}
+  .gal-grid{
+    flex:1;overflow:auto;padding:18px 24px 24px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-content:start;
+  }
+
+  /* "Add a playground" panel */
+  .new-grid{
+    padding:18px 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:#16202d;border-bottom:1px solid #0c131a;
+  }
+  .new-tile{
+    background:linear-gradient(180deg,#23364c,#1b2838);border:1px solid #0a0f15;border-radius:3px;
+    padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;color:#c7d5e0;
+  }
+  .new-tile:hover{border-color:#316282;background:linear-gradient(180deg,#2a475e,#1f3247)}
+  .new-tile .ico{
+    width:36px;height:36px;border-radius:3px;display:flex;align-items:center;justify-content:center;
+    background:rgba(103,124,141,.22);color:#66c0f4;
+  }
+  .new-tile.green .ico{background:rgba(164,208,7,.12);color:#a4d007}
+  .new-tile .tt{font-weight:700;color:#fff;font-size:13px}
+  .new-tile .desc{font-size:11px;color:#8f98a0;margin-top:2px}
+
+  /* Logs */
+  .logs{
+    background:#0e141b;border-radius:2px;border:1px solid #0a0f15;padding:0;margin-top:8px;
+    font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.55;color:#c7d5e0;
+    max-height:380px;overflow:auto;
+  }
+  .logs .row{padding:4px 12px;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,.03)}
+  .logs .lv{font-weight:700;width:60px;flex:none;text-transform:uppercase;font-size:10px;padding-top:2px}
+  .logs .lv.info{color:#66c0f4}
+  .logs .lv.warn{color:#e1b85b}
+  .logs .lv.err{color:#c44141}
+  .logs .lv.ok{color:#a4d007}
+  .logs .t{color:#67707b;width:90px;flex:none}
+  .logs .m{flex:1;color:#c7d5e0;word-break:break-word}
+  .logs .m .k{color:#b16ce6}
+  .logs .m .v{color:#a4d007}
+
+  /* Code-ish */
+  .code{
+    background:#0e141b;border:1px solid #0a0f15;border-radius:2px;padding:12px 14px;
+    font-family:"JetBrains Mono",monospace;font-size:11.5px;color:#c7d5e0;overflow:auto;max-height:360px;
+  }
+  .code .k{color:#66c0f4}
+  .code .s{color:#a4d007}
+  .code .n{color:#e1b85b}
+  .code .c{color:#67707b}
+
+  /* File tree */
+  .tree{font-family:"JetBrains Mono",monospace;font-size:12px;color:#c7d5e0;background:#0e141b;border:1px solid #0a0f15;border-radius:2px;padding:8px;max-height:360px;overflow:auto;min-width:220px}
+  .tnode{display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:2px;cursor:pointer}
+  .tnode:hover{background:rgba(103,124,141,.18)}
+  .tnode.on{background:#316282;color:#fff}
+  .tnode .c{color:#67707b}
+  .tnode .ic{width:14px;height:14px;color:#67c1f5}
+  .tindent{padding-left:14px;border-left:1px dashed #1f2a3a;margin-left:8px}
+
+  /* Toast */
+  .toast{
+    position:absolute;bottom:18px;left:18px;background:#16202d;border:1px solid #2a475e;border-radius:3px;
+    padding:10px 12px;display:flex;gap:10px;align-items:center;box-shadow:0 16px 40px rgba(0,0,0,.5);z-index:20;
+    font-size:12px;color:#c7d5e0;max-width:380px;
+  }
+  .toast .dot{width:8px;height:8px;border-radius:50%;background:#a4d007;box-shadow:0 0 8px #a4d007}
+  .toast b{color:#fff}
+
+  /* state demo grid: stack all three states vertically with section headers */
+  .state-sep{
+    padding:18px 32px 8px;background:#0e141b;color:#8f98a0;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;
+    border-top:1px solid #2a475e;display:flex;align-items:center;gap:10px;
+  }
+  .state-sep .pill{background:#2a475e;color:#fff;padding:3px 8px;font-size:10px;letter-spacing:1.4px}
+
+  /* ===== Mobile mockup ===== */
+  .mobile-row{display:flex;justify-content:center;gap:30px;margin:36px auto 60px;flex-wrap:wrap;max-width:1440px}
+  .phone{
+    width:390px;height:844px;background:#0e141b;border-radius:46px;
+    box-shadow:0 30px 90px rgba(0,0,0,.55), inset 0 0 0 8px #1b2838, 0 0 0 2px #0a0f15;
+    position:relative;overflow:hidden;padding:8px;
+  }
+  .phone .scr{
+    position:absolute;inset:14px;background:#1b2838;border-radius:36px;overflow:hidden;display:flex;flex-direction:column;
+  }
+  .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:120px;height:28px;background:#000;border-radius:14px;z-index:5}
+  .m-status{
+    height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:#fff;font-size:12px;font-weight:700;font-family:"Motiva Sans";
+  }
+  .m-status .right{display:flex;gap:6px;align-items:center}
+  .m-hero{
+    height:230px;position:relative;overflow:hidden;flex:none;
+  }
+  .m-hero .art{
+    position:absolute;inset:0;background:linear-gradient(160deg,#f7b733,#fc4a1a);
+  }
+  .m-hero .grad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%, #1b2838 100%)}
+  .m-hero .info{position:absolute;left:14px;right:14px;bottom:12px;color:#fff;z-index:2}
+  .m-hero .cat{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;opacity:.85}
+  .m-hero h3{margin:2px 0 6px;font-size:22px;font-weight:900;letter-spacing:-.3px}
+  .m-hero .tags{display:flex;gap:5px}
+  .m-hero .tags span{font-size:9px;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:2px}
+  .m-cta{padding:10px 14px;display:flex;gap:8px;flex:none}
+  .m-cta .btn-play{flex:1;height:42px;font-size:13px}
+  .m-cta .kebab{width:42px;height:42px}
+  .m-rail{padding:10px 14px;flex:1;overflow:auto}
+  .m-rail .h{display:flex;align-items:baseline;gap:8px;margin:8px 0 8px}
+  .m-rail .h h4{margin:0;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#fff;font-weight:900}
+  .m-rail .h a{margin-left:auto;color:#67c1f5;font-size:10px;text-transform:uppercase;font-weight:700}
+  .m-list{display:flex;flex-direction:column;gap:6px}
+  .m-card{display:flex;align-items:center;gap:10px;background:#16202d;border:1px solid #0a0f15;border-radius:3px;padding:8px}
+  .m-card .ic{width:42px;height:42px;border-radius:3px;flex:none}
+  .m-card .n{font-size:12px;font-weight:700;color:#fff}
+  .m-card .s{font-size:10px;color:#8f98a0;margin-top:2px}
+  .m-card .pl{background:#a4d007;color:#1c2912;font-size:10px;font-weight:900;padding:4px 8px;border-radius:2px;text-transform:uppercase;letter-spacing:.5px}
+  .m-tabs{
+    position:absolute;bottom:10px;left:14px;right:14px;height:60px;background:rgba(22,32,45,.94);border:1px solid #2a475e;border-radius:14px;
+    display:flex;justify-content:space-around;align-items:center;backdrop-filter:blur(10px);
+  }
+  .m-tab{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9px;color:#8f98a0;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:6px 10px;border-radius:8px}
+  .m-tab.on{color:#fff;background:rgba(102,192,244,.15)}
+  .m-tab.on .i{color:#66c0f4}
+  .m-tab .i{color:#8f98a0}
+
+  /* Phone 2 — running session w/ overlay */
+  .m-hud{height:34px;background:#16202d;border-bottom:1px solid #0c131a;display:flex;align-items:center;gap:6px;padding:0 10px;flex:none}
+  .m-hud .urlbar{padding:3px 8px}
+  .m-hud .urlbar input{font-size:11px}
+  .m-iframe{flex:1;background:#fff;position:relative;color:#1d2327;font-family:-apple-system,sans-serif;overflow:hidden}
+  .m-iframe .wp-bar{height:26px;font-size:11px;padding:0 8px;gap:8px}
+  .m-iframe .wp-content{top:26px;padding:18px 18px}
+  .m-iframe .wp-content h1{font-size:24px}
+  .m-iframe .wp-content .tagline{font-size:12px;margin-bottom:14px}
+  .m-iframe .wp-content .post h2{font-size:16px}
+  .m-iframe .wp-content .gallery{grid-template-columns:repeat(3,1fr);gap:5px;max-width:none}
+  .m-overlay{
+    position:absolute;left:10px;right:10px;bottom:78px;
+    background:rgba(22,32,45,.97);border:1px solid #2a475e;border-radius:14px;
+    box-shadow:0 18px 40px rgba(0,0,0,.55);
+    backdrop-filter:blur(10px);
+    overflow:hidden;
+    max-height:62%;
+    display:flex;flex-direction:column;
+  }
+  .m-overlay .oh{padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #0c131a}
+  .m-overlay .oh .t{font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:#fff;flex:1}
+  .m-overlay .ot{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid #0c131a;overflow:auto}
+  .m-overlay .ot .chip{flex:none;font-size:9px;padding:4px 8px}
+  .m-overlay .oc{padding:12px 14px;overflow:auto;flex:1}
+  .m-overlay .oc .field label{font-size:9px}
+  .m-overlay .oc .field select, .m-overlay .oc .field input{font-size:11px;padding:6px 7px}
+  .m-overlay .oc .form-grid{grid-template-columns:1fr 1fr;gap:10px}
+
+  /* Generic */
+  .row-spread{display:flex;align-items:center;gap:10px}
+  .grow{flex:1}
+  .muted{color:#8f98a0}
+  .strong{color:#fff;font-weight:700}
+
+  /* Section labels in document */
+  .page-header{
+    max-width:1440px;margin:30px auto 8px;padding:0 16px;color:#9ba6b3;font-family:"Motiva Sans";
+  }
+  .page-header h1{margin:0;color:#fff;font-size:22px;font-weight:900;letter-spacing:.4px}
+  .page-header p{margin:4px 0 0;color:#8f98a0;font-size:13px;max-width:920px}
+  .page-header .tag{display:inline-block;background:#2a475e;color:#fff;padding:3px 8px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;border-radius:2px;margin-right:6px}
+
+  /* responsive */
+  @media (max-width:1500px){ .frame{width:96vw;height:auto;min-height:900px} }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="tag">Direction 012</span><span style="color:#67707b;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700">WordPress Playground — Steam-style launcher</span>
+  <h1>Your library of Playgrounds</h1>
+  <p>The blueprint catalog and saved playgrounds are merged into a Steam-style library. A cinematic hero on the right shows the selected entry with a single decisive PLAY button. Site Manager features (Settings, Files, Blueprint, Database, Logs) are a Shift+Tab "in-game" overlay over the running iframe.</p>
+</div>
+
+<!-- ================= FRAME 1: Library + selected blueprint hero (Idle state) ================= -->
+<div class="frame" id="frame-library">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="title">WordPress Playground</div>
+    <div class="crumbs">›  Library  ›  Featured</div>
+    <div class="right">
+      <span><i data-lucide="wifi" class="i"></i></span>
+      <span class="mono">14:32</span>
+    </div>
+  </div>
+
+  <div class="menubar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="name"><b>PLAYGROUND</b></div>
+    </div>
+    <div class="menu">
+      <a class="active">Library</a>
+      <a>Blueprints</a>
+      <a>Community</a>
+      <a class="dim">Docs</a>
+    </div>
+    <div class="grow"></div>
+    <div class="userpill">
+      <div class="avatar">AZ</div>
+      <span>adam.z</span>
+      <i data-lucide="chevron-down" class="i"></i>
+    </div>
+  </div>
+
+  <div class="subnav">
+    <a class="on">Home</a>
+    <a>Collections</a>
+    <a>Saved Playgrounds</a>
+    <a>Activity</a>
+    <div class="grow"></div>
+    <div class="session"><div class="session-dot"></div>0 RUNNING · idle</div>
+  </div>
+
+  <div class="main">
+    <!-- LIBRARY -->
+    <aside class="library">
+      <div class="lib-head">
+        <div class="lib-search">
+          <i data-lucide="search" class="i" style="color:#9bbcd2"></i>
+          <input placeholder="Search your library" value="">
+        </div>
+        <div class="lib-toolbar">
+          <span class="pill on">All</span>
+          <span class="pill">Saved</span>
+          <span class="pill">Blueprints</span>
+          <div class="grow"></div>
+          <button class="icon-btn" title="Sort"><i data-lucide="arrow-down-narrow-wide" class="i"></i></button>
+          <button class="icon-btn" title="View"><i data-lucide="layout-grid" class="i"></i></button>
+        </div>
+      </div>
+
+      <button class="lib-add">
+        <i data-lucide="plus" class="i" style="stroke-width:3"></i>
+        Add a Playground
+      </button>
+
+      <div class="lib-scroll">
+        <div class="lib-section">Your Playgrounds <span class="count">· 2</span> <i data-lucide="chevron-down" class="i caret"></i></div>
+        <div class="lib-item playing">
+          <div class="ic b1">AG</div>
+          <div class="label">Art Gallery — Vueo</div>
+          <div class="meta">▶ NOW</div>
+        </div>
+        <div class="lib-item">
+          <div class="ic b2">CS</div>
+          <div class="label">My Coffee Shop fork</div>
+          <div class="meta">2d</div>
+        </div>
+        <div class="lib-item" style="color:#67707b">
+          <div class="ic" style="background:#2a475e;color:#8f98a0">U</div>
+          <div class="label">Unsaved Playground</div>
+          <div class="meta" style="color:#e1b85b">unsaved</div>
+        </div>
+
+        <div class="lib-section">Featured Blueprints <span class="count">· 5</span> <i data-lucide="chevron-down" class="i caret"></i></div>
+        <div class="lib-item active">
+          <div class="ic b1">AG</div>
+          <div class="label">Art Gallery</div>
+          <div class="meta">FT</div>
+        </div>
+        <div class="lib-item">
+          <div class="ic b2">CS</div>
+          <div class="label">Coffee Shop</div>
+          <div class="meta">FT</div>
+        </div>
+        <div class="lib-item">
+          <div class="ic b3">FR</div>
+          <div class="label">Feed Reader · Friends</div>
+          <div class="meta">FT</div>
+        </div>
+        <div class="lib-item">
+          <div class="ic b4">GN</div>
+          <div class="label">Gaming News</div>
+          <div class="meta">FT</div>
+        </div>
+        <div class="lib-item">
+          <div class="ic b5">NP</div>
+          <div class="label">Non-profit Organization</div>
+          <div class="meta">FT</div>
+        </div>
+
+        <div class="lib-section">Websites <span class="count">· 8</span> <i data-lucide="chevron-down" class="i caret"></i></div>
+        <div class="lib-item"><div class="ic b6">PB</div><div class="label">Personal Blog</div><div class="meta">WEB</div></div>
+        <div class="lib-item"><div class="ic b7">PR</div><div class="label">Personal Resume</div><div class="meta">WEB</div></div>
+        <div class="lib-item"><div class="ic b8">PH</div><div class="label">Photography Portfolio</div><div class="meta">WEB</div></div>
+        <div class="lib-item"><div class="ic b9">SB</div><div class="label">Skincare Blog</div><div class="meta">WEB</div></div>
+        <div class="lib-item"><div class="ic b10">UW</div><div class="label">University Website</div><div class="meta">WEB</div></div>
+
+        <div class="lib-section">Content &amp; Themes <span class="count">· 9</span> <i data-lucide="chevron-right" class="i caret"></i></div>
+        <div class="lib-item"><div class="ic b11">CB</div><div class="label">Create Block Theme</div><div class="meta">EDT</div></div>
+        <div class="lib-item"><div class="ic b12">25</div><div class="label">Demo of Twenty-Twenty-Five</div><div class="meta">TH</div></div>
+        <div class="lib-item"><div class="ic b13">SC</div><div class="label">Import Theme Starter Content</div><div class="meta">TH</div></div>
+        <div class="lib-item"><div class="ic b14">CP</div><div class="label">Custom Post Type: Books</div><div class="meta">CPT</div></div>
+
+        <div class="lib-section">Gutenberg &amp; Experiments <span class="count">· 5</span> <i data-lucide="chevron-right" class="i caret"></i></div>
+        <div class="lib-item"><div class="ic b15">DV</div><div class="label">Dataview Experiments</div><div class="meta">GB</div></div>
+        <div class="lib-item"><div class="ic b16">GR</div><div class="label">Grid Variations Experiments</div><div class="meta">GB</div></div>
+
+        <div class="lib-section">WooCommerce <span class="count">· 4</span> <i data-lucide="chevron-right" class="i caret"></i></div>
+        <div class="lib-item"><div class="ic b17">WC</div><div class="label">Minimal WooCommerce Setup</div><div class="meta">WC</div></div>
+        <div class="lib-item"><div class="ic b18">SP</div><div class="label">Stylish Press</div><div class="meta">WC</div></div>
+      </div>
+    </aside>
+
+    <!-- CENTER: HERO + carousels -->
+    <section class="canvas">
+
+      <div class="hero">
+        <div class="hero-inner">
+          <!-- big capsule art -->
+          <div class="capsule">
+            <div class="cap-art">
+              <svg viewBox="0 0 240 340" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#ffd27d"/>
+                    <stop offset="1" stop-color="#cf3d12"/>
+                  </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="240" height="340" fill="url(#g1)"/>
+                <!-- gallery picture frames -->
+                <g opacity=".95">
+                  <rect x="30" y="60" width="76" height="98" fill="#fff" rx="2"/>
+                  <rect x="36" y="66" width="64" height="76" fill="#3a7bd5"/>
+                  <circle cx="60" cy="98" r="10" fill="#ffd27d"/>
+                  <path d="M40 132 L62 110 L82 124 L96 100 L96 142 L40 142 Z" fill="#185a9d"/>
+                </g>
+                <g opacity=".95">
+                  <rect x="124" y="50" width="86" height="110" fill="#fff" rx="2"/>
+                  <rect x="130" y="56" width="74" height="86" fill="#43cea2"/>
+                  <path d="M132 130 L160 96 L180 116 L202 84 L202 142 L132 142 Z" fill="#0c5a45"/>
+                </g>
+                <g opacity=".9">
+                  <rect x="68" y="186" width="106" height="98" fill="#fff" rx="2"/>
+                  <rect x="74" y="192" width="94" height="74" fill="#cb356b"/>
+                  <circle cx="100" cy="222" r="14" fill="#ffd27d"/>
+                </g>
+                <!-- floor shadow -->
+                <ellipse cx="120" cy="312" rx="100" ry="10" fill="#000" opacity=".25"/>
+              </svg>
+            </div>
+            <div class="cap-foot">
+              <div class="t">ART GALLERY</div>
+              <div class="s">Vueo theme · curated demo</div>
+            </div>
+          </div>
+
+          <div class="hero-meta">
+            <div class="hero-cat">
+              <span>Featured Blueprint</span><span class="dot"></span>
+              <span>Website</span><span class="dot"></span>
+              <span>Personal</span>
+            </div>
+            <h1 class="hero-title">Art Gallery</h1>
+            <div class="hero-byline">An art gallery created with the <b>Vueo</b> theme. Boots WordPress 6.6 with PHP 8.2, imports starter content, and lands you in a curated exhibition layout.</div>
+            <div class="hero-tags">
+              <span class="tag">Website</span>
+              <span class="tag">Personal</span>
+              <span class="tag">Theme: Vueo</span>
+              <span class="tag">WP 6.6</span>
+              <span class="tag">PHP 8.2</span>
+              <span class="tag">~12 MB</span>
+              <span class="tag">Boot ~3.4s</span>
+            </div>
+
+            <div class="hero-cta">
+              <button class="btn-play" id="cta-play">
+                <i data-lucide="play" class="i"></i>
+                Play
+              </button>
+              <button class="btn-secondary" id="cta-save">
+                <i data-lucide="bookmark-plus" class="i"></i>
+                Save to Library
+              </button>
+              <button class="btn-ghost" id="cta-settings">
+                <i data-lucide="sliders-horizontal" class="i"></i>
+                Settings
+              </button>
+              <button class="btn-ghost" id="cta-blueprint">
+                <i data-lucide="file-code-2" class="i"></i>
+                View Blueprint
+              </button>
+              <div class="kebab" id="cta-kebab" title="More actions">
+                <i data-lucide="more-horizontal" class="i-lg"></i>
+                <div class="kebab-menu">
+                  <div class="lbl">Manage</div>
+                  <button class="mi"><i data-lucide="git-pull-request" class="i"></i>Export to GitHub as Pull Request</button>
+                  <button class="mi"><i data-lucide="download" class="i"></i>Download as .zip</button>
+                  <div class="sep"></div>
+                  <div class="lbl">Boot from</div>
+                  <button class="mi"><i data-lucide="git-branch" class="i"></i>WordPress core PR</button>
+                  <button class="mi"><i data-lucide="git-branch" class="i"></i>Gutenberg PR</button>
+                  <button class="mi"><i data-lucide="github" class="i"></i>From GitHub repo</button>
+                  <button class="mi"><i data-lucide="link" class="i"></i>From Blueprint URL</button>
+                  <button class="mi"><i data-lucide="file-up" class="i"></i>Import .zip…</button>
+                  <div class="sep"></div>
+                  <button class="mi"><i data-lucide="copy" class="i"></i>Copy link to this Blueprint</button>
+                  <button class="mi"><i data-lucide="package" class="i"></i>Download blueprint bundle</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rails">
+
+        <div>
+          <div class="rail-h">
+            <h3>Continue where you left off</h3>
+            <span class="muted" style="font-size:11px;">Your Playgrounds · saved in browser</span>
+            <a class="more" href="#">View all ›</a>
+          </div>
+          <div class="rail" style="grid-template-columns:repeat(4,1fr)">
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#f7b733,#fc4a1a)">
+                <div class="mark">Art Gallery</div>
+              </div>
+              <div class="body">
+                <div class="name">Art Gallery — Vueo</div>
+                <div class="tags"><span>Saved · 12m ago</span><span style="color:#a4d007">▶ Running</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#8e54e9,#4776e6)">
+                <div class="mark">Coffee Shop fork</div>
+              </div>
+              <div class="body">
+                <div class="name">My Coffee Shop fork</div>
+                <div class="tags"><span>2d ago</span><span>WP 6.6 · PHP 8.2</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#37314c,#2a3a4d);">
+                <div class="mark" style="opacity:.85">Unsaved</div>
+              </div>
+              <div class="body">
+                <div class="name">Unsaved Playground</div>
+                <div class="tags"><span style="color:#e1b85b">not saved to OPFS</span></div>
+              </div>
+            </div>
+            <div class="card" style="display:flex;align-items:center;justify-content:center;background:rgba(103,124,141,.10);border:1px dashed #2a475e">
+              <div style="text-align:center;color:#8f98a0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:18px;">
+                <i data-lucide="file-up" class="i-xl" style="color:#67c1f5"></i>
+                <div style="margin-top:6px">Import .zip</div>
+                <div style="font-weight:500;text-transform:none;letter-spacing:0;font-size:11px;color:#67707b;margin-top:4px">Restore a previously exported playground</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="rail-h">
+            <h3>Featured Blueprints</h3>
+            <a class="more" href="#">View all 43 ›</a>
+          </div>
+          <div class="rail">
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#f7b733,#fc4a1a)"><div class="mark">Art Gallery</div></div>
+              <div class="body"><div class="name">Art Gallery</div><div class="tags"><span>Website</span><span>Personal</span></div></div>
+            </div>
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#8e54e9,#4776e6)"><div class="mark">Coffee Shop</div></div>
+              <div class="body"><div class="name">Coffee Shop</div><div class="tags"><span>WooCommerce</span><span>Store</span></div></div>
+            </div>
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#11998e,#38ef7d)"><div class="mark">Friends RSS</div></div>
+              <div class="body"><div class="name">Feed Reader</div><div class="tags"><span>rss</span><span>social</span></div></div>
+            </div>
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#ff512f,#dd2476)"><div class="mark">Gaming News</div></div>
+              <div class="body"><div class="name">Gaming News</div><div class="tags"><span>Website</span><span>News</span></div></div>
+            </div>
+            <div class="card">
+              <div class="art" style="background:linear-gradient(135deg,#fc466b,#3f5efb)"><div class="mark">Non-profit</div></div>
+              <div class="body"><div class="name">Non-profit Organization</div><div class="tags"><span>Website</span><span>Org</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="rail-h">
+            <h3>Start a new Playground</h3>
+            <a class="more" href="#">Source list ›</a>
+          </div>
+          <div class="new-grid" style="background:transparent;padding:0;border:0">
+            <div class="new-tile green">
+              <div class="ico"><i data-lucide="sparkles" class="i-lg"></i></div>
+              <div><div class="tt">Vanilla WordPress</div><div class="desc">Latest stable WP · PHP 8.2 · empty install</div></div>
+            </div>
+            <div class="new-tile">
+              <div class="ico"><i data-lucide="git-pull-request" class="i-lg"></i></div>
+              <div><div class="tt">WordPress core PR</div><div class="desc">Boot a build from a Trac/GitHub PR number</div></div>
+            </div>
+            <div class="new-tile">
+              <div class="ico"><i data-lucide="git-pull-request-arrow" class="i-lg"></i></div>
+              <div><div class="tt">Gutenberg PR</div><div class="desc">Preview a Gutenberg plugin PR</div></div>
+            </div>
+            <div class="new-tile">
+              <div class="ico"><i data-lucide="github" class="i-lg"></i></div>
+              <div><div class="tt">From GitHub repo</div><div class="desc">Auto-install a theme/plugin from any repo</div></div>
+            </div>
+            <div class="new-tile">
+              <div class="ico"><i data-lucide="link" class="i-lg"></i></div>
+              <div><div class="tt">Blueprint URL</div><div class="desc">Paste any blueprint JSON URL</div></div>
+            </div>
+            <div class="new-tile">
+              <div class="ico"><i data-lucide="file-up" class="i-lg"></i></div>
+              <div><div class="tt">Import .zip</div><div class="desc">Restore an exported playground</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ================= FRAME 2: Booting state ================= -->
+<div class="state-sep"><span class="pill">State 2</span> Booting the selected blueprint — cinematic loading after PLAY</div>
+<div class="frame" id="frame-booting" style="min-height:560px;height:560px">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="title">WordPress Playground</div>
+    <div class="crumbs">›  Library  ›  Art Gallery  ›  Booting</div>
+    <div class="right"><span class="mono">14:33</span></div>
+  </div>
+
+  <div class="menubar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="name"><b>PLAYGROUND</b></div>
+    </div>
+    <div class="menu">
+      <a class="active">Library</a>
+      <a>Blueprints</a>
+      <a>Community</a>
+      <a class="dim">Docs</a>
+    </div>
+    <div class="grow"></div>
+    <div class="userpill"><div class="avatar">AZ</div><span>adam.z</span></div>
+  </div>
+
+  <div class="subnav">
+    <a>Home</a>
+    <a class="on">Art Gallery</a>
+    <div class="grow"></div>
+    <div class="session" style="color:#e1b85b"><div class="session-dot" style="background:#e1b85b;box-shadow:0 0 8px #e1b85b"></div>Preparing playground…</div>
+  </div>
+
+  <div class="viewport" style="border-top:0">
+    <div class="viewport-hud">
+      <button class="hud-btn" title="Refresh"><i data-lucide="refresh-cw" class="i"></i></button>
+      <button class="hud-btn" title="Home"><i data-lucide="home" class="i"></i></button>
+      <div class="urlbar">
+        <span class="scheme">https://playground.wordpress.net</span>
+        <input value="/" />
+        <button class="go">Go</button>
+      </div>
+      <div class="hud-right">
+        <span class="hud-chip warn"><span class="d"></span>Booting · 62%</span>
+        <span class="hud-chip">WP 6.6 · PHP 8.2</span>
+        <span class="hud-chip"><i data-lucide="hard-drive" class="i"></i>OPFS</span>
+        <button class="hud-btn"><i data-lucide="layout-panel-left" class="i"></i></button>
+      </div>
+    </div>
+
+    <div class="booting" style="position:relative;flex:1">
+      <div class="boot-cap">
+        <svg viewBox="0 0 240 340" preserveAspectRatio="none">
+          <rect x="0" y="0" width="240" height="340" fill="url(#g1)" style="fill:#f7b733"/>
+          <g opacity=".9"><rect x="30" y="60" width="76" height="98" fill="#fff" rx="2"/><rect x="36" y="66" width="64" height="76" fill="#3a7bd5"/></g>
+          <g opacity=".9"><rect x="124" y="50" width="86" height="110" fill="#fff" rx="2"/><rect x="130" y="56" width="74" height="86" fill="#43cea2"/></g>
+          <g opacity=".9"><rect x="68" y="186" width="106" height="98" fill="#fff" rx="2"/><rect x="74" y="192" width="94" height="74" fill="#cb356b"/></g>
+        </svg>
+      </div>
+      <div class="boot-title">ART GALLERY</div>
+      <div class="boot-sub">Booting blueprint · Vueo theme · WP 6.6 / PHP 8.2</div>
+      <div class="boot-bar"><i></i></div>
+      <div class="boot-step">[<span class="mono">14:33:02</span>] <b>installing</b> theme: <span style="color:#66c0f4">vueo</span>… <span style="color:#a4d007">OK</span></div>
+      <div class="boot-step">[<span class="mono">14:33:03</span>] <b>importing</b> starter content (24 posts, 12 attachments)…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================= FRAME 3: Running session + in-game overlay (Settings tab) ================= -->
+<div class="state-sep"><span class="pill">State 3</span> In-session — Shift+Tab opens the in-game overlay (Site Manager)</div>
+<div class="frame" id="frame-running" style="height:900px">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="title">WordPress Playground</div>
+    <div class="crumbs">›  Library  ›  Art Gallery  ›  <b style="color:#a4d007">Running</b></div>
+    <div class="right">
+      <span><i data-lucide="cast" class="i"></i></span>
+      <span class="mono">14:36</span>
+    </div>
+  </div>
+
+  <div class="menubar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="name"><b>PLAYGROUND</b></div>
+    </div>
+    <div class="menu">
+      <a>Library</a>
+      <a>Blueprints</a>
+      <a class="active">Now Playing</a>
+      <a class="dim">Community</a>
+    </div>
+    <div class="grow"></div>
+
+    <!-- the running game "playing as" pill -->
+    <div class="userpill" style="background:rgba(164,208,7,.10);color:#a4d007">
+      <div class="session-dot"></div>
+      <span><b style="color:#a4d007">Art Gallery</b> · running</span>
+      <span class="mono" style="color:#67707b">04:12</span>
+    </div>
+    <div class="userpill"><div class="avatar">AZ</div><span>adam.z</span></div>
+  </div>
+
+  <div class="subnav">
+    <a>Home</a>
+    <a class="on">Art Gallery</a>
+    <div class="grow"></div>
+    <div class="muted" style="font-size:11px">Press <span class="kbd">Shift</span> + <span class="kbd">Tab</span> for overlay</div>
+  </div>
+
+  <div class="viewport" style="border-top:0">
+    <div class="viewport-hud">
+      <button class="hud-btn" title="Refresh"><i data-lucide="refresh-cw" class="i"></i></button>
+      <button class="hud-btn" title="Home"><i data-lucide="home" class="i"></i></button>
+      <button class="hud-btn" title="WP Admin"><i data-lucide="user-cog" class="i"></i></button>
+      <div class="urlbar">
+        <span class="scheme">https://playground.wordpress.net</span>
+        <input value="/?page_id=12" />
+        <button class="go">Go</button>
+      </div>
+      <div class="hud-right">
+        <span class="hud-chip"><span class="d"></span>Live</span>
+        <span class="hud-chip">WP 6.6</span>
+        <span class="hud-chip">PHP 8.2</span>
+        <span class="hud-chip"><i data-lucide="save" class="i"></i>Saved to library</span>
+        <button class="hud-btn" id="hud-save" title="Save"><i data-lucide="bookmark" class="i"></i></button>
+        <button class="hud-btn" title="Toggle overlay (Shift+Tab)"><i data-lucide="layout-panel-left" class="i"></i></button>
+        <button class="hud-btn" title="More"><i data-lucide="more-vertical" class="i"></i></button>
+      </div>
+    </div>
+
+    <div class="iframe">
+      <div class="wp-bar">
+        <span class="wp-logo">W</span>
+        <span class="item hi">Art Gallery</span>
+        <span class="item">+ New</span>
+        <span class="item">Customize</span>
+        <span class="item">Edit Page</span>
+        <span class="right"><span class="item">Howdy, admin</span></span>
+      </div>
+      <div class="wp-content">
+        <h1>Art Gallery</h1>
+        <div class="tagline">A curated exhibition built with Vueo · Spring 2026 collection</div>
+        <div class="nav"><span>Home</span><span>Exhibitions</span><span>Artists</span><span>Visit</span><span>Shop</span></div>
+        <div class="post">
+          <h2>Light &amp; Form — Opening Friday</h2>
+          <div class="meta">Posted by admin · April 18, 2026 · in Exhibitions</div>
+          <p>Eight emerging photographers explore the geometry of light through analog processes. The gallery is open Wednesday through Sunday from 11am to 6pm. Tickets are free but registration is required.</p>
+          <div class="gallery">
+            <div></div><div></div><div></div><div></div><div></div><div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IN-GAME OVERLAY (Site Manager) -->
+    <div class="overlay" id="overlay">
+      <div class="ov-head">
+        <div class="ov-title">
+          <i data-lucide="layout-panel-left" class="i-lg" style="color:#66c0f4"></i>
+          Playground Overlay
+          <span style="color:#67707b;font-weight:500;text-transform:none;letter-spacing:0;font-size:12px">· Art Gallery</span>
+        </div>
+        <div class="ov-tabs">
+          <button class="ov-tab on">Settings</button>
+          <button class="ov-tab">Files</button>
+          <button class="ov-tab">Blueprint</button>
+          <button class="ov-tab">Database</button>
+          <button class="ov-tab">Logs</button>
+        </div>
+        <div class="right">
+          <span><span class="kbd">Shift</span>+<span class="kbd">Tab</span> to close</span>
+          <button class="hud-btn"><i data-lucide="x" class="i"></i></button>
+        </div>
+      </div>
+      <div class="ov-body">
+        <div class="ov-side ov-col">
+          <div class="h">Site</div>
+          <div class="row on"><i data-lucide="sliders-horizontal" class="i ch"></i><span>Settings</span></div>
+          <div class="row"><i data-lucide="folder-tree" class="i ch"></i><span>Files</span></div>
+          <div class="row"><i data-lucide="file-code-2" class="i ch"></i><span>Blueprint</span></div>
+          <div class="row"><i data-lucide="database" class="i ch"></i><span>Database</span> <span class="muted" style="margin-left:auto;font-size:10px">EA</span></div>
+          <div class="row"><i data-lucide="scroll-text" class="i ch"></i><span>Logs</span> <span class="muted" style="margin-left:auto;font-size:10px;color:#e1b85b">4</span></div>
+          <div class="h" style="margin-top:10px">Quick actions</div>
+          <div class="row"><i data-lucide="user-cog" class="i ch"></i><span>Open WP Admin</span></div>
+          <div class="row"><i data-lucide="home" class="i ch"></i><span>Open Homepage</span></div>
+          <div class="row"><i data-lucide="bookmark" class="i ch"></i><span>Save site locally</span></div>
+          <div class="row"><i data-lucide="git-pull-request" class="i ch"></i><span>Export as PR</span></div>
+          <div class="row"><i data-lucide="download" class="i ch"></i><span>Download .zip</span></div>
+        </div>
+        <div class="ov-main ov-col">
+          <div class="row-spread" style="margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#67707b;font-weight:700">Site Settings</div>
+              <div style="font-weight:900;font-size:18px;color:#fff;margin-top:2px">Edit Playground</div>
+            </div>
+            <div class="grow"></div>
+            <input style="background:#0e141b;border:1px solid #0a0f15;color:#c7d5e0;padding:6px 10px;border-radius:2px;font-family:inherit;font-size:12px;width:220px" value="Art Gallery" />
+            <button class="btn-ghost" style="height:32px;padding:0 12px;font-size:11px"><i data-lucide="check" class="i"></i>Rename</button>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label>WordPress version</label>
+              <select><option>6.6 (current)</option><option>6.5</option><option>6.4</option><option>Nightly</option><option>Beta / RC</option></select>
+            </div>
+            <div class="field"><label>PHP version</label>
+              <select><option>8.2</option><option>8.1</option><option>8.0</option><option>7.4</option></select>
+            </div>
+            <div class="field"><label>Language</label>
+              <select><option>English (US)</option><option>日本語</option><option>Polski</option><option>Español</option></select>
+            </div>
+            <div class="field"><label>Storage</label>
+              <select><option>OPFS (browser storage)</option><option>Memory (temporary)</option></select>
+            </div>
+            <div class="field">
+              <label>Network access</label>
+              <div class="switch on"><div class="t"></div><div>Allow outbound HTTP requests from PHP</div></div>
+            </div>
+            <div class="field">
+              <label>Multisite</label>
+              <div class="switch"><div class="t"></div><div>Enable WordPress Multisite</div></div>
+            </div>
+          </div>
+
+          <div class="notice">
+            <i data-lucide="bookmark-plus" class="i" style="color:#e1b85b"></i>
+            <div><b>This is an Unsaved Playground.</b> Your changes will be lost on page refresh.</div>
+            <button class="btn-secondary">Save site locally</button>
+          </div>
+          <div class="destructive">
+            <b style="color:#fff">Apply Settings &amp; Reset Playground</b> — this is destructive. The current playground will be wiped and rebuilt with the new settings.
+          </div>
+          <div class="actions-row">
+            <button class="btn-apply">Apply &amp; Reset</button>
+            <button class="btn-reset">Discard changes</button>
+            <div class="grow"></div>
+            <button class="btn-ghost" style="height:32px;padding:0 12px;font-size:11px"><i data-lucide="external-link" class="i"></i>Open Edit Settings popover</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast">
+      <div class="dot"></div>
+      <div>
+        <b>Playground saved.</b><br>
+        <span class="muted">“Art Gallery” is now in Your Playgrounds.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FRAME 4: Blueprint gallery (View all 43) ================= -->
+<div class="state-sep"><span class="pill">Panel</span> View all 43 Blueprints — Steam library browse view</div>
+<div class="frame" id="frame-gallery" style="height:900px">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="title">WordPress Playground</div>
+    <div class="crumbs">›  Library  ›  All Blueprints</div>
+    <div class="right"><span class="mono">14:38</span></div>
+  </div>
+
+  <div class="menubar">
+    <div class="brand"><div class="logo">P</div><div class="name"><b>PLAYGROUND</b></div></div>
+    <div class="menu">
+      <a>Library</a>
+      <a class="active">Blueprints</a>
+      <a>Community</a>
+      <a class="dim">Docs</a>
+    </div>
+    <div class="grow"></div>
+    <div class="userpill"><div class="avatar">AZ</div><span>adam.z</span></div>
+  </div>
+
+  <div class="subnav">
+    <a>Featured</a>
+    <a class="on">All Blueprints</a>
+    <a>Recently added</a>
+    <a>By tag</a>
+    <div class="grow"></div>
+    <div class="muted" style="font-size:11px">43 results</div>
+  </div>
+
+  <section class="gallery">
+    <div class="gal-head">
+      <h2>All Blueprints</h2>
+      <div class="sub">Boot any of these as a fresh playground.</div>
+      <div class="grow"></div>
+      <div class="gal-search">
+        <i data-lucide="search" class="i" style="color:#8f98a0"></i>
+        <input placeholder="Search 43 blueprints…" />
+        <span class="kbd">⌘K</span>
+      </div>
+    </div>
+    <div class="gal-filters">
+      <div class="chip on">All</div>
+      <div class="chip">Featured</div>
+      <div class="chip">Website</div>
+      <div class="chip">Personal</div>
+      <div class="chip">Content</div>
+      <div class="chip">Themes</div>
+      <div class="chip">Gutenberg</div>
+      <div class="chip">Experiments</div>
+      <div class="chip">WooCommerce</div>
+      <div class="chip">News</div>
+      <div class="grow"></div>
+      <div class="chip"><i data-lucide="arrow-down-narrow-wide" class="i" style="margin-right:4px"></i>Sort: Featured</div>
+      <div class="chip"><i data-lucide="layout-grid" class="i" style="margin-right:4px"></i>Grid</div>
+    </div>
+
+    <div class="gal-grid" id="gal-grid"></div>
+  </section>
+</div>
+
+<!-- ================= FRAME 5: Files + Logs panels of overlay ================= -->
+<div class="state-sep"><span class="pill">Panel</span> Overlay tabs — Files / Blueprint / Database / Logs</div>
+<div class="frame" id="frame-overlays" style="height:980px">
+
+  <div class="titlebar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="title">WordPress Playground</div>
+    <div class="crumbs">›  Now Playing  ›  Overlay</div>
+    <div class="right"><span class="mono">14:41</span></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:0;border-top:1px solid #0c131a">
+
+    <!-- Files + Blueprint -->
+    <div style="display:flex;flex-direction:column;border-right:1px solid #0c131a;background:#16202d">
+      <div class="ov-head" style="border-bottom:1px solid #0c131a">
+        <div class="ov-title"><i data-lucide="file-code-2" class="i-lg" style="color:#66c0f4"></i>Blueprint &amp; Files</div>
+        <div class="ov-tabs">
+          <button class="ov-tab">Settings</button>
+          <button class="ov-tab">Files</button>
+          <button class="ov-tab on">Blueprint</button>
+          <button class="ov-tab">Database</button>
+          <button class="ov-tab">Logs</button>
+        </div>
+      </div>
+      <div class="ov-body">
+        <div class="ov-side ov-col" style="width:220px">
+          <div class="h">/wordpress/</div>
+          <div class="tree" style="border:0;background:transparent;padding:0">
+            <div class="tnode"><i data-lucide="folder" class="ic"></i><span>wp-admin</span><span class="c">/</span></div>
+            <div class="tnode on"><i data-lucide="folder-open" class="ic"></i><span>wp-content</span><span class="c">/</span></div>
+            <div class="tindent">
+              <div class="tnode"><i data-lucide="folder" class="ic"></i><span>themes</span></div>
+              <div class="tindent">
+                <div class="tnode"><i data-lucide="folder" class="ic"></i><span>vueo</span></div>
+                <div class="tindent">
+                  <div class="tnode on"><i data-lucide="file" class="ic" style="color:#66c0f4"></i><span>style.css</span></div>
+                  <div class="tnode"><i data-lucide="file" class="ic"></i><span>functions.php</span></div>
+                  <div class="tnode"><i data-lucide="folder" class="ic"></i><span>patterns</span></div>
+                  <div class="tnode"><i data-lucide="file" class="ic"></i><span>theme.json</span></div>
+                </div>
+              </div>
+              <div class="tnode"><i data-lucide="folder" class="ic"></i><span>plugins</span></div>
+              <div class="tnode"><i data-lucide="folder" class="ic"></i><span>uploads</span></div>
+              <div class="tnode"><i data-lucide="file" class="ic"></i><span>blueprint.json</span></div>
+            </div>
+            <div class="tnode"><i data-lucide="folder" class="ic"></i><span>wp-includes</span><span class="c">/</span></div>
+            <div class="tnode"><i data-lucide="file" class="ic"></i><span>wp-config.php</span></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;padding:0 4px">
+            <button class="btn-ghost" style="height:28px;padding:0 8px;font-size:10px;flex:1"><i data-lucide="file-plus" class="i"></i>New File</button>
+            <button class="btn-ghost" style="height:28px;padding:0 8px;font-size:10px;flex:1"><i data-lucide="folder-plus" class="i"></i>Folder</button>
+          </div>
+        </div>
+        <div class="ov-main ov-col">
+          <div class="row-spread" style="margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#67707b;font-weight:700">Active blueprint</div>
+              <div style="font-weight:900;font-size:16px;color:#fff;margin-top:2px">blueprint.json</div>
+            </div>
+            <div class="grow"></div>
+            <button class="btn-ghost" style="height:30px;padding:0 10px;font-size:11px"><i data-lucide="copy" class="i"></i>Copy link</button>
+            <button class="btn-ghost" style="height:30px;padding:0 10px;font-size:11px"><i data-lucide="package" class="i"></i>Download bundle</button>
+            <button class="btn-apply" style="padding:7px 12px;font-size:11px"><i data-lucide="play" class="i" style="stroke-width:3"></i>Run Blueprint</button>
+          </div>
+          <div class="code">
+<span class="c">// Boots WordPress 6.6 with Vueo theme and gallery starter content</span>
+{
+  <span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+  <span class="k">"preferredVersions"</span>: { <span class="k">"php"</span>: <span class="s">"8.2"</span>, <span class="k">"wp"</span>: <span class="s">"6.6"</span> },
+  <span class="k">"landingPage"</span>: <span class="s">"/?page_id=12"</span>,
+  <span class="k">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],
+  <span class="k">"login"</span>: <span class="n">true</span>,
+  <span class="k">"steps"</span>: [
+    { <span class="k">"step"</span>: <span class="s">"installTheme"</span>,
+      <span class="k">"themeData"</span>: { <span class="k">"resource"</span>: <span class="s">"wordpress.org/themes"</span>, <span class="k">"slug"</span>: <span class="s">"vueo"</span> },
+      <span class="k">"options"</span>: { <span class="k">"activate"</span>: <span class="n">true</span> }
+    },
+    { <span class="k">"step"</span>: <span class="s">"importWxr"</span>,
+      <span class="k">"file"</span>: { <span class="k">"resource"</span>: <span class="s">"url"</span>,
+        <span class="k">"url"</span>: <span class="s">"https://raw.githubusercontent.com/wp-playground/blueprints/main/art-gallery/content.xml"</span> }
+    },
+    { <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>,
+      <span class="k">"options"</span>: { <span class="k">"blogname"</span>: <span class="s">"Art Gallery"</span>, <span class="k">"blogdescription"</span>: <span class="s">"A curated exhibition"</span> }
+    }
+  ]
+}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div style="display:flex;flex-direction:column;background:#16202d">
+      <div class="ov-head">
+        <div class="ov-title"><i data-lucide="scroll-text" class="i-lg" style="color:#e1b85b"></i>Logs &amp; Database</div>
+        <div class="ov-tabs">
+          <button class="ov-tab">Settings</button>
+          <button class="ov-tab">Files</button>
+          <button class="ov-tab">Blueprint</button>
+          <button class="ov-tab">Database</button>
+          <button class="ov-tab on">Logs</button>
+        </div>
+      </div>
+      <div class="ov-main" style="padding:14px 18px">
+        <div class="row-spread" style="margin-bottom:8px">
+          <div>
+            <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#67707b;font-weight:700">PHP error log</div>
+            <div style="font-weight:900;font-size:15px;color:#fff;margin-top:2px">Live logs · last 50</div>
+          </div>
+          <div class="grow"></div>
+          <div class="gal-search" style="background:#0e141b;border:1px solid #0a0f15;border-radius:2px;padding:5px 8px;width:220px">
+            <i data-lucide="search" class="i" style="color:#8f98a0"></i>
+            <input placeholder="Search logs…" style="font-size:11px"/>
+          </div>
+          <div class="chip on">All</div>
+          <div class="chip">Errors</div>
+          <div class="chip">Warn</div>
+          <div class="chip">Info</div>
+        </div>
+        <div class="logs">
+          <div class="row"><div class="t">14:33:01</div><div class="lv info">INFO</div><div class="m">Booting playground <span class="k">art-gallery</span> · wp <span class="v">6.6</span> · php <span class="v">8.2</span></div></div>
+          <div class="row"><div class="t">14:33:02</div><div class="lv info">INFO</div><div class="m">Spawning PHP-WASM worker on origin <span class="v">https://playground.wordpress.net</span></div></div>
+          <div class="row"><div class="t">14:33:03</div><div class="lv ok">OK</div><div class="m">SQLite database mounted at <span class="v">/wordpress/wp-content/database/.ht.sqlite</span></div></div>
+          <div class="row"><div class="t">14:33:04</div><div class="lv info">INFO</div><div class="m">installTheme step → <span class="k">slug</span>=<span class="v">vueo</span></div></div>
+          <div class="row"><div class="t">14:33:05</div><div class="lv warn">WARN</div><div class="m">PHP Notice: <span class="k">Function _load_textdomain_just_in_time</span> was called incorrectly. <em>vueo</em> loaded too early. (5.5.0)</div></div>
+          <div class="row"><div class="t">14:33:06</div><div class="lv info">INFO</div><div class="m">importWxr step → 24 posts, 12 attachments queued</div></div>
+          <div class="row"><div class="t">14:33:08</div><div class="lv ok">OK</div><div class="m">Imported attachment #11 → <span class="v">/wp-content/uploads/2026/04/opening.jpg</span></div></div>
+          <div class="row"><div class="t">14:33:09</div><div class="lv ok">OK</div><div class="m">Imported attachment #12 → <span class="v">/wp-content/uploads/2026/04/light-form-1.jpg</span></div></div>
+          <div class="row"><div class="t">14:33:10</div><div class="lv warn">WARN</div><div class="m">Deprecated: Creation of dynamic property <span class="k">WP_Block_Type::$ancestor</span> in <span class="v">/wp-includes/blocks.php</span> on line 2204</div></div>
+          <div class="row"><div class="t">14:33:11</div><div class="lv info">INFO</div><div class="m">setSiteOptions → blogname="Art Gallery", blogdescription="A curated exhibition"</div></div>
+          <div class="row"><div class="t">14:33:12</div><div class="lv ok">OK</div><div class="m">Playground ready · landingPage=<span class="v">/?page_id=12</span></div></div>
+          <div class="row"><div class="t">14:35:44</div><div class="lv err">ERR</div><div class="m">PHP Fatal error: Uncaught Error: Call to undefined function <span class="k">vueo_get_palette()</span> in <span class="v">/wp-content/themes/vueo/functions.php:42</span></div></div>
+          <div class="row"><div class="t">14:35:44</div><div class="lv info">INFO</div><div class="m">Request <span class="k">GET</span> <span class="v">/wp-admin/themes.php</span> → 500</div></div>
+        </div>
+
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(102,192,244,.08);border-left:3px solid #66c0f4;color:#b8d7ed;font-size:12px;border-radius:2px">
+          <b style="color:#fff">Database is an early-access feature.</b> Switch to the <a href="#">Database</a> tab to browse the SQLite-backed DB · file an <a href="#">issue on GitHub</a>.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= MOBILE ROW ================= -->
+<div class="state-sep" style="border-top:1px solid #2a475e"><span class="pill">Mobile · 390×844</span> Two mobile states: launcher home and in-session with overlay</div>
+<div class="mobile-row">
+
+  <!-- Mobile 1: launcher home -->
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="scr">
+      <div class="m-status">
+        <span>14:32</span>
+        <span class="right"><i data-lucide="signal" class="i"></i><i data-lucide="wifi" class="i"></i><i data-lucide="battery-full" class="i"></i></span>
+      </div>
+      <div class="m-hero">
+        <div class="art">
+          <svg viewBox="0 0 240 230" preserveAspectRatio="none" style="width:100%;height:100%;position:absolute;inset:0">
+            <rect x="0" y="0" width="240" height="230" fill="#f7b733"/>
+            <rect x="20" y="40" width="64" height="80" fill="#fff" rx="2"/><rect x="26" y="46" width="52" height="60" fill="#3a7bd5"/>
+            <rect x="98" y="32" width="76" height="92" fill="#fff" rx="2"/><rect x="104" y="38" width="64" height="72" fill="#43cea2"/>
+            <rect x="52" y="138" width="92" height="74" fill="#fff" rx="2"/><rect x="58" y="144" width="80" height="58" fill="#cb356b"/>
+          </svg>
+        </div>
+        <div class="grad"></div>
+        <div class="info">
+          <div class="cat">Featured Blueprint · Website</div>
+          <h3>Art Gallery</h3>
+          <div class="tags"><span>Vueo</span><span>WP 6.6</span><span>~12 MB</span></div>
+        </div>
+      </div>
+      <div class="m-cta">
+        <button class="btn-play"><i data-lucide="play" class="i"></i>Play</button>
+        <div class="kebab"><i data-lucide="more-horizontal" class="i-lg"></i></div>
+      </div>
+      <div class="m-rail">
+        <div class="h"><h4>Continue</h4><a>All</a></div>
+        <div class="m-list">
+          <div class="m-card"><div class="ic" style="background:linear-gradient(135deg,#f7b733,#fc4a1a)"></div><div style="flex:1"><div class="n">Art Gallery — Vueo</div><div class="s">Running · 04:12</div></div><div class="pl">▶</div></div>
+          <div class="m-card"><div class="ic" style="background:linear-gradient(135deg,#8e54e9,#4776e6)"></div><div style="flex:1"><div class="n">My Coffee Shop fork</div><div class="s">2d · saved</div></div><div class="pl" style="background:#316282;color:#fff">Resume</div></div>
+        </div>
+        <div class="h" style="margin-top:14px"><h4>Featured Blueprints</h4><a>43 ›</a></div>
+        <div class="m-list">
+          <div class="m-card"><div class="ic" style="background:linear-gradient(135deg,#11998e,#38ef7d)"></div><div style="flex:1"><div class="n">Feed Reader · Friends</div><div class="s">rss · social</div></div><div class="pl">Play</div></div>
+          <div class="m-card"><div class="ic" style="background:linear-gradient(135deg,#ff512f,#dd2476)"></div><div style="flex:1"><div class="n">Gaming News — Spiel</div><div class="s">Website · News</div></div><div class="pl">Play</div></div>
+          <div class="m-card"><div class="ic" style="background:linear-gradient(135deg,#fc466b,#3f5efb)"></div><div style="flex:1"><div class="n">Non-profit · Koinonia</div><div class="s">Org · Website</div></div><div class="pl">Play</div></div>
+        </div>
+        <div class="h" style="margin-top:14px"><h4>Start new</h4><a>+</a></div>
+        <div class="m-list">
+          <div class="m-card"><div class="ic" style="background:#2a475e;display:flex;align-items:center;justify-content:center;color:#a4d007"><i data-lucide="sparkles" class="i"></i></div><div style="flex:1"><div class="n">Vanilla WordPress</div><div class="s">Empty install</div></div></div>
+          <div class="m-card"><div class="ic" style="background:#2a475e;display:flex;align-items:center;justify-content:center;color:#66c0f4"><i data-lucide="git-pull-request" class="i"></i></div><div style="flex:1"><div class="n">WordPress / Gutenberg PR</div><div class="s">Boot any PR</div></div></div>
+          <div class="m-card"><div class="ic" style="background:#2a475e;display:flex;align-items:center;justify-content:center;color:#66c0f4"><i data-lucide="github" class="i"></i></div><div style="flex:1"><div class="n">From GitHub / URL / .zip</div><div class="s">Import or boot remote</div></div></div>
+        </div>
+        <div style="height:80px"></div>
+      </div>
+      <div class="m-tabs">
+        <div class="m-tab on"><i data-lucide="library" class="i-lg"></i>Library</div>
+        <div class="m-tab"><i data-lucide="play" class="i-lg"></i>Playing</div>
+        <div class="m-tab"><i data-lucide="layout-panel-left" class="i-lg"></i>Manage</div>
+        <div class="m-tab"><i data-lucide="user" class="i-lg"></i>You</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile 2: running session w/ overlay -->
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="scr">
+      <div class="m-status">
+        <span>14:36</span>
+        <span class="right"><i data-lucide="signal" class="i"></i><i data-lucide="wifi" class="i"></i><i data-lucide="battery-full" class="i"></i></span>
+      </div>
+      <div class="m-hud">
+        <button class="hud-btn" style="width:24px;height:24px"><i data-lucide="refresh-cw" class="i"></i></button>
+        <div class="urlbar" style="background:#0e141b">
+          <span class="scheme" style="font-size:9px">playground.wordpress.net</span>
+          <input value="/?page_id=12"/>
+        </div>
+        <button class="hud-btn" style="width:24px;height:24px"><i data-lucide="layout-panel-left" class="i"></i></button>
+      </div>
+      <div class="m-iframe">
+        <div class="wp-bar"><span class="wp-logo">W</span><span class="item hi">Art Gallery</span><span class="right"><span class="item">admin</span></span></div>
+        <div class="wp-content">
+          <h1>Art Gallery</h1>
+          <div class="tagline">Spring 2026 collection</div>
+          <div class="post">
+            <h2>Light &amp; Form</h2>
+            <div class="meta">April 18, 2026</div>
+            <p>Eight emerging photographers explore the geometry of light through analog processes.</p>
+            <div class="gallery"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="m-overlay">
+        <div class="oh">
+          <i data-lucide="layout-panel-left" class="i-lg" style="color:#66c0f4"></i>
+          <div class="t">Overlay · Art Gallery</div>
+          <button class="hud-btn" style="width:24px;height:24px"><i data-lucide="x" class="i"></i></button>
+        </div>
+        <div class="ot">
+          <div class="chip on">Settings</div>
+          <div class="chip">Files</div>
+          <div class="chip">Blueprint</div>
+          <div class="chip">DB</div>
+          <div class="chip">Logs</div>
+          <div class="chip">Export</div>
+        </div>
+        <div class="oc">
+          <div class="form-grid">
+            <div class="field"><label>WP</label><select><option>6.6</option></select></div>
+            <div class="field"><label>PHP</label><select><option>8.2</option></select></div>
+            <div class="field"><label>Lang</label><select><option>EN</option></select></div>
+            <div class="field"><label>Network</label><div class="switch on"><div class="t"></div></div></div>
+          </div>
+          <div class="notice" style="margin-top:10px">
+            <i data-lucide="bookmark-plus" class="i" style="color:#e1b85b"></i>
+            <div><b>Unsaved.</b> Save now?</div>
+            <button class="btn-secondary" style="height:26px;padding:0 10px;font-size:10px">Save</button>
+          </div>
+          <div class="actions-row" style="margin-top:10px">
+            <button class="btn-apply" style="padding:6px 10px;font-size:10px">Apply &amp; Reset</button>
+            <button class="btn-ghost" style="height:28px;padding:0 8px;font-size:10px">Discard</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="m-tabs">
+        <div class="m-tab"><i data-lucide="library" class="i-lg"></i>Library</div>
+        <div class="m-tab on"><i data-lucide="play" class="i-lg"></i>Playing</div>
+        <div class="m-tab"><i data-lucide="layout-panel-left" class="i-lg"></i>Manage</div>
+        <div class="m-tab"><i data-lucide="user" class="i-lg"></i>You</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;color:#67707b;font-size:11px;padding:20px 0 40px;letter-spacing:1px;text-transform:uppercase">
+  WordPress Playground · Direction 012 · Game launcher (Steam)
+</div>
+
+<script>
+  // Populate the 43-blueprint gallery
+  const palettes = [
+    'linear-gradient(135deg,#f7b733,#fc4a1a)',
+    'linear-gradient(135deg,#8e54e9,#4776e6)',
+    'linear-gradient(135deg,#11998e,#38ef7d)',
+    'linear-gradient(135deg,#ff512f,#dd2476)',
+    'linear-gradient(135deg,#fc466b,#3f5efb)',
+    'linear-gradient(135deg,#1d976c,#93f9b9)',
+    'linear-gradient(135deg,#373b44,#4286f4)',
+    'linear-gradient(135deg,#cb356b,#bd3f32)',
+    'linear-gradient(135deg,#3a7bd5,#3a6073)',
+    'linear-gradient(135deg,#834d9b,#d04ed6)',
+    'linear-gradient(135deg,#ee9ca7,#ffdde1)',
+    'linear-gradient(135deg,#42275a,#734b6d)',
+    'linear-gradient(135deg,#f7971e,#ffd200)',
+    'linear-gradient(135deg,#0f2027,#2c5364)',
+    'linear-gradient(135deg,#43cea2,#185a9d)',
+    'linear-gradient(135deg,#ff9966,#ff5e62)',
+    'linear-gradient(135deg,#1f4037,#99f2c8)',
+    'linear-gradient(135deg,#16a085,#f4d03f)',
+    'linear-gradient(135deg,#2c3e50,#fd746c)',
+    'linear-gradient(135deg,#5614b0,#dbd65c)',
+    'linear-gradient(135deg,#ad5389,#3c1053)',
+    'linear-gradient(135deg,#7f00ff,#e100ff)',
+    'linear-gradient(135deg,#000428,#004e92)',
+    'linear-gradient(135deg,#ff6a00,#ee0979)',
+    'linear-gradient(135deg,#0099f7,#f11712)',
+    'linear-gradient(135deg,#aa076b,#61045f)',
+    'linear-gradient(135deg,#ff8008,#ffc837)',
+    'linear-gradient(135deg,#108dc7,#ef8e38)',
+    'linear-gradient(135deg,#0cebeb,#20e3b2,#29ffc6)',
+    'linear-gradient(135deg,#8ec5fc,#e0c3fc)',
+    'linear-gradient(135deg,#536976,#292e49)',
+    'linear-gradient(135deg,#603813,#b29f94)',
+    'linear-gradient(135deg,#0f9b0f,#000000)',
+    'linear-gradient(135deg,#1488cc,#2b32b2)',
+    'linear-gradient(135deg,#ee0979,#ff6a00)',
+    'linear-gradient(135deg,#56ab2f,#a8e063)',
+    'linear-gradient(135deg,#dd5e89,#f7bb97)',
+    'linear-gradient(135deg,#4ca1af,#c4e0e5)',
+    'linear-gradient(135deg,#e96443,#904e95)',
+    'linear-gradient(135deg,#16222a,#3a6073)',
+    'linear-gradient(135deg,#f12711,#f5af19)',
+    'linear-gradient(135deg,#283c86,#45a247)',
+    'linear-gradient(135deg,#9d50bb,#6e48aa)'
+  ];
+
+  const blueprints = [
+    [1,'Art Gallery','An art gallery created with the Vueo theme.',['Website','Personal']],
+    [2,'Coffee Shop','A stylish WooCommerce coffee shop storefront with custom theme, products, and content.',['WooCommerce','Store']],
+    [3,'Feed Reader with the Friends Plugin','Read feeds (incl. ActivityPub) in Playground via the Friends plugin.',['rss','social','web']],
+    [4,'Gaming News','A gaming news site created with the Spiel theme.',['Website','News']],
+    [5,'Non-profit Organization','A non-profit organization site created with the Koinonia theme.',['Website','Organization']],
+    [6,'Personal Blog','A personal blog site created with the Substrata theme.',['Website','Personal','Blog']],
+    [7,'Personal Resume','A resume site created with the Readymade theme.',['Website','Personal']],
+    [8,'Photography Portfolio','A photography portfolio created with the Grammer theme.',['Website','Photography']],
+    [9,'Skincare Blog','A skincare blog created with the Piel theme.',['Website','News','Blog']],
+    [10,'University Website','A university website created with the Kentwood theme.',['Website','Education']],
+    [11,'Create Block Theme','Install Create Block Theme and start editing right away.',['Editor','theme']],
+    [12,'Creating a new user for the blog','Update user meta data.',['meta']],
+    [13,'Custom Post Type: Books','Add a custom post type to playground.',['Content','CPT']],
+    [14,'Demo of Twenty-Twenty-Five','Demo content for the Twenty-Twenty-Five default theme.',['Themes','default']],
+    [15,'Display Admin Notice','Add a tiny mu-plugin and display an admin notice.',['Admin notices']],
+    [16,'Dataview Experiments','Enable multiple Experiments within the Gutenberg plugin.',['Gutenberg','Experiments']],
+    [17,'Fancy Dashboard Widget','Display statistics about users, posts and comments.',['Dashboard']],
+    [18,'Grid Variations Experiments','Toggle a Gutenberg Experiments feature on.',['Gutenberg','Experiments']],
+    [19,'Gutenberg Guidelines Experiment','Enable Gutenberg Guidelines experiment.',['Gutenberg','Experiments']],
+    [20,'Import Theme Starter Content','Install a theme with starter content (Twenty-Twenty-One).',['Themes','Starter Content']],
+    [21,'Standalone starter content','Use a stand-alone starter content file and import it.',['Themes','Starter Content']],
+    [22,'Install language packs','Install and activate the latest Japanese translation pack.',['core']],
+    [23,'Plugin from a gist','Install/activate a WordPress plugin from a .php file in a gist.',['plugins']],
+    [24,'Latest Gutenberg plugin','A preview of the latest Gutenberg plugin.',['plugins']],
+    [25,'Theme from GitHub','Typical steps for a theme load/activate/configure.',['theme']],
+    [26,'Login as editor','Test as an editor rather than an administrator.',['User Role']],
+    [27,'Markdown / Trac editor','Edit Markdown / Trac formatting in the block editor.',['block-editor']],
+    [28,'Minimal WooCommerce Setup','WooCommerce + flat-rate shipping + sample products.',['woocommerce','shipping']],
+    [29,'My WordPress','Welcome experience for persistent Playground instances.',['Playground','Onboarding']],
+    [30,'Welcome Landing Page','Landing page for the WordPress Playground.',['meta']],
+    [31,'Pretty permalinks','Set the permalink structure to pretty permalinks.',['Settings']],
+    [32,'Reset and import (with logs)','Resets default data before importing content; logs each step.',['reset','log','debug']],
+    [33,'Serve media from another host','Redirect uploads requests to an external host.',['Settings']],
+    [34,'Set admin color scheme','Set admin color scheme to Modern via updateUserMeta.',['user meta']],
+    [35,'Showcase plugin','Showcase a custom plugin with media and content imported as WXR.',['plugin','demo']],
+    [36,'Stylish Press','A Woo store with custom theme, content, products.',['WooCommerce','Site']],
+    [37,'Theme Tester','Add content and plugins to explore a theme.',['themes','content']],
+    [38,'Use WPGraphQL','Loads WordPress with WPGraphQL active and the WPGraphQL IDE page.',['API','wpgraphql']],
+    [39,'wp-cli add posts','Add posts via a wp-cli command.',['Content','wpcli']],
+    [40,'wp-cli post with image','Create a post from text with block markup and featured image.',['Content','wpcli']],
+    [41,'Weather Shortcode Plugin','Connect weather API and show data as a shortcode.',['Plugin']],
+    [42,'WooCommerce product feed','Create a WooCommerce product and export XML/CSV product feed.',['WooCommerce','Content']],
+    [43,'WordPress Beta','Test the latest WordPress Beta/RC with debugging plugins.',['Testing']]
+  ];
+
+  const gal = document.getElementById('gal-grid');
+  if (gal) {
+    blueprints.forEach((b,i) => {
+      const [num,title,desc,tags] = b;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="art" style="background:${palettes[i % palettes.length]}">
+          <div class="mark">${title}</div>
+        </div>
+        <div class="body">
+          <div class="name">${num}. ${title}</div>
+          <div class="tags">${tags.slice(0,3).map(t=>`<span>${t}</span>`).join('')}</div>
+        </div>`;
+      gal.appendChild(card);
+    });
+  }
+
+  // Lucide
+  if (window.lucide) lucide.createIcons();
+
+  // Toggle kebab menu
+  document.querySelectorAll('.kebab').forEach(k => {
+    k.addEventListener('click', e => {
+      e.stopPropagation();
+      k.classList.toggle('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.kebab.open').forEach(k => k.classList.remove('open'));
+  });
+</script>
+
+</body>
+</html>
