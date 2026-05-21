@@ -1,0 +1,15 @@
+# 061 — Time-machine
+
+## Thesis
+Playground is, deep down, a *time-travel* environment: every blueprint run, file edit, settings change, or PR boot is a parallel universe of WordPress that you can spin up, throw away, or rewind. This redesign makes that literal. The chrome is built around a **3D receding stack of state frames** behind the live iframe — each frame is a real snapshot of the site at a moment in time (or a parallel branch). A bottom **scrubber** lets you rewind, restore, or fork a frame into a new playground. The toolbar shrinks to a single floating capsule; the launcher becomes "load a frame from elsewhere" (PRs, GitHub, blueprints, .zip — all are just *foreign timelines* you're tunneling into); the Site Manager becomes an X-ray inspector of *this* frame (settings, files, blueprint JSON, DB, logs).
+
+## What I remixed / merged / removed
+- **Merged** the three settings entry points (popover, Site Manager tab, info notice "Save site") into a single contextual "Inspector" drawer pinned to the right of the current frame. The Save affordance is now an always-visible **bookmark-frame** button in the scrubber — every save just pins the current frame.
+- **Merged** the launcher's six "start" options and the 43-blueprint gallery into one screen: the *Frame Archive*, where Vanilla, WP-PR, Gutenberg-PR, From GitHub, Blueprint URL, Import .zip, and the 43 blueprints all coexist as "frames from elsewhere" with the same visual card grammar.
+- **Merged** File Browser + Blueprint tab into one "Source" view that shows the file tree, with `blueprint.json` highlighted as the root manifest — fixing the partial duplication.
+- **Remixed** Logs as a *temporal* feed correlated with frame timestamps; clicking a log line jumps the scrubber to that frame.
+- **Removed nothing**: every feature in §2 is present (refresh, address bar, save, saved-playgrounds, site-manager, settings, blueprint browser w/ search+categories, file browser, blueprint editor, DB browser, logs, additional actions w/ Export-to-GitHub-PR and Download .zip, import .zip, WordPress PR, Gutenberg PR, From GitHub, Blueprint URL).
+- **Reframed** "Apply Settings & Reset" — the destructive nature is now obvious: applying creates a *new frame branch*; the old one persists in the timeline. You literally see the old frame slide back into the stack.
+
+## Trade-offs
+The 3D stack is striking but consumes vertical pixels and may feel heavy to users who just want to type `/wp-admin` and go — so the stack collapses to a thin breadcrumb on mobile and behind a toggle on desktop. Treating PR boots, blueprints, and zip imports uniformly as "foreign timelines" is clarifying conceptually but slightly buries advanced flows (paste-a-blueprint-URL) one click deeper inside the Frame Archive. Snapshotting every action implies storage cost we haven't accounted for; in real implementation, frames would be lazy diffs against the last save, not full OPFS clones. Finally, the time-machine metaphor is opinionated — first-time users may not immediately read the receding cards as "older states," so we lean on a subtle parallax animation and clear timestamp labels.
