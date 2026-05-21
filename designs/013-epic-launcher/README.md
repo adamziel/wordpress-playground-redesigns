@@ -1,0 +1,13 @@
+# 013 — Game launcher (Epic-style)
+
+## Thesis
+WordPress Playground reimagined as the Epic Games Store. The screen is dominated by a colossal, auto-rotating hero for the "featured blueprint of the day," flanked by an ultra-narrow vertical icon rail (Epic's signature) and shelves of animated tile thumbnails that ken-burns and shimmer on hover. Blueprints are the storefront catalog; saved playgrounds are your "Library." A single decisive **LAUNCH** button replaces the timid "Save / Apply / Run" verbs scattered across the current UI. The running iframe becomes the game itself, and the chrome dims out of the way when WordPress is "playing."
+
+## What I remixed / merged / removed
+- **Saved Playgrounds launcher + Blueprint gallery + new-playground sources** are merged into a single storefront grid: hero on top, then "Featured Blueprints," "Continue Playing" (your saved sites), "New Releases" (Gutenberg/WordPress PRs), and "Browse All 43" with category chips. The six "Start a new Playground" sources (Vanilla, WP PR, Gutenberg PR, From GitHub, Blueprint URL, Import .zip) become tiles in a "+ NEW" launcher row, mirroring Epic's "Add Game" pattern.
+- **Site Manager** is collapsed into one right-side **In-Game Overlay** panel with the 5 tabs (Settings, Files, Blueprint, Database, Logs). The duplicate quick-settings popover is kept (toolbar gear) but it now visually shares the overlay's design language — same form controls, one source of truth.
+- **Top toolbar** is preserved as a slim HUD: refresh, address bar, playground name (editable inline), save state, library trigger, overlay toggle, settings gear. Additional actions (Export PR, Download .zip) live in the hero's kebab and the overlay header.
+- The marketing landing page is replaced by the storefront itself — returning users see their Library first, new users see the hero.
+
+## Trade-offs
+Epic's storefront aesthetic sells discovery brilliantly, but it pushes power-user work (Logs, File browser) behind a single overlay gesture; folks who live in those tabs trade a permanent sidebar for a richer launch experience. The hero's auto-rotation and ken-burns animations look gorgeous but cost a few CPU cycles — they pause when WordPress is "playing" to give the iframe priority. The catalog assumes generated cover art (SVG gradient + theme mark) since real blueprint screenshots don't exist; at 43 items this is just dense enough to feel curated without becoming a wall of placeholders. Mobile drops the icon rail for a bottom tab bar and the hero shrinks to a single tile per row, which loses the cinematic feel but keeps every feature one-tap-reachable.
