@@ -1,0 +1,13 @@
+# V3 Design 035 - Fluent Reset Workspace
+
+## Thesis
+This design keeps the calm parts of Windows 11 Settings - whitespace, Mica panels, breadcrumbs, plain category labels, and clear warning treatments - but treats WordPress as the main app rather than as a settings preview. The default screen is a live browser-like Playground with a real iframe in the center, a compact left rail for the Site Manager homes, and a right-side settings/tools pane that can collapse or give way to Focus mode. The assigned emphasis is destructive-state rigor, so the runtime settings page makes Apply & Reset the most deliberate flow in the prototype: warning, cancel path, typed confirmation, blocking progress, result toast, and changed active site state.
+
+## Remix, Merge, Remove
+I merged the toolbar gear and Site Manager Settings tab into one canonical settings surface; the gear/manager controls route to the same pane instead of creating a second reset path. The launcher keeps Saved Playgrounds, start routes, featured blueprints, the full 43-blueprint gallery, search, filters, and Your Playgrounds together in a Windows-style overlay, but every non-default route exposes the right input: core PR, Gutenberg PR or branch, GitHub repo/ref/type, Blueprint URL, and a real zip file input. Files, Blueprint, Database, and Logs remain first-class Site Manager tabs, with WP Admin, Homepage, Export to GitHub PR, and Download .zip kept near the manager header and live-site controls.
+
+## Trade-offs
+The side pane makes the reset sequence and tools legible, but it still consumes width on desktop, so Focus mode is a required escape hatch rather than decoration. The launcher covers the site while open because the route forms and gallery need room; that is the cost of making starts more explicit than small drawer tiles. On mobile the rail becomes a bottom navigation and the manager becomes a sheet, with Data and Logs named directly instead of hidden in a More bucket. The iframe document is mocked with `srcdoc` for GitHub Pages, but the artifact preserves the real iframe constraint.
+
+## Self-critique and Revision Note
+The first pass was too close to a generic settings console: many controls were visible and the live site felt secondary. I revised it against `v3/INSIGHTS.md` by making the iframe the largest surface, adding a Focus route that keeps Save/URL/WP Admin/Homepage reachable, using one reset flow, rendering route-specific launcher inputs, using a real zip upload input, and showing the reset result as a changed live-site state. The remaining weakness is that file editing and blueprint editing are still serial tabs rather than a true split editor, but that is a deliberate trade-off for the Windows Settings calmness.
