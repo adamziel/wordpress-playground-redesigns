@@ -1,0 +1,1519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Playground OS — Floating Widgets Desktop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root {
+    --bg-1: #0b1228;
+    --bg-2: #1a1450;
+    --bg-3: #4a1f7a;
+    --bg-4: #b53b8a;
+    --bg-5: #ff8b5a;
+    --bg-6: #ffd56b;
+    --ink: #0f172a;
+    --ink-2: #1e293b;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+    --line: rgba(255,255,255,0.10);
+    --line-strong: rgba(255,255,255,0.18);
+    --glass: rgba(20, 22, 40, 0.62);
+    --glass-strong: rgba(15, 17, 36, 0.78);
+    --card: #ffffff;
+    --card-soft: #f6f7fb;
+    --accent: #3858e9;
+    --accent-2: #7c5cff;
+    --accent-3: #00d3a7;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow-window: 0 24px 60px -20px rgba(2,6,23,0.55), 0 12px 24px -16px rgba(2,6,23,0.45);
+    --shadow-dock: 0 16px 40px -12px rgba(2,6,23,0.55);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    background: #07091a;
+    overflow: hidden;
+    height: 100vh;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Desktop wallpaper */
+  .desktop {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(1100px 700px at 12% 18%, rgba(124,92,255,0.55), transparent 60%),
+      radial-gradient(900px 600px at 85% 22%, rgba(56,88,233,0.55), transparent 60%),
+      radial-gradient(1100px 800px at 70% 88%, rgba(255,107,164,0.45), transparent 60%),
+      radial-gradient(900px 600px at 18% 92%, rgba(255,200,90,0.30), transparent 60%),
+      linear-gradient(160deg, #0b0f2a 0%, #1a1148 50%, #2a0e3f 100%);
+    overflow: hidden;
+  }
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0.2) 100%);
+  }
+
+  /* Menu bar (top) */
+  .menubar {
+    position: fixed; top: 0; left: 0; right: 0; height: 30px;
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 14px;
+    background: rgba(7,9,26,0.55);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border-bottom: 1px solid var(--line);
+    color: rgba(255,255,255,0.85);
+    font-size: 12.5px; font-weight: 500;
+    z-index: 1000;
+  }
+  .menubar .brand { display: flex; align-items: center; gap: 7px; font-weight: 700; color: #fff; }
+  .menubar .brand .logo {
+    width: 18px; height: 18px; border-radius: 5px;
+    background: conic-gradient(from 220deg, #7c5cff, #00d3a7, #ff6ba4, #7c5cff);
+    box-shadow: 0 0 12px rgba(124,92,255,0.5);
+  }
+  .menubar .menu-item { opacity: .8; cursor: default; }
+  .menubar .menu-item:hover { opacity: 1; }
+  .menubar .spacer { flex: 1; }
+  .menubar .tray { display: flex; align-items: center; gap: 14px; opacity: .85; }
+  .menubar .tray .clock { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .menubar .tray .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 9px; border-radius: 999px;
+    background: rgba(0,211,167,0.16); color: #6ef0c8;
+    border: 1px solid rgba(0,211,167,0.28);
+    font-size: 11px; font-weight: 600;
+  }
+  .menubar .tray .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #00d3a7; box-shadow: 0 0 6px #00d3a7; }
+
+  /* Stage hosts all windows */
+  .stage { position: fixed; inset: 30px 0 86px 0; }
+
+  /* A floating window */
+  .win {
+    position: absolute;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-window);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    border: 1px solid rgba(15,23,42,0.06);
+  }
+  .win.glass {
+    background: var(--glass-strong);
+    color: rgba(255,255,255,0.94);
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    border: 1px solid var(--line-strong);
+  }
+  .win .titlebar {
+    height: 34px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 10px 0 12px;
+    cursor: grab;
+    border-bottom: 1px solid rgba(15,23,42,0.06);
+    background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0));
+  }
+  .win.glass .titlebar {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+  }
+  .traffic { display: flex; gap: 6px; }
+  .traffic .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    display: inline-block; cursor: pointer;
+    border: 0.5px solid rgba(0,0,0,0.15);
+  }
+  .traffic .dot.close   { background: #ff5f57; }
+  .traffic .dot.min     { background: #febc2e; }
+  .traffic .dot.max     { background: #28c840; }
+  .win .title { font-size: 12.5px; font-weight: 600; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+  .win.glass .title { color: rgba(255,255,255,0.92); }
+  .win .title .icon { width: 14px; height: 14px; opacity: .75; }
+  .win .title-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .win .title-actions button {
+    background: transparent; border: 0; padding: 4px 6px; border-radius: 6px;
+    color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11.5px; font-weight: 500;
+  }
+  .win.glass .title-actions button { color: rgba(255,255,255,0.7); }
+  .win .title-actions button:hover { background: rgba(15,23,42,0.06); color: var(--ink); }
+  .win.glass .title-actions button:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .win .title-actions svg { width: 14px; height: 14px; }
+  .win .body { flex: 1; overflow: hidden; }
+
+  /* Resize handle (decorative) */
+  .resize-handle {
+    position: absolute; right: 2px; bottom: 2px; width: 14px; height: 14px;
+    background: linear-gradient(135deg, transparent 50%, rgba(15,23,42,0.18) 50%, rgba(15,23,42,0.18) 60%, transparent 60%, transparent 70%, rgba(15,23,42,0.18) 70%, rgba(15,23,42,0.18) 80%, transparent 80%);
+    pointer-events: none;
+  }
+  .win.glass .resize-handle {
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.22) 60%, transparent 60%, transparent 70%, rgba(255,255,255,0.22) 70%, rgba(255,255,255,0.22) 80%, transparent 80%);
+  }
+
+  .win.focused { box-shadow: 0 28px 80px -22px rgba(2,6,23,0.7), 0 0 0 1px rgba(124,92,255,0.45); }
+
+  /* ====== Window placements (desktop) ====== */
+  /* WordPress iframe widget (the main one) */
+  #win-wp { left: 308px; top: 18px; width: 820px; height: 510px; z-index: 30; }
+
+  /* Address+toolbar widget */
+  #win-toolbar { left: 308px; top: 540px; width: 820px; height: 56px; z-index: 31; }
+
+  /* Site Manager: name + admin/home + add. actions */
+  #win-site { left: 18px; top: 18px; width: 278px; height: 220px; z-index: 25; }
+
+  /* Settings */
+  #win-settings { left: 18px; top: 250px; width: 278px; height: 340px; z-index: 25; }
+
+  /* Your Playgrounds */
+  #win-yours { left: 18px; top: 602px; width: 278px; height: 156px; z-index: 24; }
+
+  /* Launcher (start a new playground) */
+  #win-launcher { left: 1140px; top: 18px; width: 286px; height: 372px; z-index: 26; }
+
+  /* Logs */
+  #win-logs { left: 1140px; top: 402px; width: 286px; height: 246px; z-index: 26; }
+
+  /* File browser (smaller, behind blueprint editor) */
+  #win-files { left: 600px; top: 220px; width: 360px; height: 340px; z-index: 22; }
+
+  /* Blueprint editor (overlapping wp window subtly) */
+  #win-blueprint { left: 660px; top: 270px; width: 470px; height: 350px; z-index: 23; }
+
+  /* Blueprint gallery widget (big card lower right) */
+  #win-gallery { left: 308px; top: 608px; width: 820px; height: 152px; z-index: 24; }
+
+  /* Database widget */
+  #win-db { left: 1140px; top: 660px; width: 286px; height: 100px; z-index: 22; }
+
+  /* Toast region */
+  .toasts { position: fixed; left: 18px; bottom: 100px; display: flex; flex-direction: column; gap: 8px; z-index: 800; }
+  .toast {
+    min-width: 260px; max-width: 320px;
+    background: var(--glass-strong); color: #fff;
+    border: 1px solid var(--line-strong);
+    border-radius: 11px;
+    padding: 10px 12px; font-size: 12.5px;
+    display: flex; align-items: flex-start; gap: 10px;
+    box-shadow: var(--shadow-window);
+    backdrop-filter: blur(20px);
+  }
+  .toast .icon-wrap { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; }
+  .toast.success .icon-wrap { background: rgba(0,211,167,0.18); color: #6ef0c8; }
+  .toast.info .icon-wrap { background: rgba(56,88,233,0.22); color: #93b4ff; }
+  .toast .t { font-weight: 600; margin-bottom: 1px; }
+  .toast .s { color: rgba(255,255,255,0.7); font-size: 11.5px; }
+
+  /* ====== Dock ====== */
+  .dock-wrap {
+    position: fixed; left: 0; right: 0; bottom: 12px;
+    display: flex; justify-content: center; z-index: 1100; pointer-events: none;
+  }
+  .dock {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px;
+    background: rgba(8, 11, 30, 0.7);
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    box-shadow: var(--shadow-dock);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    pointer-events: auto;
+  }
+  .dock-item {
+    width: 44px; height: 44px; border-radius: 11px;
+    display: grid; place-items: center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #cfd6ef;
+    position: relative;
+    cursor: pointer; transition: transform .14s ease, background .14s ease;
+  }
+  .dock-item:hover { transform: translateY(-4px) scale(1.05); background: rgba(255,255,255,0.12); color: #fff; }
+  .dock-item svg { width: 22px; height: 22px; }
+  .dock-item .tip {
+    position: absolute; bottom: 54px; left: 50%; transform: translateX(-50%);
+    background: rgba(7,9,26,0.92); color: #fff; padding: 4px 8px; border-radius: 7px;
+    font-size: 11px; white-space: nowrap; pointer-events: none; opacity: 0;
+    border: 1px solid var(--line); transition: opacity .14s ease;
+  }
+  .dock-item:hover .tip { opacity: 1; }
+  .dock-item.active::after {
+    content: ""; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%; background: #cfd6ef;
+  }
+  .dock-divider { width: 1px; height: 28px; background: var(--line-strong); margin: 0 4px; }
+  .dock-layout {
+    display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 8px;
+    height: 44px; border-radius: 11px;
+    background: linear-gradient(180deg, rgba(124,92,255,0.18), rgba(56,88,233,0.16));
+    border: 1px solid rgba(124,92,255,0.35);
+    color: #e6e9ff; cursor: pointer;
+    font-size: 12px; font-weight: 600;
+  }
+  .dock-layout:hover { background: linear-gradient(180deg, rgba(124,92,255,0.28), rgba(56,88,233,0.22)); }
+  .dock-layout svg { width: 18px; height: 18px; opacity: .9; }
+  .dock-layout .arr { opacity: .7; }
+
+  /* ====== Generic UI bits ====== */
+  .pad { padding: 12px 14px; }
+  .pad-tight { padding: 10px 12px; }
+  .section-title {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 8px 0;
+  }
+  .win.glass .section-title { color: rgba(255,255,255,0.55); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .grow { flex: 1; }
+  .hr { height: 1px; background: rgba(15,23,42,0.07); margin: 8px 0; }
+  .win.glass .hr { background: var(--line); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    background: var(--card-soft); color: var(--ink);
+    border: 1px solid rgba(15,23,42,0.08);
+    cursor: pointer; transition: background .12s ease;
+  }
+  .btn:hover { background: #eef0f7; }
+  .btn svg { width: 13px; height: 13px; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { background: #2e4ed4; }
+  .btn.ghost { background: transparent; border-color: transparent; }
+  .btn.ghost:hover { background: rgba(15,23,42,0.06); }
+  .btn.danger { color: var(--danger); border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.06); }
+  .win.glass .btn { background: rgba(255,255,255,0.06); color: #e7eaf7; border-color: var(--line-strong); }
+  .win.glass .btn:hover { background: rgba(255,255,255,0.12); }
+  .win.glass .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .win.glass .btn.ghost { background: transparent; }
+
+  /* Inputs */
+  .input {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    background: #fff; color: var(--ink);
+    border: 1px solid rgba(15,23,42,0.12);
+    font: inherit; font-size: 12.5px;
+  }
+  .input:focus { outline: 2px solid rgba(56,88,233,0.25); border-color: var(--accent); }
+  .win.glass .input {
+    background: rgba(255,255,255,0.06); color: #fff; border-color: var(--line-strong);
+  }
+  .win.glass .input::placeholder { color: rgba(255,255,255,0.45); }
+  select.input { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 26px; }
+
+  /* Field rows */
+  .field { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .win.glass .field label { color: rgba(255,255,255,0.65); }
+  .switch {
+    width: 32px; height: 18px; border-radius: 999px; background: rgba(15,23,42,0.18);
+    position: relative; cursor: pointer; flex-shrink: 0;
+    transition: background .12s ease;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+    background: #fff; border-radius: 50%; transition: left .12s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { left: 16px; }
+  .win.glass .switch { background: rgba(255,255,255,0.16); }
+
+  /* WP iframe surface */
+  .wp-surface {
+    height: 100%;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(0,123,255,0.04), transparent 50%),
+      linear-gradient(180deg, #f7f8fc 0%, #ffffff 100%);
+    display: flex; flex-direction: column;
+  }
+  .wp-hero {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px;
+  }
+  .wp-hero .h-wrap { max-width: 480px; text-align: center; }
+  .wp-hero h1 {
+    font-size: 30px; line-height: 1.2; margin: 0 0 12px 0;
+    color: #1d2327; font-weight: 700;
+  }
+  .wp-hero p { color: #50575e; margin: 0 0 18px 0; font-size: 14px; }
+  .wp-hero .cta { display: inline-flex; gap: 8px; }
+  .wp-hero .cta .btn-primary {
+    background: #2271b1; color: #fff; padding: 8px 14px; border-radius: 4px;
+    text-decoration: none; font-size: 13px; font-weight: 500;
+  }
+  .wp-hero .cta .btn-secondary {
+    background: transparent; color: #2271b1; padding: 8px 14px; border-radius: 4px;
+    text-decoration: none; font-size: 13px; font-weight: 500;
+    border: 1px solid #2271b1;
+  }
+  .wp-hero .blob-row { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+  .wp-hero .blob { font-size: 28px; }
+  .wp-hero .wp-mark {
+    font-size: 11px; color: #94a3b8; letter-spacing: .04em; margin-top: 24px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .wp-hero .wp-mark .dot { width: 6px; height: 6px; border-radius: 50%; background: #2271b1; }
+
+  /* Address toolbar */
+  .addr-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; height: 100%; }
+  .addr-btn {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong);
+    color: rgba(255,255,255,0.85); cursor: pointer;
+  }
+  .addr-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .addr-btn svg { width: 15px; height: 15px; }
+  .addr-input {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; height: 30px; border-radius: 10px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong);
+    color: rgba(255,255,255,0.92); font-size: 12.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .addr-input .lock { color: #6ef0c8; }
+  .addr-input .path { flex: 1; }
+  .addr-input .go {
+    background: rgba(124,92,255,0.22); border: 1px solid rgba(124,92,255,0.4);
+    color: #d8d2ff; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .addr-name {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 9px; border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line-strong);
+    font-size: 12px; color: rgba(255,255,255,0.92);
+  }
+  .addr-name .pill-unsaved {
+    font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: rgba(245,158,11,0.2); color: #ffcf83; border: 1px solid rgba(245,158,11,0.35);
+    font-weight: 600;
+  }
+  .addr-name .pill-saved {
+    font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: rgba(0,211,167,0.18); color: #6ef0c8; border: 1px solid rgba(0,211,167,0.32);
+    font-weight: 600;
+  }
+
+  /* Site Manager widget */
+  .site-mgr .title-row {
+    display: flex; align-items: center; gap: 8px; padding: 12px 12px 8px;
+  }
+  .site-mgr .title-row .name {
+    flex: 1; font-size: 15px; font-weight: 700; color: #0f172a;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .site-mgr .title-row .name input {
+    border: 0; background: transparent; padding: 0; font: inherit; color: inherit; width: 100%;
+  }
+  .site-mgr .title-row .edit-pen { width: 13px; height: 13px; color: var(--muted); }
+  .site-mgr .actions-row { display: flex; gap: 6px; padding: 0 12px 10px; }
+  .site-mgr .additional {
+    margin: 0 12px 12px; padding: 10px; border-radius: 10px;
+    background: var(--card-soft); border: 1px solid rgba(15,23,42,0.06);
+  }
+  .site-mgr .additional .section-title { margin-bottom: 6px; }
+  .site-mgr .additional .a-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0; font-size: 12px; color: var(--ink-2);
+    cursor: pointer;
+  }
+  .site-mgr .additional .a-item:hover { color: var(--accent); }
+  .site-mgr .additional .a-item svg { width: 14px; height: 14px; color: var(--muted); flex-shrink: 0; }
+  .site-mgr .save-notice {
+    margin: 0 12px 12px; padding: 8px 10px; border-radius: 8px;
+    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+    font-size: 11.5px; color: #92400e;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .site-mgr .save-notice svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .site-mgr .save-notice .save-link {
+    margin-left: auto;
+    color: #92400e; font-weight: 700; text-decoration: underline;
+    cursor: pointer; font-size: 11.5px;
+  }
+
+  /* Settings widget */
+  .settings-body { padding: 12px 14px; overflow-y: auto; height: 100%; }
+  .settings-body .field-block { margin-bottom: 12px; }
+  .settings-body .field-block label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; letter-spacing: .03em; text-transform: uppercase; }
+  .settings-body .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0; font-size: 12.5px; color: var(--ink-2);
+  }
+  .settings-body .danger-zone {
+    margin-top: 8px; padding: 10px; border-radius: 10px;
+    background: rgba(239,68,68,0.05);
+    border: 1px solid rgba(239,68,68,0.18);
+    font-size: 11.5px; color: #7f1d1d;
+  }
+  .settings-body .danger-zone strong { display: block; margin-bottom: 4px; }
+  .settings-body .danger-zone .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+
+  /* Your Playgrounds widget */
+  .yours-list { padding: 4px 6px 10px; overflow-y: auto; height: calc(100% - 36px); }
+  .yours-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    cursor: pointer; font-size: 12.5px;
+  }
+  .yours-item:hover { background: var(--card-soft); }
+  .yours-item .av {
+    width: 26px; height: 26px; border-radius: 7px;
+    display: grid; place-items: center; flex-shrink: 0;
+    font-size: 11px; font-weight: 700; color: #fff;
+  }
+  .yours-item .info { flex: 1; min-width: 0; }
+  .yours-item .info .nm { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yours-item .info .sub { color: var(--muted); font-size: 11px; }
+  .yours-item .meta { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .yours-item.current { background: rgba(56,88,233,0.08); }
+  .yours-item.current .info .nm { color: var(--accent); }
+
+  /* Launcher widget */
+  .launcher-body { padding: 4px 0 10px; overflow-y: auto; height: 100%; }
+  .launcher-section { padding: 0 12px; margin-bottom: 8px; }
+  .source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .source-tile {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line-strong);
+    cursor: pointer;
+    transition: background .12s ease;
+  }
+  .source-tile:hover { background: rgba(255,255,255,0.10); }
+  .source-tile .ico { width: 18px; height: 18px; opacity: .9; }
+  .source-tile .nm { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,0.95); }
+  .source-tile .sub { font-size: 10.5px; color: rgba(255,255,255,0.55); line-height: 1.3; }
+
+  /* Logs widget */
+  .logs-search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-bottom: 1px solid var(--line);
+  }
+  .logs-search .input { font-size: 11.5px; padding: 4px 8px; }
+  .logs-list {
+    padding: 6px 0; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    height: calc(100% - 38px);
+  }
+  .log-row { padding: 3px 12px; display: flex; gap: 8px; line-height: 1.5; }
+  .log-row:hover { background: rgba(255,255,255,0.04); }
+  .log-row .ts { color: rgba(255,255,255,0.4); flex-shrink: 0; }
+  .log-row .lv { font-weight: 700; flex-shrink: 0; width: 50px; }
+  .log-row .msg { color: rgba(255,255,255,0.85); flex: 1; min-width: 0; word-break: break-word; }
+  .lv-INFO  { color: #93b4ff; }
+  .lv-WARN  { color: #ffcf83; }
+  .lv-ERROR { color: #ff8e8e; }
+  .lv-DEBUG { color: rgba(255,255,255,0.5); }
+
+  /* File browser */
+  .files-body { display: flex; height: 100%; }
+  .files-tree { width: 150px; border-right: 1px solid rgba(15,23,42,0.07); padding: 8px 4px; overflow-y: auto; }
+  .file-node { padding: 3px 8px; font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; border-radius: 5px; cursor: pointer; }
+  .file-node:hover { background: var(--card-soft); }
+  .file-node svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--muted); }
+  .file-node.dir > svg { color: #f59e0b; }
+  .file-node.indent-1 { padding-left: 18px; }
+  .file-node.indent-2 { padding-left: 28px; }
+  .file-node.active { background: rgba(56,88,233,0.10); color: var(--accent); font-weight: 600; }
+  .files-editor {
+    flex: 1; min-width: 0;
+    background: #fafbff;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .files-toolbar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid rgba(15,23,42,0.07); }
+  .files-toolbar .btn { padding: 3px 8px; font-size: 11px; }
+  .files-code { flex: 1; overflow: auto; padding: 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #1e293b; line-height: 1.5; }
+  .files-code .kw { color: #7c3aed; }
+  .files-code .str { color: #059669; }
+  .files-code .com { color: #94a3b8; }
+  .files-code .num { color: #d97706; }
+  .files-code .ln { display: inline-block; color: #cbd5e1; width: 22px; user-select: none; }
+
+  /* Blueprint editor */
+  .bp-body { display: flex; flex-direction: column; height: 100%; }
+  .bp-toolbar {
+    display: flex; gap: 6px; padding: 8px 12px;
+    border-bottom: 1px solid rgba(15,23,42,0.07);
+    background: var(--card-soft);
+  }
+  .bp-toolbar .btn { font-size: 11.5px; padding: 4px 9px; }
+  .bp-code { flex: 1; overflow: auto; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #1e293b; line-height: 1.55; }
+  .bp-code .ln { display: inline-block; color: #cbd5e1; width: 22px; user-select: none; }
+  .bp-code .pp { color: #b91c1c; }
+  .bp-code .kk { color: #1d4ed8; }
+  .bp-code .vv { color: #047857; }
+  .bp-code .nn { color: #b45309; }
+
+  /* Blueprint gallery */
+  .gal-body { display: flex; flex-direction: column; height: 100%; }
+  .gal-top {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid var(--line);
+  }
+  .gal-top .input { max-width: 200px; font-size: 11.5px; padding: 4px 8px 4px 26px; background-repeat: no-repeat; background-position: 8px center; background-size: 12px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffffaa' stroke-width='2.4'><circle cx='11' cy='11' r='8'/><path d='M21 21l-4-4'/></svg>"); }
+  .gal-chips { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; min-width: 0; overflow: hidden; }
+  .chip {
+    font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong);
+    color: rgba(255,255,255,0.75); cursor: pointer; flex-shrink: 0;
+    font-weight: 500;
+  }
+  .chip:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .chip.active { background: rgba(124,92,255,0.25); border-color: rgba(124,92,255,0.5); color: #e2dcff; font-weight: 600; }
+  .gal-count { font-size: 11px; color: rgba(255,255,255,0.55); white-space: nowrap; }
+  .gal-grid {
+    flex: 1; display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden;
+    padding: 10px 12px; scroll-snap-type: x mandatory;
+  }
+  .bp-card {
+    flex-shrink: 0; width: 160px; height: 78px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(124,92,255,0.18), rgba(56,88,233,0.10));
+    border: 1px solid var(--line-strong);
+    padding: 8px 10px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 4px;
+    scroll-snap-align: start;
+    position: relative; overflow: hidden;
+  }
+  .bp-card::before {
+    content: ""; position: absolute; right: -20px; top: -20px;
+    width: 70px; height: 70px; border-radius: 50%;
+    background: var(--bg-grad, radial-gradient(circle, rgba(124,92,255,0.5), transparent));
+    opacity: .55;
+  }
+  .bp-card:hover { background: linear-gradient(135deg, rgba(124,92,255,0.28), rgba(56,88,233,0.18)); }
+  .bp-card .bp-no { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.55); position: relative; }
+  .bp-card .bp-ti { font-size: 12px; font-weight: 600; color: #fff; line-height: 1.25; position: relative; }
+  .bp-card .bp-tg { margin-top: auto; font-size: 9.5px; color: rgba(255,255,255,0.55); position: relative; }
+  .bp-card.featured { background: linear-gradient(135deg, rgba(255,107,164,0.22), rgba(255,200,90,0.15)); border-color: rgba(255,107,164,0.3); }
+
+  /* Database widget */
+  .db-body { padding: 10px 12px; height: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .db-notice {
+    padding: 6px 8px; border-radius: 7px;
+    background: rgba(56,88,233,0.12); border: 1px solid rgba(56,88,233,0.28);
+    color: #c5d3ff; font-size: 10.5px; line-height: 1.4;
+  }
+  .db-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px; color: rgba(255,255,255,0.85);
+  }
+  .db-row .nm { font-family: 'JetBrains Mono', monospace; }
+  .db-row .ct { color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+
+  /* Layout switcher dropdown (decorative — overlay) */
+  .layouts-overlay {
+    position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+    width: 340px; padding: 10px;
+    background: rgba(8,11,30,0.85); backdrop-filter: blur(20px);
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    z-index: 1200;
+    display: none;
+    box-shadow: var(--shadow-dock);
+  }
+  .layouts-overlay.open { display: block; }
+  .layouts-overlay .lo-title { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: .08em; margin: 4px 6px 8px; }
+  .layout-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    color: rgba(255,255,255,0.9); font-size: 12px;
+  }
+  .layout-row:hover { background: rgba(255,255,255,0.08); }
+  .layout-row .preview {
+    width: 44px; height: 30px; border-radius: 5px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line-strong);
+    flex-shrink: 0; position: relative;
+  }
+  .layout-row .preview span {
+    position: absolute; background: rgba(124,92,255,0.55);
+    border-radius: 1.5px;
+  }
+  .layout-row .nm { flex: 1; font-weight: 600; }
+  .layout-row .sub { font-size: 10.5px; color: rgba(255,255,255,0.45); }
+  .layout-row.active { background: rgba(124,92,255,0.18); }
+  .layout-row .check { color: #6ef0c8; opacity: 0; }
+  .layout-row.active .check { opacity: 1; }
+
+  /* Mobile section */
+  .mobile-section {
+    display: none;
+    padding: 24px 16px 48px;
+    background: linear-gradient(180deg, #07091a 0%, #0f1230 100%);
+    color: #fff;
+    border-top: 1px solid var(--line-strong);
+  }
+  .mobile-section h2 { font-size: 14px; font-weight: 700; margin: 0 0 14px; color: rgba(255,255,255,0.75); letter-spacing: .04em; text-transform: uppercase; }
+  .mobile-frame {
+    width: 390px; max-width: 100%; margin: 0 auto;
+    background: #0b0f2a; border-radius: 36px; border: 8px solid #1a1d35;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+    overflow: hidden;
+    padding-top: 6px;
+  }
+  .mobile-notch { width: 110px; height: 18px; border-radius: 0 0 14px 14px; background: #0a0d20; margin: -6px auto 6px; }
+  .m-statusbar { display: flex; justify-content: space-between; padding: 4px 24px; font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 600; }
+  .m-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: rgba(7,9,26,0.7);
+    border-bottom: 1px solid var(--line);
+  }
+  .m-iconbtn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.07); display: grid; place-items: center; color: rgba(255,255,255,0.85); border: 1px solid var(--line-strong); }
+  .m-iconbtn svg { width: 16px; height: 16px; }
+  .m-addr { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 6px; }
+  .m-addr .lock { color: #6ef0c8; }
+  .m-iframe { height: 320px; background: linear-gradient(180deg, #f7f8fc 0%, #ffffff 100%); display: grid; place-items: center; }
+  .m-iframe .mh1 { font-size: 18px; font-weight: 700; color: #1d2327; }
+  .m-iframe .mh1p { font-size: 12px; color: #50575e; margin-top: 4px; text-align: center; max-width: 220px; }
+  .m-tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    background: rgba(7,9,26,0.85); border-top: 1px solid var(--line-strong);
+    padding: 6px 0 14px;
+  }
+  .m-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; color: rgba(255,255,255,0.6); font-size: 9.5px; font-weight: 500; }
+  .m-tab svg { width: 20px; height: 20px; }
+  .m-tab.active { color: #d8d2ff; }
+  .m-sheet {
+    padding: 14px 16px 12px;
+    background: rgba(7,9,26,0.92);
+    border-top: 1px solid var(--line-strong);
+    border-radius: 16px 16px 0 0;
+  }
+  .m-sheet .handle { width: 32px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin: 0 auto 12px; }
+  .m-sheet .sh-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: rgba(255,255,255,0.9); font-size: 13px; }
+  .m-sheet .sh-row svg { width: 18px; height: 18px; opacity: .8; }
+  .m-sheet .sh-row .grow { flex: 1; }
+  .m-sheet .sh-row .arr { opacity: .5; }
+
+  /* Caption */
+  .caption {
+    position: fixed; right: 14px; bottom: 92px;
+    font-size: 10.5px; color: rgba(255,255,255,0.45);
+    letter-spacing: .04em; z-index: 999;
+    background: rgba(8,11,30,0.55); padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+  .win:not(.glass) ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.18); }
+
+  /* Responsive: mobile breakpoint */
+  @media (max-width: 760px) {
+    body { overflow-y: auto; height: auto; user-select: text; }
+    .menubar { display: none; }
+    .desktop { display: none; }
+    .stage { display: none; }
+    .dock-wrap { display: none; }
+    .caption { display: none; }
+    .toasts { display: none; }
+    .mobile-section { display: block; }
+  }
+  @media (min-width: 761px) {
+    .mobile-section { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== DESKTOP MENU BAR ==================== -->
+<div class="menubar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <span>Playground OS</span>
+  </div>
+  <span class="menu-item">File</span>
+  <span class="menu-item">Edit</span>
+  <span class="menu-item">View</span>
+  <span class="menu-item">Window</span>
+  <span class="menu-item">Help</span>
+  <div class="spacer"></div>
+  <div class="tray">
+    <span class="pill"><span class="dot"></span>WP 6.7.1 · PHP 8.3 · SQLite</span>
+    <span>Layout: Default</span>
+    <span class="clock">12:42 PM</span>
+  </div>
+</div>
+
+<!-- ==================== DESKTOP STAGE ==================== -->
+<div class="desktop">
+  <div class="grid-overlay"></div>
+</div>
+
+<div class="stage">
+
+  <!-- WordPress iframe widget -->
+  <div class="win focused" id="win-wp">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close" title="Close"></span>
+        <span class="dot min" title="Minimize"></span>
+        <span class="dot max" title="Maximize"></span>
+      </div>
+      <div class="title">
+        <svg class="icon" data-lucide="globe"></svg>
+        <span>WordPress · playground.test</span>
+      </div>
+      <div class="title-actions">
+        <button title="Refresh"><svg data-lucide="rotate-cw"></svg></button>
+        <button title="Open in WP Admin"><svg data-lucide="shield"></svg> wp-admin</button>
+        <button title="Homepage"><svg data-lucide="home"></svg></button>
+        <button title="More actions"><svg data-lucide="more-horizontal"></svg></button>
+      </div>
+    </div>
+    <div class="body">
+      <div class="wp-surface">
+        <div class="wp-hero">
+          <div class="h-wrap">
+            <div class="blob-row" aria-hidden="true">
+              <span class="blob">📰</span>
+              <span class="blob">🎮</span>
+              <span class="blob">☕</span>
+            </div>
+            <h1>Hello from WordPress Playground!</h1>
+            <p>Your sandbox is running locally in your browser. Try editing a post, installing a plugin, or booting a blueprint from the dock below.</p>
+            <div class="cta">
+              <a class="btn-primary" href="#">Open dashboard</a>
+              <a class="btn-secondary" href="#">View the front page</a>
+            </div>
+            <div class="wp-mark"><span class="dot"></span>WordPress 6.7.1 · PHP 8.3 · SQLite</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  </div>
+
+  <!-- Address toolbar widget -->
+  <div class="win glass" id="win-toolbar">
+    <div class="addr-bar">
+      <button class="addr-btn" title="Refresh"><svg data-lucide="rotate-cw"></svg></button>
+      <button class="addr-btn" title="Back"><svg data-lucide="arrow-left"></svg></button>
+      <button class="addr-btn" title="Forward"><svg data-lucide="arrow-right"></svg></button>
+      <div class="addr-input">
+        <svg class="lock" data-lucide="lock" style="width:13px;height:13px"></svg>
+        <span class="path">/wp-admin/edit.php?post_type=post</span>
+        <span class="go">Go</span>
+      </div>
+      <div class="addr-name">
+        <svg data-lucide="hard-drive" style="width:13px;height:13px;opacity:.7"></svg>
+        Unsaved Playground
+        <span class="pill-unsaved">unsaved</span>
+      </div>
+      <button class="addr-btn" title="Save to browser storage" style="width:auto;padding:0 10px;background:rgba(124,92,255,0.2);border-color:rgba(124,92,255,0.4);color:#e2dcff;font-size:12px;font-weight:600;gap:6px;">
+        <svg data-lucide="bookmark"></svg> Save
+      </button>
+    </div>
+  </div>
+
+  <!-- Site Manager widget -->
+  <div class="win site-mgr" id="win-site">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="layout-panel-left"></svg>Site Manager</div>
+    </div>
+    <div class="title-row">
+      <div class="name">
+        <span>Unsaved Playground</span>
+        <svg class="edit-pen" data-lucide="pencil"></svg>
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn"><svg data-lucide="shield"></svg> wp-admin</button>
+      <button class="btn"><svg data-lucide="home"></svg> Homepage</button>
+    </div>
+    <div class="save-notice">
+      <svg data-lucide="alert-triangle"></svg>
+      Not saved — changes lost on refresh.
+      <a class="save-link">Save now</a>
+    </div>
+    <div class="additional">
+      <div class="section-title">Additional actions</div>
+      <div class="a-item"><svg data-lucide="github"></svg>Export to GitHub as PR</div>
+      <div class="a-item"><svg data-lucide="download"></svg>Download .zip</div>
+    </div>
+  </div>
+
+  <!-- Settings widget -->
+  <div class="win" id="win-settings">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="sliders-horizontal"></svg>Playground Settings</div>
+    </div>
+    <div class="settings-body">
+      <div class="field-block">
+        <label>WordPress version</label>
+        <select class="input">
+          <option>6.7.1 (latest)</option>
+          <option>6.6.2</option>
+          <option>6.5.5</option>
+          <option>nightly</option>
+          <option>beta</option>
+        </select>
+      </div>
+      <div class="field-block">
+        <label>PHP version</label>
+        <select class="input">
+          <option>8.3</option>
+          <option>8.2</option>
+          <option>8.1</option>
+          <option>7.4</option>
+        </select>
+      </div>
+      <div class="field-block">
+        <label>Language</label>
+        <select class="input">
+          <option>English (US)</option>
+          <option>日本語</option>
+          <option>Español</option>
+          <option>Français</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <span>Networking</span>
+        <span class="switch on"></span>
+      </div>
+      <div class="toggle-row">
+        <span>Multisite</span>
+        <span class="switch"></span>
+      </div>
+      <div class="danger-zone">
+        <strong>Apply &amp; Reset</strong>
+        Applying these settings boots a fresh Playground — current site data is wiped.
+        <div class="btn-row">
+          <button class="btn danger">Apply &amp; Reset</button>
+          <button class="btn ghost">Revert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Your Playgrounds widget -->
+  <div class="win" id="win-yours">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="folder-open"></svg>Your Playgrounds</div>
+      <div class="title-actions">
+        <button title="New folder"><svg data-lucide="plus"></svg></button>
+      </div>
+    </div>
+    <div class="yours-list">
+      <div class="yours-item current">
+        <div class="av" style="background:linear-gradient(135deg,#7c5cff,#3858e9)">UP</div>
+        <div class="info">
+          <div class="nm">Unsaved Playground</div>
+          <div class="sub">Not saved · in memory</div>
+        </div>
+        <div class="meta">now</div>
+      </div>
+      <div class="yours-item">
+        <div class="av" style="background:linear-gradient(135deg,#ff6ba4,#ff8b5a)">WC</div>
+        <div class="info">
+          <div class="nm">WooCommerce debugging</div>
+          <div class="sub">Coffee Shop · 6.7.1</div>
+        </div>
+        <div class="meta">2d</div>
+      </div>
+      <div class="yours-item">
+        <div class="av" style="background:linear-gradient(135deg,#00d3a7,#3858e9)">GB</div>
+        <div class="info">
+          <div class="nm">Gutenberg PR #68421</div>
+          <div class="sub">Block API v3 experiments</div>
+        </div>
+        <div class="meta">5d</div>
+      </div>
+      <div class="yours-item">
+        <div class="av" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">RS</div>
+        <div class="info">
+          <div class="nm">Resume site</div>
+          <div class="sub">Readymade theme</div>
+        </div>
+        <div class="meta">3w</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Launcher widget (Start a new Playground) -->
+  <div class="win glass" id="win-launcher">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="rocket"></svg>Launcher</div>
+    </div>
+    <div class="launcher-body">
+      <div class="launcher-section">
+        <div class="section-title">Start a new Playground</div>
+        <div class="source-grid">
+          <div class="source-tile">
+            <svg class="ico" data-lucide="sparkles" style="color:#a89bff"></svg>
+            <div class="nm">Vanilla WordPress</div>
+            <div class="sub">Fresh install, no plugins.</div>
+          </div>
+          <div class="source-tile">
+            <svg class="ico" data-lucide="git-pull-request" style="color:#6ef0c8"></svg>
+            <div class="nm">WordPress PR</div>
+            <div class="sub">Boot from a core PR.</div>
+          </div>
+          <div class="source-tile">
+            <svg class="ico" data-lucide="git-pull-request-arrow" style="color:#9ed4ff"></svg>
+            <div class="nm">Gutenberg PR</div>
+            <div class="sub">From Gutenberg repo.</div>
+          </div>
+          <div class="source-tile">
+            <svg class="ico" data-lucide="github" style="color:#fff"></svg>
+            <div class="nm">From GitHub</div>
+            <div class="sub">Theme or plugin URL.</div>
+          </div>
+          <div class="source-tile">
+            <svg class="ico" data-lucide="link" style="color:#ffcf83"></svg>
+            <div class="nm">Blueprint URL</div>
+            <div class="sub">Paste any JSON URL.</div>
+          </div>
+          <div class="source-tile">
+            <svg class="ico" data-lucide="upload" style="color:#ffb6dc"></svg>
+            <div class="nm">Import .zip</div>
+            <div class="sub">Previously exported.</div>
+          </div>
+        </div>
+      </div>
+      <div class="launcher-section" style="margin-top:14px;">
+        <div class="section-title">Featured Blueprints</div>
+        <div class="source-grid" style="grid-template-columns:1fr;gap:5px;">
+          <div class="source-tile" style="flex-direction:row;align-items:center;gap:8px;padding:6px 8px;">
+            <span style="font-size:16px;">🎨</span>
+            <div style="flex:1;min-width:0;">
+              <div class="nm" style="font-size:11.5px;">Art Gallery</div>
+              <div class="sub">Vueo theme · Website</div>
+            </div>
+          </div>
+          <div class="source-tile" style="flex-direction:row;align-items:center;gap:8px;padding:6px 8px;">
+            <span style="font-size:16px;">☕</span>
+            <div style="flex:1;min-width:0;">
+              <div class="nm" style="font-size:11.5px;">Coffee Shop</div>
+              <div class="sub">WooCommerce store</div>
+            </div>
+          </div>
+          <div class="source-tile" style="flex-direction:row;align-items:center;gap:8px;padding:6px 8px;">
+            <span style="font-size:16px;">📡</span>
+            <div style="flex:1;min-width:0;">
+              <div class="nm" style="font-size:11.5px;">Feed Reader w/ Friends</div>
+              <div class="sub">ActivityPub · rss</div>
+            </div>
+          </div>
+          <div class="source-tile" style="flex-direction:row;align-items:center;gap:8px;padding:6px 8px;">
+            <span style="font-size:16px;">🎮</span>
+            <div style="flex:1;min-width:0;">
+              <div class="nm" style="font-size:11.5px;">Gaming News</div>
+              <div class="sub">Spiel theme · News</div>
+            </div>
+          </div>
+          <div class="source-tile" style="flex-direction:row;align-items:center;gap:8px;padding:6px 8px;">
+            <span style="font-size:16px;">🤝</span>
+            <div style="flex:1;min-width:0;">
+              <div class="nm" style="font-size:11.5px;">Non-profit Organization</div>
+              <div class="sub">Koinonia theme</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn ghost" style="width:100%;margin-top:8px;justify-content:center;color:#c5d3ff;">View all 43 blueprints →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logs widget -->
+  <div class="win glass" id="win-logs">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="terminal"></svg>Logs</div>
+      <div class="title-actions">
+        <button title="Clear"><svg data-lucide="trash-2"></svg></button>
+      </div>
+    </div>
+    <div class="logs-search">
+      <svg data-lucide="search" style="width:13px;height:13px;color:rgba(255,255,255,0.6)"></svg>
+      <input class="input" placeholder="Search logs..." />
+      <select class="input" style="width:80px;font-size:11px;padding:4px 6px;">
+        <option>All</option><option>Errors</option><option>Warn</option><option>Info</option>
+      </select>
+    </div>
+    <div class="logs-list">
+      <div class="log-row"><span class="ts">12:41:02</span><span class="lv lv-INFO">INFO</span><span class="msg">PHP 8.3 booted, MySQL emulated via SQLite</span></div>
+      <div class="log-row"><span class="ts">12:41:03</span><span class="lv lv-INFO">INFO</span><span class="msg">WordPress 6.7.1 installed, default theme active</span></div>
+      <div class="log-row"><span class="ts">12:41:04</span><span class="lv lv-DEBUG">DEBUG</span><span class="msg">wp_cron event scheduled: wp_version_check</span></div>
+      <div class="log-row"><span class="ts">12:41:06</span><span class="lv lv-WARN">WARN</span><span class="msg">PHP Notice: undefined index 'foo' in /wordpress/wp-content/plugins/sample/main.php:42</span></div>
+      <div class="log-row"><span class="ts">12:41:08</span><span class="lv lv-INFO">INFO</span><span class="msg">Activated plugin: friends</span></div>
+      <div class="log-row"><span class="ts">12:41:09</span><span class="lv lv-INFO">INFO</span><span class="msg">REST request: GET /wp/v2/posts → 200 (38ms)</span></div>
+      <div class="log-row"><span class="ts">12:41:12</span><span class="lv lv-ERROR">ERROR</span><span class="msg">cURL error 6: Could not resolve host: api.openweathermap.org</span></div>
+      <div class="log-row"><span class="ts">12:41:14</span><span class="lv lv-INFO">INFO</span><span class="msg">REST request: GET /wp/v2/users/me → 200 (12ms)</span></div>
+      <div class="log-row"><span class="ts">12:41:18</span><span class="lv lv-DEBUG">DEBUG</span><span class="msg">Blueprint step "installPlugin" completed in 318ms</span></div>
+    </div>
+  </div>
+
+  <!-- File browser widget -->
+  <div class="win" id="win-files">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="folder-tree"></svg>File Browser</div>
+    </div>
+    <div class="body files-body">
+      <div class="files-tree">
+        <div class="file-node dir"><svg data-lucide="chevron-down"></svg><svg data-lucide="folder"></svg>wordpress</div>
+        <div class="file-node dir indent-1"><svg data-lucide="chevron-right"></svg><svg data-lucide="folder"></svg>wp-admin</div>
+        <div class="file-node dir indent-1"><svg data-lucide="chevron-down"></svg><svg data-lucide="folder"></svg>wp-content</div>
+        <div class="file-node dir indent-2"><svg data-lucide="chevron-right"></svg><svg data-lucide="folder"></svg>plugins</div>
+        <div class="file-node dir indent-2"><svg data-lucide="chevron-down"></svg><svg data-lucide="folder"></svg>themes</div>
+        <div class="file-node indent-2 active" style="padding-left:42px;"><svg data-lucide="file-code-2"></svg>functions.php</div>
+        <div class="file-node indent-2" style="padding-left:42px;"><svg data-lucide="file-code-2"></svg>style.css</div>
+        <div class="file-node dir indent-1"><svg data-lucide="chevron-right"></svg><svg data-lucide="folder"></svg>wp-includes</div>
+        <div class="file-node indent-1"><svg data-lucide="file"></svg>wp-config.php</div>
+        <div class="file-node indent-1"><svg data-lucide="file"></svg>index.php</div>
+      </div>
+      <div class="files-editor">
+        <div class="files-toolbar">
+          <button class="btn"><svg data-lucide="file-plus"></svg> New file</button>
+          <button class="btn"><svg data-lucide="folder-plus"></svg> New folder</button>
+          <span style="flex:1"></span>
+          <span style="font-size:11px;color:var(--muted);align-self:center;">themes/twentytwentyfive/functions.php</span>
+        </div>
+        <div class="files-code">
+<span class="ln">1</span> <span class="com">&lt;?php</span>
+<span class="ln">2</span> <span class="com">// Theme support</span>
+<span class="ln">3</span> <span class="kw">function</span> twentytwentyfive_setup() {
+<span class="ln">4</span>   add_theme_support( <span class="str">'wp-block-styles'</span> );
+<span class="ln">5</span>   add_theme_support( <span class="str">'editor-styles'</span> );
+<span class="ln">6</span>   add_theme_support( <span class="str">'post-thumbnails'</span> );
+<span class="ln">7</span>   register_nav_menus( [
+<span class="ln">8</span>     <span class="str">'primary'</span> =&gt; <span class="str">'Primary Menu'</span>,
+<span class="ln">9</span>   ] );
+<span class="ln">10</span> }
+<span class="ln">11</span> add_action( <span class="str">'after_setup_theme'</span>, <span class="str">'twentytwentyfive_setup'</span> );
+        </div>
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  </div>
+
+  <!-- Blueprint editor widget -->
+  <div class="win" id="win-blueprint">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="braces"></svg>Blueprint · coffee-shop.json</div>
+    </div>
+    <div class="bp-body">
+      <div class="bp-toolbar">
+        <button class="btn primary"><svg data-lucide="play"></svg> Run Blueprint</button>
+        <button class="btn"><svg data-lucide="link"></svg> Copy link</button>
+        <button class="btn"><svg data-lucide="package"></svg> Download bundle</button>
+      </div>
+      <div class="bp-code">
+<span class="ln">1</span> {
+<span class="ln">2</span>   <span class="kk">"$schema"</span>: <span class="vv">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+<span class="ln">3</span>   <span class="kk">"meta"</span>: {
+<span class="ln">4</span>     <span class="kk">"title"</span>: <span class="vv">"Coffee Shop"</span>,
+<span class="ln">5</span>     <span class="kk">"description"</span>: <span class="vv">"WooCommerce storefront."</span>
+<span class="ln">6</span>   },
+<span class="ln">7</span>   <span class="kk">"landingPage"</span>: <span class="vv">"/shop/"</span>,
+<span class="ln">8</span>   <span class="kk">"preferredVersions"</span>: { <span class="kk">"wp"</span>: <span class="vv">"6.7"</span>, <span class="kk">"php"</span>: <span class="vv">"8.3"</span> },
+<span class="ln">9</span>   <span class="kk">"steps"</span>: [
+<span class="ln">10</span>     { <span class="kk">"step"</span>: <span class="vv">"login"</span>, <span class="kk">"username"</span>: <span class="vv">"admin"</span> },
+<span class="ln">11</span>     { <span class="kk">"step"</span>: <span class="vv">"installPlugin"</span>, <span class="kk">"pluginZipFile"</span>: { <span class="kk">"resource"</span>: <span class="vv">"wordpress.org/plugins"</span>, <span class="kk">"slug"</span>: <span class="vv">"woocommerce"</span> } },
+<span class="ln">12</span>     { <span class="kk">"step"</span>: <span class="vv">"installTheme"</span>, <span class="kk">"themeZipFile"</span>: { <span class="kk">"resource"</span>: <span class="vv">"url"</span>, <span class="kk">"url"</span>: <span class="vv">"https://example.com/coffeeshop.zip"</span> } },
+<span class="ln">13</span>     { <span class="kk">"step"</span>: <span class="vv">"importWxr"</span>, <span class="kk">"file"</span>: { <span class="kk">"resource"</span>: <span class="vv">"url"</span>, <span class="kk">"url"</span>: <span class="vv">"https://example.com/products.xml"</span> } }
+<span class="ln">14</span>   ]
+<span class="ln">15</span> }
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  </div>
+
+  <!-- Blueprint Gallery widget -->
+  <div class="win glass" id="win-gallery">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="layout-grid"></svg>Blueprint Gallery</div>
+      <div class="title-actions">
+        <button title="Refresh"><svg data-lucide="rotate-cw"></svg></button>
+        <button title="Open in full window"><svg data-lucide="maximize-2"></svg></button>
+      </div>
+    </div>
+    <div class="gal-body">
+      <div class="gal-top">
+        <input class="input" placeholder="Search 43 blueprints..." />
+        <div class="gal-chips">
+          <span class="chip active">All</span>
+          <span class="chip">Featured</span>
+          <span class="chip">Website</span>
+          <span class="chip">Personal</span>
+          <span class="chip">Content</span>
+          <span class="chip">Themes</span>
+          <span class="chip">Gutenberg</span>
+          <span class="chip">Experiments</span>
+          <span class="chip">WooCommerce</span>
+          <span class="chip">News</span>
+        </div>
+        <span class="gal-count">43 blueprints</span>
+      </div>
+      <div class="gal-grid">
+        <div class="bp-card featured"><div class="bp-no">#01 · Featured</div><div class="bp-ti">Art Gallery</div><div class="bp-tg">Website · Personal</div></div>
+        <div class="bp-card featured"><div class="bp-no">#02 · Featured</div><div class="bp-ti">Coffee Shop</div><div class="bp-tg">WooCommerce · Store</div></div>
+        <div class="bp-card featured"><div class="bp-no">#03 · Featured</div><div class="bp-ti">Feed Reader w/ Friends</div><div class="bp-tg">rss · social</div></div>
+        <div class="bp-card featured"><div class="bp-no">#04 · Featured</div><div class="bp-ti">Gaming News</div><div class="bp-tg">Website · News</div></div>
+        <div class="bp-card featured"><div class="bp-no">#05 · Featured</div><div class="bp-ti">Non-profit Org</div><div class="bp-tg">Website · Org</div></div>
+        <div class="bp-card"><div class="bp-no">#06</div><div class="bp-ti">Personal Blog</div><div class="bp-tg">Website · Blog</div></div>
+        <div class="bp-card"><div class="bp-no">#07</div><div class="bp-ti">Personal Resume</div><div class="bp-tg">Website · Personal</div></div>
+        <div class="bp-card"><div class="bp-no">#08</div><div class="bp-ti">Photography Portfolio</div><div class="bp-tg">Personal · Photo</div></div>
+        <div class="bp-card"><div class="bp-no">#09</div><div class="bp-ti">Skincare Blog</div><div class="bp-tg">News · Blog</div></div>
+        <div class="bp-card"><div class="bp-no">#10</div><div class="bp-ti">University Website</div><div class="bp-tg">Org · Education</div></div>
+        <div class="bp-card"><div class="bp-no">#11</div><div class="bp-ti">Create Block Theme</div><div class="bp-tg">Editor · theme</div></div>
+        <div class="bp-card"><div class="bp-no">#13</div><div class="bp-ti">Custom Post Type: Books</div><div class="bp-tg">Content · CPT</div></div>
+        <div class="bp-card"><div class="bp-no">#14</div><div class="bp-ti">Twenty-Twenty-Five Demo</div><div class="bp-tg">Themes · default</div></div>
+        <div class="bp-card"><div class="bp-no">#16</div><div class="bp-ti">Dataview Experiments</div><div class="bp-tg">Gutenberg · Exp</div></div>
+        <div class="bp-card"><div class="bp-no">#18</div><div class="bp-ti">Grid Variations Exp.</div><div class="bp-tg">Gutenberg · Exp</div></div>
+        <div class="bp-card"><div class="bp-no">#22</div><div class="bp-ti">JP Language Pack</div><div class="bp-tg">core</div></div>
+        <div class="bp-card"><div class="bp-no">#24</div><div class="bp-ti">Latest Gutenberg</div><div class="bp-tg">plugins</div></div>
+        <div class="bp-card"><div class="bp-no">#28</div><div class="bp-ti">Minimal WooCommerce</div><div class="bp-tg">WooCommerce</div></div>
+        <div class="bp-card"><div class="bp-no">#36</div><div class="bp-ti">Stylish Press</div><div class="bp-tg">Woo · Site</div></div>
+        <div class="bp-card"><div class="bp-no">#38</div><div class="bp-ti">WPGraphQL</div><div class="bp-tg">API · wpgraphql</div></div>
+        <div class="bp-card"><div class="bp-no">#43</div><div class="bp-ti">WordPress Beta</div><div class="bp-tg">Testing</div></div>
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  </div>
+
+  <!-- Database widget -->
+  <div class="win glass" id="win-db">
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot close"></span><span class="dot min"></span><span class="dot max"></span>
+      </div>
+      <div class="title"><svg class="icon" data-lucide="database"></svg>Database <span style="font-size:9.5px;background:rgba(124,92,255,0.3);padding:1px 6px;border-radius:99px;color:#e2dcff;font-weight:600;margin-left:4px;">Early access</span></div>
+    </div>
+    <div class="db-body">
+      <div class="db-row"><span class="nm">wp_posts</span><span class="ct">14 rows</span></div>
+      <div class="db-row"><span class="nm">wp_users</span><span class="ct">2 rows</span></div>
+      <div class="db-row"><span class="nm">wp_options</span><span class="ct">183 rows</span></div>
+    </div>
+    <div class="resize-handle"></div>
+  </div>
+
+</div> <!-- /stage -->
+
+<!-- ==================== TOASTS ==================== -->
+<div class="toasts">
+  <div class="toast success">
+    <div class="icon-wrap"><svg data-lucide="check" style="width:14px;height:14px"></svg></div>
+    <div>
+      <div class="t">Layout saved to "Unsaved Playground"</div>
+      <div class="s">5 widgets · 1440×900 desktop</div>
+    </div>
+  </div>
+  <div class="toast info">
+    <div class="icon-wrap"><svg data-lucide="info" style="width:14px;height:14px"></svg></div>
+    <div>
+      <div class="t">Friends plugin activated</div>
+      <div class="s">Blueprint step 3 of 4 complete</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LAYOUTS OVERLAY ==================== -->
+<div class="layouts-overlay" id="layouts-overlay">
+  <div class="lo-title">Saved layouts for this Playground</div>
+  <div class="layout-row active">
+    <div class="preview">
+      <span style="left:3px;top:3px;width:8px;height:24px"></span>
+      <span style="left:13px;top:3px;width:20px;height:18px"></span>
+      <span style="left:13px;top:23px;width:20px;height:4px"></span>
+      <span style="left:35px;top:3px;width:6px;height:24px"></span>
+    </div>
+    <div style="flex:1">
+      <div class="nm">Default workspace</div>
+      <div class="sub">WP window · Site mgr · Launcher</div>
+    </div>
+    <svg class="check" data-lucide="check" style="width:14px;height:14px"></svg>
+  </div>
+  <div class="layout-row">
+    <div class="preview">
+      <span style="left:3px;top:3px;width:38px;height:18px"></span>
+      <span style="left:3px;top:23px;width:38px;height:4px"></span>
+    </div>
+    <div style="flex:1">
+      <div class="nm">Focus on WordPress</div>
+      <div class="sub">Iframe + address bar only</div>
+    </div>
+    <svg class="check" data-lucide="check" style="width:14px;height:14px"></svg>
+  </div>
+  <div class="layout-row">
+    <div class="preview">
+      <span style="left:3px;top:3px;width:18px;height:24px"></span>
+      <span style="left:23px;top:3px;width:18px;height:11px"></span>
+      <span style="left:23px;top:16px;width:18px;height:11px"></span>
+    </div>
+    <div style="flex:1">
+      <div class="nm">IDE workspace</div>
+      <div class="sub">Files · Blueprint · Logs · WP</div>
+    </div>
+    <svg class="check" data-lucide="check" style="width:14px;height:14px"></svg>
+  </div>
+  <div class="layout-row">
+    <div class="preview">
+      <span style="left:3px;top:3px;width:10px;height:24px"></span>
+      <span style="left:15px;top:3px;width:14px;height:24px"></span>
+      <span style="left:31px;top:3px;width:10px;height:24px"></span>
+    </div>
+    <div style="flex:1">
+      <div class="nm">Three-column triage</div>
+      <div class="sub">Site mgr · WP · Logs</div>
+    </div>
+    <svg class="check" data-lucide="check" style="width:14px;height:14px"></svg>
+  </div>
+  <div style="border-top: 1px solid var(--line); margin: 8px -2px 0; padding-top: 8px;">
+    <div class="layout-row">
+      <div class="preview" style="display:grid;place-items:center;">
+        <svg data-lucide="plus" style="width:16px;height:16px;color:rgba(255,255,255,0.6)"></svg>
+      </div>
+      <div style="flex:1">
+        <div class="nm">Save current layout…</div>
+        <div class="sub">Snapshot all open widgets</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DOCK ==================== -->
+<div class="dock-wrap">
+  <div class="dock">
+    <div class="dock-item active" title="WordPress">
+      <span class="tip">WordPress</span>
+      <svg data-lucide="globe"></svg>
+    </div>
+    <div class="dock-item active" title="Site Manager">
+      <span class="tip">Site Manager</span>
+      <svg data-lucide="layout-panel-left"></svg>
+    </div>
+    <div class="dock-item active" title="Settings">
+      <span class="tip">Settings</span>
+      <svg data-lucide="sliders-horizontal"></svg>
+    </div>
+    <div class="dock-item active" title="Your Playgrounds">
+      <span class="tip">Your Playgrounds</span>
+      <svg data-lucide="folder-open"></svg>
+    </div>
+    <div class="dock-item active" title="Launcher">
+      <span class="tip">Launcher</span>
+      <svg data-lucide="rocket"></svg>
+    </div>
+    <div class="dock-item active" title="Blueprint Gallery">
+      <span class="tip">Blueprint Gallery</span>
+      <svg data-lucide="layout-grid"></svg>
+    </div>
+    <div class="dock-item active" title="File Browser">
+      <span class="tip">File Browser</span>
+      <svg data-lucide="folder-tree"></svg>
+    </div>
+    <div class="dock-item active" title="Blueprint Editor">
+      <span class="tip">Blueprint Editor</span>
+      <svg data-lucide="braces"></svg>
+    </div>
+    <div class="dock-item active" title="Database">
+      <span class="tip">Database</span>
+      <svg data-lucide="database"></svg>
+    </div>
+    <div class="dock-item active" title="Logs">
+      <span class="tip">Logs</span>
+      <svg data-lucide="terminal"></svg>
+    </div>
+    <div class="dock-divider"></div>
+    <div class="dock-layout" id="dock-layout-btn">
+      <svg data-lucide="layers"></svg>
+      <span>Default</span>
+      <svg data-lucide="chevron-up" class="arr"></svg>
+    </div>
+  </div>
+</div>
+
+<div class="caption">Drag any widget · Double-click title to maximize · Layouts save per playground</div>
+
+<!-- ==================== MOBILE SECTION ==================== -->
+<section class="mobile-section">
+  <h2>Mobile · 390×844 — stacked widget cards</h2>
+  <div class="mobile-frame">
+    <div class="mobile-notch"></div>
+    <div class="m-statusbar"><span>12:42</span><span>5G · 87%</span></div>
+
+    <div class="m-toolbar">
+      <div class="m-iconbtn"><svg data-lucide="rotate-cw"></svg></div>
+      <div class="m-addr">
+        <svg class="lock" data-lucide="lock" style="width:11px;height:11px"></svg>
+        /wp-admin
+      </div>
+      <div class="m-iconbtn"><svg data-lucide="bookmark"></svg></div>
+      <div class="m-iconbtn"><svg data-lucide="menu"></svg></div>
+    </div>
+
+    <div class="m-iframe">
+      <div style="text-align:center;padding:0 24px;">
+        <div style="font-size:32px;margin-bottom:8px;">🎉</div>
+        <div class="mh1">Hello from WordPress Playground!</div>
+        <div class="mh1p">Your sandbox is running locally.</div>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;">
+          <a style="background:#2271b1;color:#fff;padding:8px 14px;border-radius:4px;font-size:12px;text-decoration:none;">Dashboard</a>
+          <a style="border:1px solid #2271b1;color:#2271b1;padding:7px 14px;border-radius:4px;font-size:12px;text-decoration:none;">Frontpage</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="m-sheet">
+      <div class="handle"></div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Unsaved Playground</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:10px;">WP 6.7.1 · PHP 8.3 · not saved</div>
+      <div class="sh-row"><svg data-lucide="bookmark"></svg><span class="grow">Save to browser</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="rocket"></svg><span class="grow">Browse 43 blueprints</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="sliders-horizontal"></svg><span class="grow">Settings · WP &amp; PHP version</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="folder-tree"></svg><span class="grow">File browser</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="braces"></svg><span class="grow">Edit Blueprint JSON</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="database"></svg><span class="grow">Database (early access)</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="terminal"></svg><span class="grow">Logs</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="github"></svg><span class="grow">Export to GitHub PR</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="download"></svg><span class="grow">Download .zip</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+      <div class="sh-row"><svg data-lucide="upload"></svg><span class="grow">Import .zip</span><svg data-lucide="chevron-right" class="arr"></svg></div>
+    </div>
+
+    <div class="m-tabbar">
+      <div class="m-tab active"><svg data-lucide="globe"></svg>Site</div>
+      <div class="m-tab"><svg data-lucide="rocket"></svg>Launch</div>
+      <div class="m-tab"><svg data-lucide="layout-grid"></svg>Blueprints</div>
+      <div class="m-tab"><svg data-lucide="folder-open"></svg>Mine</div>
+      <div class="m-tab"><svg data-lucide="more-horizontal"></svg>More</div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Init Lucide icons
+  if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+
+  // ===== Widget dragging =====
+  (function() {
+    const stage = document.querySelector('.stage');
+    if (!stage) return;
+    const wins = Array.from(document.querySelectorAll('.stage .win'));
+    let z = 100;
+
+    wins.forEach(win => {
+      const tb = win.querySelector('.titlebar');
+      if (!tb) return;
+      tb.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.title-actions')) return;
+        if (e.target.closest('.traffic')) return;
+        win.style.zIndex = ++z;
+        wins.forEach(w => w.classList.remove('focused'));
+        win.classList.add('focused');
+        const rect = win.getBoundingClientRect();
+        const sRect = stage.getBoundingClientRect();
+        const offX = e.clientX - rect.left;
+        const offY = e.clientY - rect.top;
+        tb.style.cursor = 'grabbing';
+        function move(ev) {
+          const nx = ev.clientX - sRect.left - offX;
+          const ny = ev.clientY - sRect.top - offY;
+          win.style.left = Math.max(-20, Math.min(sRect.width - 80, nx)) + 'px';
+          win.style.top = Math.max(0, Math.min(sRect.height - 30, ny)) + 'px';
+        }
+        function up() {
+          window.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+          tb.style.cursor = 'grab';
+        }
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+        e.preventDefault();
+      });
+      // bring to front on click
+      win.addEventListener('mousedown', () => {
+        win.style.zIndex = ++z;
+        wins.forEach(w => w.classList.remove('focused'));
+        win.classList.add('focused');
+      });
+    });
+  })();
+
+  // Layouts overlay toggle
+  (function() {
+    const btn = document.getElementById('dock-layout-btn');
+    const ov = document.getElementById('layouts-overlay');
+    if (!btn || !ov) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ov.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (!ov.contains(e.target) && !btn.contains(e.target)) ov.classList.remove('open');
+    });
+  })();
+
+  // Live-ish clock
+  (function() {
+    const el = document.querySelector('.menubar .clock');
+    if (!el) return;
+    function tick() {
+      const d = new Date();
+      let h = d.getHours(); const m = d.getMinutes();
+      const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12; if (h === 0) h = 12;
+      el.textContent = `${h}:${m.toString().padStart(2,'0')} ${ap}`;
+    }
+    tick(); setInterval(tick, 30000);
+  })();
+</script>
+</body>
+</html>
