@@ -225,19 +225,20 @@ function renderIndex(designs) {
     }
     .frame-wrap {
       width: 100%;
-      height: clamp(800px, 68vw, 1020px);
-      min-height: 760px;
+      height: clamp(560px, 62.5vw, 900px);
       overflow: hidden;
       background: #edf1f5;
       border-bottom: 1px solid var(--line);
+      position: relative;
     }
     iframe {
-      width: 100%;
-      min-width: 1440px;
-      height: 100%;
+      width: 1440px;
+      height: 900px;
+      max-width: none;
       display: block;
       border: 0;
       background: #fff;
+      transform-origin: 0 0;
     }
     .design-card p {
       margin: 0;
@@ -259,7 +260,7 @@ function renderIndex(designs) {
       .hero { padding: 24px 0 18px; }
       .toolbar { flex-direction: column; align-items: flex-start; padding: 0 10px; }
       .design-card > header { min-height: 0; flex-direction: column; }
-      .frame-wrap { height: 680px; min-height: 680px; }
+      .frame-wrap { height: 244px; }
     }
   </style>
 </head>
@@ -288,6 +289,28 @@ function renderIndex(designs) {
       ${renderCards(designs)}
     </div>
   </main>
+  <script>
+    const previewWidth = 1440;
+    const previewHeight = 900;
+
+    function fitPreview(wrap) {
+      const iframe = wrap.querySelector('iframe');
+      if (!iframe) return;
+      const scale = Math.max(0.18, wrap.clientWidth / previewWidth);
+      wrap.style.height = Math.round(previewHeight * scale) + 'px';
+      iframe.style.width = previewWidth + 'px';
+      iframe.style.height = previewHeight + 'px';
+      iframe.style.transform = 'scale(' + scale + ')';
+    }
+
+    function fitAllPreviews() {
+      document.querySelectorAll('.frame-wrap').forEach(fitPreview);
+    }
+
+    window.addEventListener('resize', fitAllPreviews, { passive: true });
+    window.addEventListener('load', fitAllPreviews);
+    fitAllPreviews();
+  </script>
 </body>
 </html>
 `;
