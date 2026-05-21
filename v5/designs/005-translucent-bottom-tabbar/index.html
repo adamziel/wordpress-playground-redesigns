@@ -1,0 +1,1835 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Playground v5 · #005 · Translucent bottom tab bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --bg: #0e1014;
+    --ink: #0b0d11;
+    --ink-2: #1d2128;
+    --paper: #ffffff;
+    --paper-2: #f4f5f7;
+    --paper-3: #e7e9ee;
+    --line: #d7dae0;
+    --muted: #6b7280;
+    --muted-2: #9aa1ac;
+    --blue: #2563eb;
+    --blue-2: #1d4ed8;
+    --green: #16a34a;
+    --amber: #d97706;
+    --red: #dc2626;
+    --violet: #7c3aed;
+    --pink: #db2777;
+    --tab-h: 64px;
+    --top-h: 44px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#0a0b0e; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  body { padding: 32px 24px 80px; }
+  h1, h2, h3, h4 { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .doc-title { color:#fff; max-width:1440px; margin:0 auto 8px; }
+  .doc-title h1 { font-size: 22px; letter-spacing:-0.02em; }
+  .doc-title p { color:#a3a8b3; font-size:14px; margin:6px 0 0; max-width: 800px; line-height:1.55; }
+  .frame-row { max-width: 1440px; margin: 0 auto; }
+  .frame-label { color:#a3a8b3; font-size:11px; text-transform:uppercase; letter-spacing:0.14em; margin: 32px 0 10px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  .frame-label .frame-kicker { color:#fff; }
+  .frame-label .frame-meta { color:#6b7280; text-transform:none; letter-spacing:0; font-weight:500; }
+
+  /* === Desktop frame === */
+  .desktop {
+    width: 1440px; height: 900px; background: #fff; border-radius: 18px; overflow: hidden;
+    position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.3);
+  }
+  /* === Mobile frame === */
+  .mobile {
+    width: 390px; height: 844px; background: #fff; border-radius: 42px; overflow: hidden;
+    position: relative; box-shadow: 0 20px 60px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
+    border: 10px solid #0a0b0e;
+  }
+  .mobile::before {
+    content:""; position:absolute; top: 8px; left:50%; transform:translateX(-50%);
+    width: 120px; height: 28px; background:#0a0b0e; border-radius: 0 0 18px 18px; z-index: 100;
+  }
+  .mobile::after {
+    content:""; position:absolute; bottom: 8px; left:50%; transform:translateX(-50%);
+    width: 130px; height: 4px; background: rgba(255,255,255,.85); border-radius:3px; z-index:100;
+  }
+
+  /* ===== iframe stage ===== */
+  .stage { position:absolute; inset:0; background: var(--paper-2); overflow:hidden; }
+
+  /* mock-iframe: a real-looking WordPress page */
+  .wp-page { position:absolute; inset:0; background: linear-gradient(180deg, #fef3ec 0%, #fff 40%); overflow:hidden; }
+  .wp-page.dark { background: linear-gradient(180deg, #11141a 0%, #1a1f2a 60%); color:#e6e9ee; }
+  .wp-page.warm { background: linear-gradient(180deg, #fef3ec 0%, #fff 40%); }
+  .wp-page.green { background: linear-gradient(180deg, #ecfdf5 0%, #fff 40%); }
+
+  /* a mock wp-admin bar */
+  .wp-admin-bar { position:absolute; top:0; left:0; right:0; height:32px; background:#1d2128; color:#cfd5df; display:flex; align-items:center; padding: 0 16px; font-size:13px; gap:14px; }
+  .wp-admin-bar .wp-logo { width:18px; height:18px; background: radial-gradient(circle at 50% 50%, #3b82f6 0%, #3b82f6 30%, transparent 31%), conic-gradient(from 0deg, #fff 0deg, #fff 360deg); border-radius:50%; mask: radial-gradient(circle, #000 30%, transparent 31%); -webkit-mask: radial-gradient(circle, #000 30%, transparent 31%); background:#fff; opacity:.9; border-radius:50%; position:relative; }
+  .wp-admin-bar .wp-logo::before { content:"W"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#1d2128; font-weight:700; font-size:11px; font-family: 'Inter'; }
+  .wp-admin-bar .wp-bar-item { display:flex; align-items:center; gap:6px; opacity:.95; }
+  .wp-admin-bar .right { margin-left:auto; }
+
+  .wp-hero { position:absolute; top:88px; left:0; right:0; padding: 56px 96px 0; }
+  .wp-hero h1 { font-family: 'Inter'; font-size: 56px; font-weight: 700; letter-spacing:-0.03em; color:#0b0d11; line-height:1.05; max-width: 880px; }
+  .wp-hero p { font-size: 18px; color: #4b5563; line-height: 1.6; max-width: 720px; margin-top: 20px; }
+  .wp-cta { margin-top: 28px; display:flex; gap:12px; }
+  .wp-cta .btn { background:#0b0d11; color:#fff; padding: 14px 22px; border-radius:8px; font-weight:600; font-size:15px; }
+  .wp-cta .btn.ghost { background:#fff; color:#0b0d11; border:1px solid #d7dae0; }
+
+  .wp-grid { position:absolute; top: 420px; left:96px; right:96px; display:grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .wp-card { background:#fff; border:1px solid #ececec; border-radius:12px; padding: 22px; box-shadow: 0 1px 0 rgba(0,0,0,.03); }
+  .wp-card .badge { font-size:11px; color:#db2777; text-transform:uppercase; letter-spacing:0.12em; font-weight:700; }
+  .wp-card h3 { font-size: 22px; margin-top:8px; color:#0b0d11; }
+  .wp-card p { font-size: 14px; color:#6b7280; margin-top:8px; line-height:1.55; }
+
+  /* dark variant blocks */
+  .wp-page.dark .wp-hero h1 { color:#f3f5f9; }
+  .wp-page.dark .wp-hero p { color:#aab0bb; }
+  .wp-page.dark .wp-cta .btn { background:#f3f5f9; color:#0b0d11; }
+  .wp-page.dark .wp-cta .btn.ghost { background: transparent; color:#f3f5f9; border-color:#3a414e; }
+  .wp-page.dark .wp-card { background:#1a1f2a; border-color:#262c38; }
+  .wp-page.dark .wp-card h3 { color:#f3f5f9; }
+  .wp-page.dark .wp-card p { color:#9aa1ac; }
+  .wp-page.dark .wp-card .badge { color:#22d3ee; }
+
+  /* mobile WP page */
+  .wp-page--m .wp-hero { padding: 56px 24px 0; }
+  .wp-page--m .wp-hero h1 { font-size: 32px; }
+  .wp-page--m .wp-hero p { font-size: 14px; margin-top:14px; }
+  .wp-page--m .wp-grid { display:none; }
+
+  /* ===== top capsule ===== */
+  .topcap {
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    height: var(--top-h); display:flex; align-items:center; gap:6px; padding: 0 8px 0 6px;
+    background: rgba(255,255,255,.7); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.7); border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(15,23,42,.16), 0 1px 0 rgba(255,255,255,.6) inset;
+    z-index: 30;
+    color: #0b0d11;
+  }
+  .topcap .tc-btn { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#0b0d11; }
+  .topcap .tc-btn:hover { background: rgba(15,23,42,.06); }
+  .topcap .tc-btn.primary { background:#0b0d11; color:#fff; }
+  .topcap .tc-btn.primary:hover { background:#1d2128; }
+  .topcap .tc-url { display:flex; align-items:center; gap:8px; padding: 0 12px; height:32px; background: rgba(15,23,42,.05); border-radius:8px; font-size:13px; color:#4b5563; min-width: 380px; font-family:'JetBrains Mono', monospace; }
+  .topcap .tc-url .scheme { color:#9aa1ac; }
+  .topcap .tc-url .host { color:#0b0d11; font-weight:500; }
+  .topcap .tc-url .path { color:#2563eb; }
+  .topcap .tc-name { display:flex; align-items:center; gap:8px; padding: 0 10px 0 8px; height:32px; border-radius:8px; background: rgba(220, 38, 38, 0.08); color:#dc2626; font-size:13px; font-weight:600; }
+  .topcap .tc-name.saved { background: rgba(22,163,74,.1); color:#16a34a; }
+  .topcap .tc-name .dot { width:7px; height:7px; border-radius:50%; background:#dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.18); }
+  .topcap .tc-name.saved .dot { background:#16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+
+  /* mobile top capsule fits within 390 */
+  .mobile .topcap { top: 50px; left: 12px; right: 12px; transform:none; padding: 0 6px 0 4px; }
+  .mobile .topcap .tc-url { min-width: 0; flex:1; font-size:12px; padding: 0 8px; }
+  .mobile .topcap .tc-name { display:none; }
+  .mobile .topcap .tc-divider { display:none; }
+
+  .topcap .tc-divider { width:1px; height:20px; background: rgba(15,23,42,.1); margin: 0 4px; }
+
+  /* fullscreen toggle — corner button on iframe (always visible) */
+  .fs-toggle {
+    position:absolute; top: 14px; right: 14px; z-index: 28;
+    width:36px; height:36px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(255,255,255,.7); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.7);
+    box-shadow: 0 6px 18px rgba(15,23,42,.12);
+    color:#0b0d11;
+  }
+  .fs-toggle .esc-hint { position:absolute; top: 100%; right:0; margin-top:6px; font-size:10px; color:rgba(255,255,255,.9); background: rgba(11,13,17,.85); padding: 4px 7px; border-radius:6px; font-family:'JetBrains Mono'; font-weight:500; white-space:nowrap; }
+
+  /* mobile fullscreen toggle */
+  .mobile .fs-toggle { top: 50px; right: 12px; display:none; }
+
+  /* ===== bottom tab bar (the design hero) ===== */
+  .tabbar {
+    position:absolute; left: 50%; transform:translateX(-50%); bottom: 16px;
+    height: var(--tab-h);
+    display:flex; align-items:center; gap: 4px; padding: 8px;
+    background: rgba(255,255,255,.62);
+    backdrop-filter: blur(28px) saturate(200%); -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(15,23,42,.22), 0 1px 0 rgba(255,255,255,.7) inset;
+    z-index: 30;
+    transition: opacity .25s ease;
+  }
+  .tabbar.faded { opacity: .15; }
+
+  .tabbar .tab {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    height: 48px; min-width: 78px; padding: 0 14px; border-radius: 13px;
+    color: #4b5563; font-size: 11px; font-weight: 600; letter-spacing: 0.01em;
+    cursor: pointer; position:relative;
+  }
+  .tabbar .tab i[data-lucide] { width:20px; height:20px; }
+  .tabbar .tab .badge-dot { position:absolute; top: 6px; right: 16px; width:7px; height:7px; border-radius:50%; background:#dc2626; box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
+  .tabbar .tab:hover { color:#0b0d11; background: rgba(15,23,42,.04); }
+  .tabbar .tab.active {
+    color:#fff; background:#0b0d11;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+
+  .tabbar .divider { width:1px; height: 28px; background: rgba(15,23,42,.1); margin: 0 4px; }
+
+  /* mobile tab bar — fills the bottom */
+  .mobile .tabbar { left: 8px; right: 8px; transform:none; bottom: 24px; gap: 0; padding: 6px; border-radius:22px; }
+  .mobile .tabbar .tab { min-width:0; flex:1; padding: 0 4px; font-size:10px; }
+  .mobile .tabbar .divider { display:none; }
+
+  /* tab popover / sheet ABOVE the tabbar */
+  .sheet {
+    position:absolute; left:50%; transform:translateX(-50%); bottom: 96px;
+    width: 1100px; max-width: calc(100% - 80px);
+    background: rgba(255,255,255,.78);
+    backdrop-filter: blur(32px) saturate(200%); -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255,255,255,.75);
+    border-radius: 24px;
+    box-shadow: 0 30px 80px rgba(15,23,42,.28), 0 1px 0 rgba(255,255,255,.7) inset;
+    z-index: 28;
+    overflow:hidden;
+  }
+  .sheet--manage { height: 560px; }
+  .sheet--sites { height: 620px; }
+  .sheet--menu { width: 320px; bottom:96px; left: auto; right: 24px; transform: none; }
+
+  /* mobile sheet */
+  .mobile .sheet { left: 8px; right: 8px; bottom: 100px; transform:none; max-width:none; width:auto; }
+  .mobile .sheet--manage, .mobile .sheet--sites { height: 580px; }
+  .mobile .sheet--menu { width: auto; right: 8px; left: auto; max-width:none; height:auto; bottom:100px; }
+
+  /* sheet header */
+  .sheet-head {
+    height: 56px; padding: 0 18px; display:flex; align-items:center; gap: 8px;
+    border-bottom: 1px solid rgba(15,23,42,.07);
+  }
+  .sheet-head h2 { font-size: 14px; font-weight:600; color:#0b0d11; }
+  .sheet-head .sh-grip { width: 36px; height: 4px; border-radius: 4px; background: rgba(15,23,42,.15); margin-right: 12px; }
+  .sheet-head .sh-close { margin-left:auto; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#4b5563; }
+  .sheet-head .sh-close:hover { background: rgba(15,23,42,.06); }
+
+  /* ===== MANAGE sheet (Site Manager) — segmented at top, content below ===== */
+  .seg {
+    display:inline-flex; align-items:center; padding: 4px; background: rgba(15,23,42,.06); border-radius: 10px; gap: 2px;
+    margin-left: 4px;
+  }
+  .seg .seg-item { padding: 6px 12px; font-size: 12px; font-weight: 600; color:#4b5563; border-radius: 7px; display:flex; align-items:center; gap:6px; }
+  .seg .seg-item i[data-lucide] { width:14px; height:14px; }
+  .seg .seg-item.active { background:#fff; color:#0b0d11; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+  .sheet-body { padding: 18px 22px; overflow:hidden; height: calc(100% - 56px); }
+
+  /* manage layout: title row + content */
+  .mgr-title {
+    display:flex; align-items:center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(15,23,42,.07);
+  }
+  .mgr-title input {
+    border:1px solid transparent; background: transparent; font-size:18px; font-weight:600; color:#0b0d11;
+    padding: 6px 8px; border-radius: 8px; outline:none; min-width: 220px;
+  }
+  .mgr-title input:hover, .mgr-title input:focus { border-color: rgba(15,23,42,.12); background: rgba(255,255,255,.8); }
+  .mgr-title .chip { display:flex; align-items:center; gap:6px; padding: 5px 10px; background: rgba(15,23,42,.06); border-radius: 999px; font-size: 12px; font-weight: 600; color:#4b5563; }
+  .mgr-title .chip i[data-lucide] { width:14px; height:14px; }
+  .mgr-title .right { margin-left:auto; display:flex; gap: 6px; }
+  .mgr-title .btn-ghost { display:flex; align-items:center; gap:6px; padding: 7px 12px; border-radius:8px; font-size:13px; color:#0b0d11; font-weight:500; background: rgba(15,23,42,.04); }
+  .mgr-title .btn-ghost:hover { background: rgba(15,23,42,.09); }
+  .mgr-title .btn-ghost i[data-lucide] { width:14px; height:14px; }
+  .mgr-title .more { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; background: rgba(15,23,42,.04); color:#0b0d11; }
+
+  /* Manage segmented tabs in body */
+  .mgr-tabs {
+    display: flex; gap: 4px; padding: 14px 0 12px;
+    border-bottom: 1px solid rgba(15,23,42,.07);
+    margin-bottom: 14px;
+  }
+  .mgr-tab { display:flex; align-items:center; gap:8px; padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; color:#4b5563; cursor:pointer; }
+  .mgr-tab i[data-lucide] { width: 15px; height:15px; }
+  .mgr-tab:hover { background: rgba(15,23,42,.04); }
+  .mgr-tab.active { background:#0b0d11; color:#fff; }
+
+  .mgr-content { display:grid; height: calc(100% - 130px); overflow:hidden; }
+
+  /* Settings panel */
+  .settings-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; padding: 6px 4px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #6b7280; font-weight:600; }
+  .field .control {
+    height: 38px; border: 1px solid #d7dae0; border-radius: 9px; padding: 0 12px;
+    display:flex; align-items:center; justify-content:space-between; background:#fff;
+    font-size: 14px; font-weight:500; color:#0b0d11;
+  }
+  .field .control i[data-lucide] { width:16px; height:16px; color:#6b7280; }
+  .field.toggle .control { background:#fff; }
+  .field .switch { width: 36px; height:20px; background:#d7dae0; border-radius:999px; position:relative; }
+  .field .switch.on { background:#16a34a; }
+  .field .switch::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.2); }
+  .field .switch.on::after { left:18px; }
+
+  .danger-zone {
+    grid-column: 1 / -1; margin-top: 8px; padding: 14px 16px; border-radius: 12px;
+    background: rgba(220,38,38,.06); border: 1px solid rgba(220,38,38,.18);
+    display:flex; align-items:center; gap: 14px;
+  }
+  .danger-zone .dz-icon { width:36px; height:36px; border-radius:9px; background: rgba(220,38,38,.12); display:flex; align-items:center; justify-content:center; color:#dc2626; }
+  .danger-zone .dz-body { flex:1; }
+  .danger-zone .dz-body h4 { font-size: 13px; color:#dc2626; }
+  .danger-zone .dz-body p { font-size: 12px; color:#7f1d1d; margin: 2px 0 0; line-height:1.4; }
+  .danger-zone .dz-action { display:flex; align-items:center; gap:8px; padding: 8px 14px; background:#fff; border:1px solid rgba(220,38,38,.3); color:#dc2626; border-radius:8px; font-size:13px; font-weight:600; }
+  .danger-zone .dz-action i[data-lucide] { width:14px; height:14px; }
+  .danger-zone .dz-action .confirm-hint { font-family:'JetBrains Mono'; font-size:10px; color:#7f1d1d; margin-left:6px; opacity:.7; }
+
+  /* Files panel */
+  .files-grid { display: grid; grid-template-columns: 240px 1fr; gap: 14px; height:100%; }
+  .files-tree { background: rgba(15,23,42,.03); border-radius: 10px; padding: 8px; overflow:auto; font-family:'JetBrains Mono'; font-size:12.5px; }
+  .files-tree .tr { display:flex; align-items:center; gap:6px; padding: 4px 8px; border-radius:6px; color: #1d2128; cursor:pointer; white-space:nowrap; }
+  .files-tree .tr:hover { background:rgba(15,23,42,.06); }
+  .files-tree .tr.active { background:#0b0d11; color:#fff; }
+  .files-tree .tr i[data-lucide] { width:13px; height:13px; flex-shrink:0; opacity:.75; }
+  .files-tree .indent { padding-left: 18px; }
+  .files-tree .indent-2 { padding-left: 32px; }
+  .files-tree-header { display:flex; align-items:center; padding: 6px 6px 10px; gap:6px; font-family:'Inter'; font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; font-weight:600; }
+  .files-tree-header .right { margin-left:auto; display:flex; gap:4px; }
+  .files-tree-header button { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#4b5563; }
+  .files-tree-header button:hover { background:rgba(15,23,42,.06); }
+  .files-tree-header button i[data-lucide] { width:13px; height:13px; }
+
+  .files-editor { background:#0b0d11; border-radius: 10px; overflow:hidden; display:flex; flex-direction:column; }
+  .files-editor .feh { display:flex; align-items:center; padding: 8px 12px; gap:8px; background:#0b0d11; border-bottom: 1px solid #1d2128; }
+  .files-editor .feh .ext { font-family:'JetBrains Mono'; font-size:12px; color:#9aa1ac; }
+  .files-editor .feh .filename { font-family:'JetBrains Mono'; font-size:12px; color:#f3f5f9; }
+  .files-editor .feh .dot { width:8px; height:8px; border-radius:50%; background:#f59e0b; margin-left:auto; }
+  .code { font-family:'JetBrains Mono'; font-size:12.5px; padding: 14px 16px; color:#cfd5df; overflow:auto; flex:1; line-height:1.6; }
+  .code .k { color:#c084fc; } .code .s { color:#86efac; } .code .c { color:#6b7280; } .code .n { color:#fbbf24; } .code .f { color:#60a5fa; } .code .v { color:#e6e9ee; }
+  .code .ln { color:#3a414e; display:inline-block; width: 28px; user-select:none; text-align:right; padding-right: 10px; }
+
+  /* Blueprint panel */
+  .bp-grid { display:grid; grid-template-columns: 1fr; gap: 12px; height:100%; }
+  .bp-toolbar { display:flex; align-items:center; gap: 8px; }
+  .bp-toolbar .b { display:flex; align-items:center; gap:6px; padding: 7px 12px; border-radius:8px; font-size:13px; font-weight:500; color:#0b0d11; background: rgba(15,23,42,.04); }
+  .bp-toolbar .b.primary { background:#0b0d11; color:#fff; }
+  .bp-toolbar .b i[data-lucide] { width:14px; height:14px; }
+  .bp-toolbar .right { margin-left:auto; font-size:12px; color:#6b7280; font-family:'JetBrains Mono'; }
+
+  /* DB panel */
+  .db-grid { display:grid; grid-template-columns: 200px 1fr; gap: 12px; height:100%; }
+  .db-list { background: rgba(15,23,42,.03); border-radius:10px; padding: 8px; font-family:'JetBrains Mono'; font-size:12px; overflow:auto; }
+  .db-list .tt { padding: 5px 8px; border-radius:6px; color:#1d2128; cursor:pointer; display:flex; align-items:center; gap:6px; }
+  .db-list .tt:hover { background: rgba(15,23,42,.06); }
+  .db-list .tt.active { background:#0b0d11; color:#fff; }
+  .db-list .tt .ct { margin-left:auto; font-size:10px; color: #9aa1ac; }
+  .db-list .tt.active .ct { color: rgba(255,255,255,.6); }
+  .db-list .lh { padding: 6px 8px 10px; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:#6b7280; font-weight:600; font-family:'Inter'; }
+  .db-table { background:#fff; border:1px solid #e7e9ee; border-radius:10px; overflow:hidden; }
+  .db-table table { width:100%; border-collapse: collapse; font-family:'JetBrains Mono'; font-size:12px; }
+  .db-table th { text-align:left; padding: 9px 12px; border-bottom:1px solid #e7e9ee; background: #f9fafb; font-size:11px; color:#4b5563; font-weight:600; }
+  .db-table td { padding: 9px 12px; border-bottom: 1px solid #f3f4f6; color:#0b0d11; }
+  .db-table tr:hover td { background:#f9fafb; }
+  .db-notice { background: rgba(217,119,6,.08); border:1px solid rgba(217,119,6,.2); border-radius:10px; padding: 10px 14px; display:flex; align-items:center; gap:10px; font-size:12.5px; color:#7c2d12; margin-bottom: 12px; }
+  .db-notice i[data-lucide] { width:16px; height:16px; color:#d97706; flex-shrink:0; }
+  .db-notice a { color:#7c2d12; text-decoration:underline; font-weight:600; }
+
+  /* Logs panel */
+  .logs-grid { display:grid; grid-template-rows: auto 1fr; gap: 12px; height:100%; }
+  .logs-toolbar { display:flex; align-items:center; gap: 8px; }
+  .logs-toolbar .search { flex:1; max-width: 320px; display:flex; align-items:center; gap:8px; background: rgba(15,23,42,.05); border-radius:9px; padding: 0 12px; height:34px; }
+  .logs-toolbar .search input { flex:1; background:transparent; border:0; outline:0; font-size:13px; color:#0b0d11; }
+  .logs-toolbar .search i[data-lucide] { width:14px; height:14px; color:#6b7280; }
+  .logs-toolbar .filter { display:flex; gap:4px; padding:3px; background:rgba(15,23,42,.05); border-radius:9px; }
+  .logs-toolbar .filter .ft { padding: 4px 10px; font-size:11.5px; font-weight:600; color:#4b5563; border-radius:6px; cursor:pointer; }
+  .logs-toolbar .filter .ft.active { background:#fff; color:#0b0d11; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  .logs-toolbar .right { margin-left:auto; font-family:'JetBrains Mono'; font-size:11.5px; color:#6b7280; }
+
+  .logs-list { background:#0b0d11; border-radius:10px; padding: 10px 14px; overflow:auto; font-family:'JetBrains Mono'; font-size:12px; line-height:1.65; color:#cfd5df; }
+  .logs-list .row { display:grid; grid-template-columns: 78px 64px 1fr; gap: 12px; padding: 3px 0; }
+  .logs-list .ts { color:#6b7280; }
+  .logs-list .lvl { font-weight:700; }
+  .logs-list .lvl.err { color:#f87171; }
+  .logs-list .lvl.warn { color:#fbbf24; }
+  .logs-list .lvl.notice { color:#60a5fa; }
+  .logs-list .lvl.info { color:#86efac; }
+  .logs-list .msg { color:#e6e9ee; word-break: break-word; }
+  .logs-list .msg .file { color:#9aa1ac; }
+
+  /* ===== SITES sheet (launcher) ===== */
+  .sites-cols { display:grid; grid-template-columns: 320px 1fr; gap: 18px; height: 100%; }
+  .sites-left { display:flex; flex-direction:column; gap: 18px; min-width:0; }
+  .sites-right { display:flex; flex-direction:column; gap: 14px; min-width:0; }
+  .sites-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #6b7280; font-weight:600; margin-bottom: 10px; display:flex; align-items:center; gap: 6px; }
+  .sites-section h3 .ct { color:#0b0d11; font-weight:700; }
+
+  .new-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .new-tile {
+    background:#fff; border: 1px solid #e7e9ee; border-radius: 10px; padding: 10px 12px;
+    display:flex; align-items:center; gap:10px; cursor:pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .new-tile:hover { border-color:#0b0d11; transform: translateY(-1px); }
+  .new-tile .nt-icon { width: 30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .new-tile .nt-icon i[data-lucide] { width:16px; height:16px; }
+  .new-tile.t-vanilla .nt-icon { background: rgba(37,99,235,.1); color:#2563eb; }
+  .new-tile.t-wp .nt-icon { background: rgba(124,58,237,.1); color:#7c3aed; }
+  .new-tile.t-gut .nt-icon { background: rgba(219,39,119,.1); color:#db2777; }
+  .new-tile.t-gh .nt-icon { background: rgba(15,23,42,.08); color:#0b0d11; }
+  .new-tile.t-bp .nt-icon { background: rgba(22,163,74,.1); color:#16a34a; }
+  .new-tile.t-zip .nt-icon { background: rgba(217,119,6,.12); color:#d97706; }
+  .new-tile .nt-text { display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .new-tile .nt-text strong { font-size: 12.5px; font-weight:600; color:#0b0d11; }
+  .new-tile .nt-text span { font-size: 11px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Your playgrounds list */
+  .yp-list { display:flex; flex-direction:column; gap: 6px; }
+  .yp-item {
+    display:flex; align-items:center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+    background:#fff; border: 1px solid #e7e9ee; cursor:pointer;
+  }
+  .yp-item:hover { border-color:#0b0d11; }
+  .yp-item.active { border-color:#0b0d11; background: rgba(15,23,42,.04); }
+  .yp-item .yp-thumb { width:36px; height:36px; border-radius:8px; flex-shrink:0; background: linear-gradient(135deg, #fef3ec, #fed7aa); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#9a3412; }
+  .yp-item .yp-text { flex:1; min-width:0; }
+  .yp-item .yp-text strong { font-size: 12.5px; color:#0b0d11; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .yp-item .yp-text span { font-size: 11px; color:#6b7280; }
+  .yp-item .yp-state { padding: 2px 6px; border-radius:5px; font-size:10px; font-weight:600; }
+  .yp-item .yp-state.live { background: rgba(22,163,74,.12); color:#16a34a; }
+  .yp-item .yp-state.idle { background: rgba(15,23,42,.06); color:#4b5563; }
+
+  /* Blueprint gallery (right column) */
+  .bp-search {
+    display:flex; align-items:center; gap:10px; background: rgba(15,23,42,.05); border-radius:10px;
+    padding: 0 14px; height: 38px;
+  }
+  .bp-search input { flex:1; background:transparent; border:0; outline:0; font-size: 13px; color:#0b0d11; }
+  .bp-search i[data-lucide] { width:15px; height:15px; color:#6b7280; }
+  .bp-search .kbd { font-family:'JetBrains Mono'; font-size:10.5px; background:#fff; padding: 2px 6px; border-radius:5px; color:#6b7280; border:1px solid #e7e9ee; }
+
+  .bp-filters { display:flex; gap: 6px; overflow-x:auto; padding: 2px 0; }
+  .bp-filters .pill { padding: 5px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: rgba(15,23,42,.05); color:#4b5563; white-space:nowrap; cursor:pointer; }
+  .bp-filters .pill.active { background:#0b0d11; color:#fff; }
+  .bp-filters .pill .count { opacity:.55; margin-left: 4px; }
+
+  .bp-cards { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; overflow-y: auto; padding-right: 4px; align-content: start; }
+  .bp-card {
+    background:#fff; border:1px solid #e7e9ee; border-radius: 12px; overflow:hidden;
+    display:flex; flex-direction:column; cursor:pointer;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+  }
+  .bp-card:hover { border-color:#0b0d11; transform:translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,42,.1); }
+  .bp-card .thumb { height: 64px; position:relative; overflow:hidden; }
+  .bp-card .thumb .label { position:absolute; bottom: 6px; left: 8px; right: 8px; font-size:9px; font-family:'JetBrains Mono'; color: rgba(255,255,255,.85); font-weight:600; letter-spacing:0.05em; }
+  .bp-card .body { padding: 8px 10px 10px; }
+  .bp-card h4 { font-size: 12px; font-weight: 600; color:#0b0d11; line-height:1.25; }
+  .bp-card p { font-size: 10.5px; color:#6b7280; margin-top: 3px; line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .bp-card .tags { display:flex; gap: 4px; padding: 0 10px 10px; flex-wrap:wrap; }
+  .bp-card .tag { font-size:9.5px; padding: 2px 6px; border-radius:4px; background:rgba(15,23,42,.05); color:#4b5563; font-weight:500; }
+
+  /* thumbnail variations using CSS gradients */
+  .th-art    { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #a78bfa 100%); }
+  .th-coffee { background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 50%, #92400e 100%); }
+  .th-feed   { background: linear-gradient(135deg, #dbeafe 0%, #3b82f6 100%); }
+  .th-game   { background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 50%, #e11d48 100%); }
+  .th-nonp   { background: linear-gradient(135deg, #f0fdf4 0%, #86efac 50%, #047857 100%); }
+  .th-blog   { background: linear-gradient(135deg, #fef9c3 0%, #facc15 100%); }
+  .th-resume { background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); }
+  .th-photo  { background: linear-gradient(135deg, #18181b 0%, #71717a 100%); }
+  .th-skin   { background: linear-gradient(135deg, #fae8ff 0%, #f0abfc 50%, #c084fc 100%); }
+  .th-uni    { background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%); }
+  .th-cbt    { background: linear-gradient(135deg, #ecfeff 0%, #67e8f9 100%); }
+  .th-user   { background: linear-gradient(135deg, #f3e8ff 0%, #c084fc 100%); }
+  .th-cpt    { background: linear-gradient(135deg, #fef2f2 0%, #fca5a5 100%); }
+  .th-tt5    { background: linear-gradient(135deg, #1f2937 0%, #6b7280 100%); }
+  .th-notice { background: linear-gradient(135deg, #fff7ed 0%, #fdba74 100%); }
+  .th-dv     { background: linear-gradient(135deg, #0f172a 0%, #6366f1 100%); }
+  .th-grid   { background: linear-gradient(135deg, #ede9fe 0%, #8b5cf6 100%); }
+  .th-guide  { background: linear-gradient(135deg, #f0f9ff 0%, #38bdf8 100%); }
+  .th-starter { background: linear-gradient(135deg, #fdf4ff 0%, #d946ef 100%); }
+  .th-stand  { background: linear-gradient(135deg, #ecfdf5 0%, #10b981 100%); }
+  .th-lang   { background: linear-gradient(135deg, #fef2f2 0%, #fb7185 100%); }
+  .th-gist   { background: linear-gradient(135deg, #f8fafc 0%, #475569 100%); }
+  .th-gut    { background: linear-gradient(135deg, #18181b 0%, #db2777 100%); }
+  .th-load   { background: linear-gradient(135deg, #fefce8 0%, #65a30d 100%); }
+  .th-editor { background: linear-gradient(135deg, #f9fafb 0%, #4f46e5 100%); }
+  .th-md     { background: linear-gradient(135deg, #ecfeff 0%, #0891b2 100%); }
+  .th-woo    { background: linear-gradient(135deg, #faf5ff 0%, #9333ea 100%); }
+  .th-welc   { background: linear-gradient(135deg, #f0fdfa 0%, #14b8a6 100%); }
+  .th-meta   { background: linear-gradient(135deg, #fff1f2 0%, #fda4af 100%); }
+  .th-perm   { background: linear-gradient(135deg, #f5f5f4 0%, #57534e 100%); }
+  .th-reset  { background: linear-gradient(135deg, #fef2f2 0%, #ef4444 100%); }
+  .th-media  { background: linear-gradient(135deg, #fdf4ff 0%, #a855f7 100%); }
+  .th-admin  { background: linear-gradient(135deg, #1e293b 0%, #475569 100%); }
+  .th-show   { background: linear-gradient(135deg, #fffbeb 0%, #f59e0b 100%); }
+  .th-stylish { background: linear-gradient(135deg, #fdf2f8 0%, #ec4899 100%); }
+  .th-theme  { background: linear-gradient(135deg, #fef3c7 0%, #ec4899 100%); }
+  .th-graph  { background: linear-gradient(135deg, #f5f3ff 0%, #6d28d9 100%); }
+  .th-cli    { background: linear-gradient(135deg, #18181b 0%, #16a34a 100%); }
+  .th-cli2   { background: linear-gradient(135deg, #064e3b 0%, #34d399 100%); }
+  .th-weath  { background: linear-gradient(135deg, #dbeafe 0%, #60a5fa 100%); }
+  .th-feed2  { background: linear-gradient(135deg, #fff7ed 0%, #ea580c 100%); }
+  .th-beta   { background: linear-gradient(135deg, #fafafa 0%, #18181b 100%); }
+
+  /* MENU sheet (overflow) */
+  .menu-list { padding: 6px; display:flex; flex-direction:column; gap:1px; }
+  .menu-item { display:flex; align-items:center; gap:10px; padding: 9px 12px; border-radius:8px; font-size:13.5px; color:#0b0d11; cursor:pointer; }
+  .menu-item:hover { background: rgba(15,23,42,.05); }
+  .menu-item i[data-lucide] { width:16px; height:16px; color:#4b5563; }
+  .menu-item .kbd { margin-left:auto; font-family:'JetBrains Mono'; font-size:10px; padding: 2px 5px; background:rgba(15,23,42,.06); border-radius:5px; color:#6b7280; }
+  .menu-sep { height:1px; background: rgba(15,23,42,.08); margin: 4px 8px; }
+  .menu-head { padding: 8px 14px 4px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.12em; color:#6b7280; font-weight:600; }
+
+  /* ===== BOOTING state ===== */
+  .boot-overlay {
+    position:absolute; inset:0; background: linear-gradient(180deg, #0b0d11 0%, #1a1f2a 100%);
+    display:flex; flex-direction: column; align-items:center; justify-content:center; gap: 22px;
+    color: #f3f5f9; z-index: 5;
+  }
+  .boot-overlay .glow { position:absolute; inset:0; background: radial-gradient(circle at 50% 40%, rgba(37,99,235,.35) 0%, transparent 50%); }
+  .boot-spinner {
+    width: 64px; height:64px; border-radius:50%;
+    background: conic-gradient(from 0deg, transparent 0deg, transparent 200deg, #60a5fa 260deg, #c4b5fd 320deg, transparent 360deg);
+    mask: radial-gradient(circle, transparent 24px, black 25px, black 31px, transparent 32px);
+    -webkit-mask: radial-gradient(circle, transparent 24px, black 25px, black 31px, transparent 32px);
+    animation: spin 1.4s linear infinite;
+    position:relative; z-index:2;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .boot-overlay .wp-mark { position:absolute; top: calc(50% - 32px); left:50%; transform:translate(-50%, -50%); width:32px; height:32px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; color:#0b0d11; font-weight:800; z-index:3; }
+  .boot-title { font-size: 22px; font-weight:600; letter-spacing:-0.01em; z-index:2; }
+  .boot-step { font-size: 13px; color: #aab0bb; font-family: 'JetBrains Mono'; z-index:2; }
+  .boot-steps {
+    z-index:2; width: 480px; display:flex; flex-direction:column; gap: 6px; margin-top: 4px;
+    background: rgba(255,255,255,.04); border-radius: 12px; padding: 14px 18px;
+    border: 1px solid rgba(255,255,255,.08); font-family:'JetBrains Mono'; font-size: 12px;
+  }
+  .boot-steps .bsr { display:flex; align-items:center; gap: 10px; }
+  .boot-steps .bsr .bsr-icon { width:16px; height:16px; display:flex; align-items:center; justify-content:center; }
+  .boot-steps .bsr.done { color:#86efac; }
+  .boot-steps .bsr.now { color:#fef9c3; }
+  .boot-steps .bsr.next { color:#6b7280; }
+  .boot-steps .bsr.now .bsr-icon { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity:.4; } 50% { opacity: 1; } }
+
+  /* mobile booting */
+  .mobile .boot-steps { width: calc(100% - 48px); }
+
+  /* ===== FULLSCREEN demo state — chrome hidden ===== */
+  .fs-pill {
+    position:absolute; top: 14px; left:50%; transform:translateX(-50%); z-index: 30;
+    display:flex; align-items:center; gap:8px; padding: 6px 10px 6px 12px;
+    background: rgba(11,13,17,.78); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 999px; color:#fff; font-size:12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .fs-pill .kbd { font-family:'JetBrains Mono'; font-size:10px; padding: 2px 6px; background: rgba(255,255,255,.15); border-radius:5px; color:#fff; }
+  .fs-pill .exit { padding: 4px 8px; background: rgba(255,255,255,.18); border-radius:8px; font-size:11.5px; display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .fs-pill .exit i[data-lucide] { width:13px; height:13px; }
+
+  /* annotations */
+  .anno {
+    position:absolute; z-index:40; pointer-events:none;
+    background: #fde047; color: #422006; padding: 4px 8px;
+    border-radius: 6px; font-size: 11px; font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  }
+  .anno::before {
+    content:""; position:absolute; width:0; height:0;
+    border:5px solid transparent;
+  }
+  .anno.b::before { bottom:-9px; left:14px; border-top-color:#fde047; }
+  .anno.t::before { top:-9px; left:14px; border-bottom-color:#fde047; }
+  .anno.l::before { left:-9px; top:8px; border-right-color:#fde047; }
+  .anno.r::before { right:-9px; top:8px; border-left-color:#fde047; }
+
+  /* notification toast */
+  .toast {
+    position:absolute; bottom: 100px; left: 24px; z-index: 27;
+    display:flex; align-items:center; gap: 10px; padding: 10px 14px;
+    background: rgba(11,13,17,.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 12px; color: #fff; font-size: 13px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.3);
+    max-width: 360px;
+  }
+  .toast i[data-lucide] { width:16px; height:16px; color:#86efac; }
+  .toast .x { margin-left: 10px; color: rgba(255,255,255,.5); cursor:pointer; }
+  .mobile .toast { left: 12px; right: 12px; bottom: 100px; }
+
+  /* scroll-affordance hint */
+  .hint-scroll {
+    position:absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    background: rgba(11,13,17,.7); color:#fff; padding: 5px 9px; border-radius: 6px;
+    font-size: 11px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    pointer-events:none;
+  }
+
+  /* save-state pill animation note */
+  .save-anim { display:flex; gap:8px; align-items:center; }
+
+  /* mobile: stretches segmented bar */
+  .mobile .mgr-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .mobile .mgr-tabs::-webkit-scrollbar { display:none; }
+
+  /* tighter mobile layout in sheets */
+  .mobile .sites-cols { grid-template-columns: 1fr; overflow-y:auto; }
+  .mobile .bp-cards { grid-template-columns: 1fr 1fr; }
+  .mobile .new-grid { grid-template-columns: 1fr 1fr; }
+  .mobile .files-grid { grid-template-columns: 1fr; }
+  .mobile .files-tree { max-height: 180px; }
+  .mobile .db-grid { grid-template-columns: 1fr; }
+  .mobile .db-list { max-height: 140px; }
+  .mobile .settings-grid { grid-template-columns: 1fr; }
+  .mobile .sheet-body { padding: 12px 14px; overflow-y:auto; }
+
+  /* tabbar tab labels on mobile shrink slightly */
+  .mobile .tabbar .tab { min-width: 0; }
+
+  /* misc text utility */
+  .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+  /* footer scores block */
+  .scores { background:#fff; max-width:1440px; margin: 60px auto 0; padding: 20px 24px; border-radius:16px; }
+  .scores h3 { font-size:14px; margin-bottom:12px; }
+  .scores ul { font-family:'JetBrains Mono'; font-size:12px; color:#4b5563; padding-left: 20px; }
+  .scores ul li { padding: 3px 0; }
+</style>
+</head>
+<body>
+
+<!-- ====================================================== -->
+<!-- DOC TITLE -->
+<!-- ====================================================== -->
+<div class="doc-title">
+  <h1>v5 / 005 — Translucent bottom tab bar</h1>
+  <p>Mobile-first refinement of #06. A single frosted tab bar floats over the WordPress iframe; tapping a tab raises one bottom sheet — Sites (launcher), Manage (Site Manager), or Menu (overflow). The bar fades to 0.15 when the iframe scrolls and returns on touch, so the WordPress site is the loudest thing in every state.</p>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 1: DESKTOP — working session, idle (chrome at rest) -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 1 · working session · idle chrome · 8 affordances</span></div>
+  <div class="desktop" id="dk-state1">
+    <div class="stage">
+      <!-- mock WP site -->
+      <div class="wp-page warm">
+        <div class="wp-admin-bar">
+          <div class="wp-logo"></div>
+          <div class="wp-bar-item">Coffee Shop Demo</div>
+          <div class="wp-bar-item">+ New</div>
+          <div class="wp-bar-item">Edit Page</div>
+          <div class="wp-bar-item right">Howdy, admin</div>
+        </div>
+        <div class="wp-hero">
+          <h1>Fresh-roasted coffee, delivered weekly to your door.</h1>
+          <p>Single-origin beans from small farms in Ethiopia, Colombia, and Sumatra. Subscribe once, taste the world.</p>
+          <div class="wp-cta">
+            <div class="btn">Shop the menu</div>
+            <div class="btn ghost">Our story</div>
+          </div>
+        </div>
+        <div class="wp-grid">
+          <div class="wp-card"><div class="badge">Featured</div><h3>Ethiopia Yirgacheffe</h3><p>Bright, floral, citrus-forward. A spring favorite.</p></div>
+          <div class="wp-card"><div class="badge">New</div><h3>Colombia Huila</h3><p>Chocolate, brown sugar, and a hint of pecan.</p></div>
+          <div class="wp-card"><div class="badge">Subscriber</div><h3>Sumatra Mandheling</h3><p>Earthy, full-bodied, with a syrupy finish.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- top capsule -->
+    <div class="topcap">
+      <div class="tc-btn" title="Refresh"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url">
+        <i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i>
+        <span class="scheme">playground.wordpress.net</span><span class="path">/</span>
+      </div>
+      <div class="tc-name"><span class="dot"></span> Unsaved Playground</div>
+      <div class="tc-btn primary" title="Save"><i data-lucide="bookmark"></i></div>
+    </div>
+
+    <!-- fullscreen toggle -->
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <!-- bottom tab bar -->
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <!-- annotations -->
+    <div class="anno b" style="top: 78px; left: 470px;">URL editable · Submit navigates iframe</div>
+    <div class="anno b" style="top: 28px; left: 770px;">1 of 8 affordances</div>
+    <div class="anno l" style="top: 28px; right: 80px;">Fullscreen iframe ⇄ Esc</div>
+    <div class="anno t" style="bottom: 70px; left: 700px;">One bar · one secondary sheet · swaps content</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 2: DESKTOP — Manage sheet open · Files tab active -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 2 · Manage sheet open · 5 inner tabs · Site Manager lives here</span></div>
+  <div class="desktop" id="dk-state2">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar">
+          <div class="wp-logo"></div>
+          <div class="wp-bar-item">Coffee Shop Demo</div>
+          <div class="wp-bar-item">+ New</div>
+          <div class="wp-bar-item right">Howdy, admin</div>
+        </div>
+        <div class="wp-hero">
+          <h1>Fresh-roasted coffee, delivered weekly.</h1>
+          <p>Single-origin beans from Ethiopia, Colombia, Sumatra.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/wp-content/themes/coffee/</span></div>
+      <div class="tc-name"><span class="dot"></span> Unsaved Playground</div>
+      <div class="tc-btn primary"><i data-lucide="bookmark"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <!-- the MANAGE sheet -->
+    <div class="sheet sheet--manage">
+      <div class="sheet-head">
+        <div class="sh-grip"></div>
+        <h2>Manage this Playground</h2>
+        <div class="sh-close"><i data-lucide="x"></i></div>
+      </div>
+      <div class="sheet-body">
+
+        <div class="mgr-title">
+          <input value="Coffee Shop Demo" />
+          <div class="chip"><i data-lucide="circle-alert"></i> Unsaved</div>
+          <div class="right">
+            <div class="btn-ghost"><i data-lucide="layout-dashboard"></i> WP Admin</div>
+            <div class="btn-ghost"><i data-lucide="home"></i> Homepage</div>
+            <div class="more"><i data-lucide="more-horizontal"></i></div>
+          </div>
+        </div>
+
+        <div class="mgr-tabs">
+          <div class="mgr-tab"><i data-lucide="settings"></i>Settings</div>
+          <div class="mgr-tab active"><i data-lucide="folder-tree"></i>Files</div>
+          <div class="mgr-tab"><i data-lucide="file-code"></i>Blueprint</div>
+          <div class="mgr-tab"><i data-lucide="database"></i>Database</div>
+          <div class="mgr-tab"><i data-lucide="terminal"></i>Logs</div>
+        </div>
+
+        <div class="mgr-content">
+          <div class="files-grid">
+            <div class="files-tree">
+              <div class="files-tree-header">
+                /wordpress
+                <div class="right">
+                  <button title="New file"><i data-lucide="file-plus"></i></button>
+                  <button title="New folder"><i data-lucide="folder-plus"></i></button>
+                </div>
+              </div>
+              <div class="tr"><i data-lucide="folder"></i> wp-admin</div>
+              <div class="tr"><i data-lucide="folder-open"></i> wp-content</div>
+              <div class="tr indent"><i data-lucide="folder"></i> mu-plugins</div>
+              <div class="tr indent"><i data-lucide="folder"></i> plugins</div>
+              <div class="tr indent"><i data-lucide="folder-open"></i> themes</div>
+              <div class="tr indent-2"><i data-lucide="folder"></i> twentytwentyfive</div>
+              <div class="tr indent-2"><i data-lucide="folder-open"></i> coffee</div>
+              <div class="tr indent-2 active" style="padding-left:50px"><i data-lucide="file-code-2"></i> functions.php</div>
+              <div class="tr indent-2" style="padding-left:50px"><i data-lucide="file"></i> style.css</div>
+              <div class="tr indent-2" style="padding-left:50px"><i data-lucide="file"></i> theme.json</div>
+              <div class="tr indent-2" style="padding-left:50px"><i data-lucide="file"></i> index.html</div>
+              <div class="tr indent"><i data-lucide="folder"></i> uploads</div>
+              <div class="tr"><i data-lucide="folder"></i> wp-includes</div>
+              <div class="tr"><i data-lucide="file"></i> wp-config.php</div>
+              <div class="tr"><i data-lucide="file"></i> index.php</div>
+            </div>
+            <div class="files-editor">
+              <div class="feh">
+                <i data-lucide="file-code-2" style="width:14px;height:14px;color:#86efac"></i>
+                <span class="filename">wp-content/themes/coffee/functions.php</span>
+                <div class="dot" title="unsaved changes"></div>
+              </div>
+              <div class="code">
+<span class="ln">1</span><span class="k">&lt;?php</span>
+<span class="ln">2</span><span class="c">/**</span>
+<span class="ln">3</span><span class="c"> * Coffee theme functions.</span>
+<span class="ln">4</span><span class="c"> */</span>
+<span class="ln">5</span>
+<span class="ln">6</span><span class="k">add_action</span>(<span class="s">'after_setup_theme'</span>, <span class="k">function</span>() {
+<span class="ln">7</span>    <span class="k">add_theme_support</span>(<span class="s">'wp-block-styles'</span>);
+<span class="ln">8</span>    <span class="k">add_theme_support</span>(<span class="s">'editor-styles'</span>);
+<span class="ln">9</span>    <span class="k">register_nav_menus</span>([
+<span class="ln">10</span>        <span class="s">'primary'</span> =&gt; <span class="f">__</span>(<span class="s">'Primary Menu'</span>, <span class="s">'coffee'</span>),
+<span class="ln">11</span>        <span class="s">'footer'</span>  =&gt; <span class="f">__</span>(<span class="s">'Footer Menu'</span>, <span class="s">'coffee'</span>),
+<span class="ln">12</span>    ]);
+<span class="ln">13</span>});
+<span class="ln">14</span>
+<span class="ln">15</span><span class="k">add_action</span>(<span class="s">'wp_enqueue_scripts'</span>, <span class="k">function</span>() {
+<span class="ln">16</span>    <span class="k">wp_enqueue_style</span>(
+<span class="ln">17</span>        <span class="s">'coffee-theme'</span>,
+<span class="ln">18</span>        <span class="f">get_stylesheet_uri</span>(),
+<span class="ln">19</span>        [], <span class="s">'1.0.3'</span>
+<span class="ln">20</span>    );
+<span class="ln">21</span>});
+<span class="ln">22</span>
+<span class="ln">23</span><span class="c">// Register product post type used by the Coffee Shop blueprint.</span>
+<span class="ln">24</span><span class="k">add_action</span>(<span class="s">'init'</span>, <span class="k">function</span>() {
+<span class="ln">25</span>    <span class="k">register_post_type</span>(<span class="s">'coffee_product'</span>, [
+<span class="ln">26</span>        <span class="s">'public'</span>      =&gt; <span class="k">true</span>,
+<span class="ln">27</span>        <span class="s">'has_archive'</span> =&gt; <span class="k">true</span>,
+<span class="ln">28</span>        <span class="s">'show_in_rest'</span>=&gt; <span class="k">true</span>,
+<span class="ln">29</span>        <span class="s">'supports'</span>    =&gt; [<span class="s">'title'</span>, <span class="s">'editor'</span>, <span class="s">'thumbnail'</span>],
+<span class="ln">30</span>    ]);
+<span class="ln">31</span>});
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- bottom tab bar — Manage active -->
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab active"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <div class="anno t" style="top: 178px; left: 220px;">Five inner tabs (one secondary surface, swappable content)</div>
+    <div class="anno r" style="top: 178px; right: 90px;">Editable title · primary verb is Save</div>
+    <div class="anno t" style="bottom: 70px; left: 670px;">Manage tab is the only thing that opened</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 3: DESKTOP — Sites sheet open (launcher) -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 3 · Sites sheet · launcher · 6 sources · 43-blueprint gallery · saved playgrounds</span></div>
+  <div class="desktop" id="dk-state3">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div><div class="wp-bar-item">Coffee Shop Demo</div></div>
+        <div class="wp-hero"><h1>Fresh-roasted coffee, delivered weekly.</h1></div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/</span></div>
+      <div class="tc-name"><span class="dot"></span> Unsaved Playground</div>
+      <div class="tc-btn primary"><i data-lucide="bookmark"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <!-- the SITES sheet -->
+    <div class="sheet sheet--sites">
+      <div class="sheet-head">
+        <div class="sh-grip"></div>
+        <h2>Sites</h2>
+        <div class="sh-close"><i data-lucide="x"></i></div>
+      </div>
+      <div class="sheet-body">
+        <div class="sites-cols">
+
+          <!-- LEFT column: start new + saved -->
+          <div class="sites-left">
+            <div class="sites-section">
+              <h3>Start a new Playground</h3>
+              <div class="new-grid">
+                <div class="new-tile t-vanilla">
+                  <div class="nt-icon"><i data-lucide="circle"></i></div>
+                  <div class="nt-text"><strong>Vanilla WP</strong><span>Fresh WordPress 6.7</span></div>
+                </div>
+                <div class="new-tile t-wp">
+                  <div class="nt-icon"><i data-lucide="git-pull-request"></i></div>
+                  <div class="nt-text"><strong>WordPress PR</strong><span>Boot core PR by number</span></div>
+                </div>
+                <div class="new-tile t-gut">
+                  <div class="nt-icon"><i data-lucide="git-pull-request-arrow"></i></div>
+                  <div class="nt-text"><strong>Gutenberg PR</strong><span>Test a Gutenberg PR</span></div>
+                </div>
+                <div class="new-tile t-gh">
+                  <div class="nt-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.36-3.87-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.79.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg></div>
+                  <div class="nt-text"><strong>From GitHub</strong><span>Theme/plugin repo URL</span></div>
+                </div>
+                <div class="new-tile t-bp">
+                  <div class="nt-icon"><i data-lucide="link"></i></div>
+                  <div class="nt-text"><strong>Blueprint URL</strong><span>Paste any blueprint JSON</span></div>
+                </div>
+                <div class="new-tile t-zip">
+                  <div class="nt-icon"><i data-lucide="file-archive"></i></div>
+                  <div class="nt-text"><strong>Import .zip</strong><span>Restore exported site</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sites-section" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+              <h3>Your Playgrounds <span class="ct">· 3 saved</span></h3>
+              <div class="yp-list" style="overflow-y:auto;">
+                <div class="yp-item active">
+                  <div class="yp-thumb" style="background: linear-gradient(135deg,#fef3c7,#92400e); color:#fff;">CS</div>
+                  <div class="yp-text"><strong>Coffee Shop Demo</strong><span>WP 6.7 · PHP 8.3 · 42 MB · just now</span></div>
+                  <span class="yp-state live">live</span>
+                </div>
+                <div class="yp-item">
+                  <div class="yp-thumb" style="background: linear-gradient(135deg,#dbeafe,#2563eb); color:#fff;">PR</div>
+                  <div class="yp-text"><strong>core PR #6512 — block-level lock</strong><span>WP trunk · PHP 8.2 · 38 MB · 2 hrs ago</span></div>
+                  <span class="yp-state idle">idle</span>
+                </div>
+                <div class="yp-item">
+                  <div class="yp-thumb" style="background: linear-gradient(135deg,#f3e8ff,#7c3aed); color:#fff;">UN</div>
+                  <div class="yp-text"><strong>Kentwood University demo</strong><span>WP 6.6 · PHP 8.2 · 51 MB · yesterday</span></div>
+                  <span class="yp-state idle">idle</span>
+                </div>
+                <div class="yp-item">
+                  <div class="yp-thumb" style="background: linear-gradient(135deg,#dcfce7,#16a34a); color:#fff;">WG</div>
+                  <div class="yp-text"><strong>WPGraphQL sandbox</strong><span>WP 6.7 · PHP 8.3 · 29 MB · Mon 14:08</span></div>
+                  <span class="yp-state idle">idle</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT column: blueprints -->
+          <div class="sites-right" style="min-height:0;">
+            <div class="bp-search">
+              <i data-lucide="search"></i>
+              <input placeholder="Search 43 blueprints…" />
+              <span class="kbd">⌘K</span>
+            </div>
+            <div class="bp-filters">
+              <div class="pill active">All <span class="count">43</span></div>
+              <div class="pill">Featured <span class="count">5</span></div>
+              <div class="pill">Website <span class="count">8</span></div>
+              <div class="pill">Personal <span class="count">5</span></div>
+              <div class="pill">Content <span class="count">5</span></div>
+              <div class="pill">Themes <span class="count">7</span></div>
+              <div class="pill">Gutenberg <span class="count">4</span></div>
+              <div class="pill">Experiments <span class="count">3</span></div>
+              <div class="pill">WooCommerce <span class="count">4</span></div>
+              <div class="pill">News <span class="count">2</span></div>
+            </div>
+            <div class="bp-cards">
+              <div class="bp-card"><div class="thumb th-art"><span class="label">VUEO THEME</span></div><div class="body"><h4>Art Gallery</h4><p>An art gallery created with the Vueo theme.</p></div><div class="tags"><span class="tag">Website</span><span class="tag">Personal</span></div></div>
+              <div class="bp-card"><div class="thumb th-coffee"><span class="label">WOO STORE</span></div><div class="body"><h4>Coffee Shop</h4><p>A stylish WooCommerce coffee shop storefront with custom theme.</p></div><div class="tags"><span class="tag">WooCommerce</span><span class="tag">Store</span></div></div>
+              <div class="bp-card"><div class="thumb th-feed"><span class="label">FRIENDS PLUGIN</span></div><div class="body"><h4>Feed Reader</h4><p>Read feeds (incl. ActivityPub) via the Friends plugin.</p></div><div class="tags"><span class="tag">rss</span><span class="tag">social</span></div></div>
+              <div class="bp-card"><div class="thumb th-game"><span class="label">SPIEL THEME</span></div><div class="body"><h4>Gaming News</h4><p>A gaming news site created with the Spiel theme.</p></div><div class="tags"><span class="tag">Website</span><span class="tag">News</span></div></div>
+              <div class="bp-card"><div class="thumb th-nonp"><span class="label">KOINONIA THEME</span></div><div class="body"><h4>Non-profit Org</h4><p>A non-profit organization site with the Koinonia theme.</p></div><div class="tags"><span class="tag">Website</span><span class="tag">Org</span></div></div>
+              <div class="bp-card"><div class="thumb th-blog"><span class="label">SUBSTRATA</span></div><div class="body"><h4>Personal Blog</h4><p>A personal blog site created with the Substrata theme.</p></div><div class="tags"><span class="tag">Personal</span><span class="tag">Blog</span></div></div>
+              <div class="bp-card"><div class="thumb th-resume"><span class="label">READYMADE</span></div><div class="body"><h4>Personal Resume</h4><p>A resume site created with the Readymade theme.</p></div><div class="tags"><span class="tag">Personal</span></div></div>
+              <div class="bp-card"><div class="thumb th-photo"><span class="label">GRAMMER</span></div><div class="body"><h4>Photo Portfolio</h4><p>A photography portfolio created with the Grammer theme.</p></div><div class="tags"><span class="tag">Photography</span></div></div>
+              <div class="bp-card"><div class="thumb th-skin"><span class="label">PIEL THEME</span></div><div class="body"><h4>Skincare Blog</h4><p>A skincare blog created with the Piel theme.</p></div><div class="tags"><span class="tag">News</span><span class="tag">Blog</span></div></div>
+              <div class="bp-card"><div class="thumb th-uni"><span class="label">KENTWOOD</span></div><div class="body"><h4>University Site</h4><p>A university website created with the Kentwood theme.</p></div><div class="tags"><span class="tag">Education</span></div></div>
+              <div class="bp-card"><div class="thumb th-cbt"><span class="label">EDITOR TOOL</span></div><div class="body"><h4>Create Block Theme</h4><p>Install Create Block Theme and start editing right away.</p></div><div class="tags"><span class="tag">Editor</span></div></div>
+              <div class="bp-card"><div class="thumb th-tt5"><span class="label">DEFAULT</span></div><div class="body"><h4>Twenty Twenty-Five</h4><p>Demo content for the Twenty-Twenty-Five default theme.</p></div><div class="tags"><span class="tag">Themes</span></div></div>
+              <div class="bp-card"><div class="thumb th-cpt"><span class="label">CPT</span></div><div class="body"><h4>Custom Post Type: Books</h4><p>Add a custom post type to playground.</p></div><div class="tags"><span class="tag">Content</span></div></div>
+              <div class="bp-card"><div class="thumb th-gut"><span class="label">GUTENBERG</span></div><div class="body"><h4>Latest Gutenberg plugin</h4><p>A preview of the latest Gutenberg plugin.</p></div><div class="tags"><span class="tag">plugins</span></div></div>
+              <div class="bp-card"><div class="thumb th-dv"><span class="label">EXPERIMENT</span></div><div class="body"><h4>Dataview Experiments</h4><p>Enable multiple Experiments within Gutenberg.</p></div><div class="tags"><span class="tag">Gutenberg</span></div></div>
+              <div class="bp-card"><div class="thumb th-graph"><span class="label">GRAPHQL IDE</span></div><div class="body"><h4>WPGraphQL</h4><p>Loads WordPress with WPGraphQL active and the IDE page.</p></div><div class="tags"><span class="tag">API</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- bottom tab bar — Sites active -->
+    <div class="tabbar">
+      <div class="tab active"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <div class="anno t" style="top: 178px; left: 100px;">Six start-new sources — one home</div>
+    <div class="anno t" style="top: 178px; left: 470px;">Search · 10 category filters · 16 cards visible</div>
+    <div class="anno b" style="bottom: 200px; left: 100px;">3 saved + currently-live site, visible state</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 4: DESKTOP — Booting -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 4 · booting · blueprint pipeline visible</span></div>
+  <div class="desktop" id="dk-state4">
+    <div class="stage">
+      <div class="boot-overlay">
+        <div class="glow"></div>
+        <div class="boot-spinner"></div>
+        <div class="wp-mark">W</div>
+        <div class="boot-title">Booting Coffee Shop blueprint…</div>
+        <div class="boot-step">Step 3 of 7 · activating theme</div>
+        <div class="boot-steps">
+          <div class="bsr done"><div class="bsr-icon"><i data-lucide="check"></i></div> defineWpConfigConsts → SAVEQUERIES=true</div>
+          <div class="bsr done"><div class="bsr-icon"><i data-lucide="check"></i></div> installPlugin → woocommerce.zip (12.4 MB)</div>
+          <div class="bsr now"><div class="bsr-icon"><i data-lucide="circle"></i></div> activateTheme → coffee</div>
+          <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed"></i></div> importWxr → sample-products.xml</div>
+          <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed"></i></div> setSiteOptions → blogname, currency</div>
+          <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed"></i></div> installPlugin → flat-rate-shipping.zip</div>
+          <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed"></i></div> runPHP → seed bank-transfer gateway</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- chrome stays mounted during boot, just dimmed-feeling -->
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="loader" style="width:13px;height:13px;color:#fbbf24"></i><span class="scheme">booting blueprint…</span></div>
+      <div class="tc-name"><span class="dot"></span> Unsaved Playground</div>
+      <div class="tc-btn primary"><i data-lucide="bookmark"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 5: DESKTOP — Settings + Apply&Reset confirm sheet -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 5 · Manage › Settings · destructive-confirm pattern</span></div>
+  <div class="desktop" id="dk-state5">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div><div class="wp-bar-item">Coffee Shop Demo</div></div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/</span></div>
+      <div class="tc-name saved"><span class="dot"></span> Coffee Shop Demo</div>
+      <div class="tc-btn primary"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <div class="sheet sheet--manage">
+      <div class="sheet-head">
+        <div class="sh-grip"></div>
+        <h2>Manage this Playground</h2>
+        <div class="sh-close"><i data-lucide="x"></i></div>
+      </div>
+      <div class="sheet-body">
+        <div class="mgr-title">
+          <input value="Coffee Shop Demo" />
+          <div class="chip" style="background:rgba(22,163,74,.1); color:#16a34a;"><i data-lucide="check-check"></i> Saved</div>
+          <div class="right">
+            <div class="btn-ghost"><i data-lucide="layout-dashboard"></i> WP Admin</div>
+            <div class="btn-ghost"><i data-lucide="home"></i> Homepage</div>
+            <div class="more"><i data-lucide="more-horizontal"></i></div>
+          </div>
+        </div>
+        <div class="mgr-tabs">
+          <div class="mgr-tab active"><i data-lucide="settings"></i>Settings</div>
+          <div class="mgr-tab"><i data-lucide="folder-tree"></i>Files</div>
+          <div class="mgr-tab"><i data-lucide="file-code"></i>Blueprint</div>
+          <div class="mgr-tab"><i data-lucide="database"></i>Database</div>
+          <div class="mgr-tab"><i data-lucide="terminal"></i>Logs</div>
+        </div>
+        <div class="mgr-content">
+          <div class="settings-grid">
+            <div class="field">
+              <label>WordPress version</label>
+              <div class="control">6.7 (latest)<i data-lucide="chevron-down"></i></div>
+            </div>
+            <div class="field">
+              <label>PHP version</label>
+              <div class="control">8.3<i data-lucide="chevron-down"></i></div>
+            </div>
+            <div class="field">
+              <label>Site language</label>
+              <div class="control">English (en_US)<i data-lucide="chevron-down"></i></div>
+            </div>
+            <div class="field">
+              <label>Storage</label>
+              <div class="control">OPFS · 42 MB used<i data-lucide="hard-drive"></i></div>
+            </div>
+            <div class="field toggle">
+              <label>Network access</label>
+              <div class="control">Allow outbound HTTP requests<div class="switch on"></div></div>
+            </div>
+            <div class="field toggle">
+              <label>Multisite</label>
+              <div class="control">Enable WordPress multisite<div class="switch"></div></div>
+            </div>
+
+            <div class="danger-zone">
+              <div class="dz-icon"><i data-lucide="alert-triangle"></i></div>
+              <div class="dz-body">
+                <h4>Apply &amp; reset</h4>
+                <p>Changing WP / PHP / language wipes the database and uploads. Type <strong>reset coffee-shop</strong> to confirm.</p>
+              </div>
+              <div class="dz-action">
+                <i data-lucide="rotate-cw"></i> Apply settings &amp; reset
+                <span class="confirm-hint">type to confirm</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast">
+      <i data-lucide="check-circle-2"></i> Saved &ldquo;Coffee Shop Demo&rdquo; to browser storage.
+      <span class="x"><i data-lucide="x" style="width:14px;height:14px"></i></span>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab active"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <div class="anno t" style="top: 178px; right: 470px;">Save-state pill: red → green when saved</div>
+    <div class="anno b" style="bottom: 240px; left: 480px;">Apply &amp; reset requires a typed phrase, not just a button</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 6: DESKTOP — Blueprint + Logs + DB in one composite -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 6 · Manage › Blueprint tab · real JSON · file column shared with Files tab</span></div>
+  <div class="desktop" id="dk-state6">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div></div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/</span></div>
+      <div class="tc-name saved"><span class="dot"></span> Coffee Shop Demo</div>
+      <div class="tc-btn primary"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <div class="sheet sheet--manage">
+      <div class="sheet-head">
+        <div class="sh-grip"></div>
+        <h2>Manage this Playground</h2>
+        <div class="sh-close"><i data-lucide="x"></i></div>
+      </div>
+      <div class="sheet-body">
+        <div class="mgr-title">
+          <input value="Coffee Shop Demo" />
+          <div class="chip" style="background:rgba(22,163,74,.1); color:#16a34a;"><i data-lucide="check-check"></i> Saved</div>
+          <div class="right">
+            <div class="btn-ghost"><i data-lucide="layout-dashboard"></i> WP Admin</div>
+            <div class="btn-ghost"><i data-lucide="home"></i> Homepage</div>
+            <div class="more"><i data-lucide="more-horizontal"></i></div>
+          </div>
+        </div>
+        <div class="mgr-tabs">
+          <div class="mgr-tab"><i data-lucide="settings"></i>Settings</div>
+          <div class="mgr-tab"><i data-lucide="folder-tree"></i>Files</div>
+          <div class="mgr-tab active"><i data-lucide="file-code"></i>Blueprint</div>
+          <div class="mgr-tab"><i data-lucide="database"></i>Database</div>
+          <div class="mgr-tab"><i data-lucide="terminal"></i>Logs</div>
+        </div>
+        <div class="mgr-content">
+          <div class="files-grid">
+            <div class="files-tree">
+              <div class="files-tree-header">
+                blueprint bundle
+                <div class="right">
+                  <button title="New file"><i data-lucide="file-plus"></i></button>
+                  <button title="New folder"><i data-lucide="folder-plus"></i></button>
+                </div>
+              </div>
+              <div class="tr active"><i data-lucide="file-json"></i> blueprint.json</div>
+              <div class="tr"><i data-lucide="folder-open"></i> assets</div>
+              <div class="tr indent"><i data-lucide="file"></i> sample-products.xml</div>
+              <div class="tr indent"><i data-lucide="file"></i> coffee-theme.zip</div>
+              <div class="tr indent"><i data-lucide="file"></i> bank-gateway.php</div>
+              <div class="tr"><i data-lucide="file-text"></i> README.md</div>
+            </div>
+            <div class="files-editor">
+              <div class="feh">
+                <i data-lucide="file-json" style="width:14px;height:14px;color:#86efac"></i>
+                <span class="filename">blueprint.json</span>
+                <div style="margin-left:auto; display:flex; gap:6px;">
+                  <div style="padding: 4px 10px; background:#16a34a; color:#fff; border-radius:6px; font-size:11px; font-weight:600; font-family:Inter; display:flex; align-items:center; gap:5px;"><i data-lucide="play" style="width:11px;height:11px"></i> Run Blueprint</div>
+                  <div style="padding: 4px 10px; background: rgba(255,255,255,.08); color:#cfd5df; border-radius:6px; font-size:11px; font-weight:600; font-family:Inter; display:flex; align-items:center; gap:5px;"><i data-lucide="link" style="width:11px;height:11px"></i> Copy link</div>
+                  <div style="padding: 4px 10px; background: rgba(255,255,255,.08); color:#cfd5df; border-radius:6px; font-size:11px; font-weight:600; font-family:Inter; display:flex; align-items:center; gap:5px;"><i data-lucide="download" style="width:11px;height:11px"></i> Bundle</div>
+                </div>
+              </div>
+              <div class="code">
+<span class="ln">1</span>{
+<span class="ln">2</span>  <span class="s">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+<span class="ln">3</span>  <span class="s">"preferredVersions"</span>: { <span class="s">"php"</span>: <span class="s">"8.3"</span>, <span class="s">"wp"</span>: <span class="s">"6.7"</span> },
+<span class="ln">4</span>  <span class="s">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],
+<span class="ln">5</span>  <span class="s">"features"</span>: { <span class="s">"networking"</span>: <span class="n">true</span> },
+<span class="ln">6</span>  <span class="s">"landingPage"</span>: <span class="s">"/"</span>,
+<span class="ln">7</span>  <span class="s">"steps"</span>: [
+<span class="ln">8</span>    { <span class="s">"step"</span>: <span class="s">"defineWpConfigConsts"</span>, <span class="s">"consts"</span>: { <span class="s">"SAVEQUERIES"</span>: <span class="n">true</span> } },
+<span class="ln">9</span>    { <span class="s">"step"</span>: <span class="s">"installPlugin"</span>,
+<span class="ln">10</span>      <span class="s">"pluginData"</span>: { <span class="s">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="s">"slug"</span>: <span class="s">"woocommerce"</span> } },
+<span class="ln">11</span>    { <span class="s">"step"</span>: <span class="s">"installTheme"</span>,
+<span class="ln">12</span>      <span class="s">"themeData"</span>: { <span class="s">"resource"</span>: <span class="s">"url"</span>, <span class="s">"url"</span>: <span class="s">"./assets/coffee-theme.zip"</span> } },
+<span class="ln">13</span>    { <span class="s">"step"</span>: <span class="s">"importWxr"</span>,
+<span class="ln">14</span>      <span class="s">"file"</span>: { <span class="s">"resource"</span>: <span class="s">"url"</span>, <span class="s">"url"</span>: <span class="s">"./assets/sample-products.xml"</span> } },
+<span class="ln">15</span>    { <span class="s">"step"</span>: <span class="s">"setSiteOptions"</span>,
+<span class="ln">16</span>      <span class="s">"options"</span>: { <span class="s">"blogname"</span>: <span class="s">"Coffee Shop Demo"</span>,
+<span class="ln">17</span>                   <span class="s">"woocommerce_currency"</span>: <span class="s">"USD"</span> } },
+<span class="ln">18</span>    { <span class="s">"step"</span>: <span class="s">"runPHP"</span>,
+<span class="ln">19</span>      <span class="s">"code"</span>: <span class="s">"&lt;?php require './assets/bank-gateway.php';"</span> }
+<span class="ln">20</span>  ]
+<span class="ln">21</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab active"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 7: DESKTOP — Logs + DB visible together (split into 2 frames in mobile, here combined) -->
+<!-- Actually: separate frames for Logs & DB to satisfy spec -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 7 · Manage › Logs · realistic PHP error lines · filter chips</span></div>
+  <div class="desktop">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div></div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/wp-admin/admin-ajax.php</span></div>
+      <div class="tc-name saved"><span class="dot"></span> Coffee Shop Demo</div>
+      <div class="tc-btn primary"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <div class="sheet sheet--manage">
+      <div class="sheet-head">
+        <div class="sh-grip"></div>
+        <h2>Manage this Playground</h2>
+        <div class="sh-close"><i data-lucide="x"></i></div>
+      </div>
+      <div class="sheet-body">
+        <div class="mgr-title">
+          <input value="Coffee Shop Demo" />
+          <div class="chip" style="background:rgba(22,163,74,.1); color:#16a34a;"><i data-lucide="check-check"></i> Saved</div>
+          <div class="right">
+            <div class="btn-ghost"><i data-lucide="layout-dashboard"></i> WP Admin</div>
+            <div class="btn-ghost"><i data-lucide="home"></i> Homepage</div>
+            <div class="more"><i data-lucide="more-horizontal"></i></div>
+          </div>
+        </div>
+        <div class="mgr-tabs">
+          <div class="mgr-tab"><i data-lucide="settings"></i>Settings</div>
+          <div class="mgr-tab"><i data-lucide="folder-tree"></i>Files</div>
+          <div class="mgr-tab"><i data-lucide="file-code"></i>Blueprint</div>
+          <div class="mgr-tab"><i data-lucide="database"></i>Database</div>
+          <div class="mgr-tab active"><i data-lucide="terminal"></i>Logs</div>
+        </div>
+        <div class="mgr-content">
+          <div class="logs-grid">
+            <div class="logs-toolbar">
+              <div class="search"><i data-lucide="search"></i><input placeholder="Filter log lines (regex ok)…"/></div>
+              <div class="filter">
+                <div class="ft active">All</div>
+                <div class="ft">Error</div>
+                <div class="ft">Warn</div>
+                <div class="ft">Notice</div>
+                <div class="ft">Info</div>
+              </div>
+              <div class="right">42 lines · since boot · live</div>
+            </div>
+            <div class="logs-list">
+              <div class="row"><span class="ts">14:08:12.103</span><span class="lvl info">INFO</span><span class="msg">Playground booted in 1.84s · PHP 8.3.6 · WP 6.7 · SQLite 3.45</span></div>
+              <div class="row"><span class="ts">14:08:12.214</span><span class="lvl info">INFO</span><span class="msg">Blueprint <span class="file">coffee-shop.json</span> applied — 7 steps OK</span></div>
+              <div class="row"><span class="ts">14:08:13.501</span><span class="lvl notice">NOTICE</span><span class="msg">PHP Notice:  Trying to access array offset on null in <span class="file">/wordpress/wp-content/plugins/woocommerce/includes/class-wc-cart.php</span> on line 1203</span></div>
+              <div class="row"><span class="ts">14:08:13.622</span><span class="lvl warn">WARN</span><span class="msg">PHP Warning:  Undefined array key "session_cookie" in <span class="file">/wordpress/wp-content/plugins/woocommerce/includes/class-wc-session-handler.php</span> on line 287</span></div>
+              <div class="row"><span class="ts">14:08:13.640</span><span class="lvl info">INFO</span><span class="msg">Admin AJAX request: <span class="file">wp-admin/admin-ajax.php</span> action=heartbeat (200)</span></div>
+              <div class="row"><span class="ts">14:08:14.092</span><span class="lvl err">ERROR</span><span class="msg">PHP Fatal error:  Uncaught Error: Call to undefined function wc_get_product_id_by_sku() in <span class="file">/wordpress/wp-content/themes/coffee/inc/seed-products.php</span> on line 42</span></div>
+              <div class="row"><span class="ts">14:08:14.103</span><span class="lvl err">ERROR</span><span class="msg">Stack trace: #0 /wordpress/wp-includes/class-wp-hook.php(308): WP_Hook->apply_filters(NULL, Array)</span></div>
+              <div class="row"><span class="ts">14:08:14.103</span><span class="lvl err">ERROR</span><span class="msg">#1 /wordpress/wp-includes/plugin.php(205): WP_Hook->do_action(Array)</span></div>
+              <div class="row"><span class="ts">14:08:14.450</span><span class="lvl notice">NOTICE</span><span class="msg">Auto-recovery: theme reactivated after fatal — <span class="file">wp-content/themes/coffee</span></span></div>
+              <div class="row"><span class="ts">14:08:15.220</span><span class="lvl info">INFO</span><span class="msg">SQL: SELECT * FROM wp_posts WHERE post_type = 'coffee_product' (12 rows, 4ms)</span></div>
+              <div class="row"><span class="ts">14:08:16.001</span><span class="lvl warn">WARN</span><span class="msg">PHP Warning:  Header may not contain NUL bytes in <span class="file">/wordpress/wp-includes/pluggable.php</span> on line 1421</span></div>
+              <div class="row"><span class="ts">14:08:17.330</span><span class="lvl info">INFO</span><span class="msg">REST: GET /wp-json/wp/v2/coffee_product?_embed (200 · 38ms)</span></div>
+              <div class="row"><span class="ts">14:08:18.602</span><span class="lvl notice">NOTICE</span><span class="msg">PHP Deprecated:  Optional parameter $args declared before required parameter $name in <span class="file">/wordpress/wp-content/plugins/woocommerce/legacy.php</span> on line 67</span></div>
+              <div class="row"><span class="ts">14:08:21.110</span><span class="lvl info">INFO</span><span class="msg">Blueprint runPHP step completed — bank-gateway.php loaded</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab active"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 8: DESKTOP — Database tab -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 8 · Manage › Database · early-access notice preserved</span></div>
+  <div class="desktop">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div></div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/</span></div>
+      <div class="tc-name saved"><span class="dot"></span> Coffee Shop Demo</div>
+      <div class="tc-btn primary"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <div class="sheet sheet--manage">
+      <div class="sheet-head">
+        <div class="sh-grip"></div>
+        <h2>Manage this Playground</h2>
+        <div class="sh-close"><i data-lucide="x"></i></div>
+      </div>
+      <div class="sheet-body">
+        <div class="mgr-title">
+          <input value="Coffee Shop Demo" />
+          <div class="chip" style="background:rgba(22,163,74,.1); color:#16a34a;"><i data-lucide="check-check"></i> Saved</div>
+          <div class="right">
+            <div class="btn-ghost"><i data-lucide="layout-dashboard"></i> WP Admin</div>
+            <div class="btn-ghost"><i data-lucide="home"></i> Homepage</div>
+            <div class="more"><i data-lucide="more-horizontal"></i></div>
+          </div>
+        </div>
+        <div class="mgr-tabs">
+          <div class="mgr-tab"><i data-lucide="settings"></i>Settings</div>
+          <div class="mgr-tab"><i data-lucide="folder-tree"></i>Files</div>
+          <div class="mgr-tab"><i data-lucide="file-code"></i>Blueprint</div>
+          <div class="mgr-tab active"><i data-lucide="database"></i>Database</div>
+          <div class="mgr-tab"><i data-lucide="terminal"></i>Logs</div>
+        </div>
+        <div class="mgr-content" style="grid-template-rows: auto 1fr; display:grid;">
+          <div class="db-notice">
+            <i data-lucide="flask-conical"></i>
+            <span>Database management is an <strong>early-access</strong> feature backed by SQLite. Some queries may behave differently from MySQL. <a href="#">Report issues on the GitHub tracker ↗</a></span>
+          </div>
+          <div class="db-grid">
+            <div class="db-list">
+              <div class="lh">14 tables</div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wp_options <span class="ct">128</span></div>
+              <div class="tt active"><i data-lucide="table" style="width:12px;height:12px"></i> wp_posts <span class="ct">42</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wp_postmeta <span class="ct">186</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wp_users <span class="ct">2</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wp_usermeta <span class="ct">14</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wp_terms <span class="ct">8</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wp_termmeta <span class="ct">0</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wc_orders <span class="ct">3</span></div>
+              <div class="tt"><i data-lucide="table" style="width:12px;height:12px"></i> wc_products_lookup <span class="ct">12</span></div>
+            </div>
+            <div class="db-table">
+              <table>
+                <thead><tr><th>ID</th><th>post_title</th><th>post_type</th><th>post_status</th><th>post_date</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Hello world!</td><td>post</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>2</td><td>Sample Page</td><td>page</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>3</td><td>Privacy Policy</td><td>page</td><td>draft</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>4</td><td>Ethiopia Yirgacheffe</td><td>coffee_product</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>5</td><td>Colombia Huila</td><td>coffee_product</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>6</td><td>Sumatra Mandheling</td><td>coffee_product</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>7</td><td>Kenya AA</td><td>coffee_product</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>8</td><td>Brazil Cerrado</td><td>coffee_product</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>9</td><td>Subscribe page</td><td>page</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>10</td><td>Our story</td><td>page</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                  <tr><td>11</td><td>Shop</td><td>page</td><td>publish</td><td>2024-11-01 14:08</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab active"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 9: DESKTOP — Menu overflow open (Additional actions) -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 9 · Menu sheet · Export to GitHub PR + Download .zip · keyboard shortcuts</span></div>
+  <div class="desktop">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div><div class="wp-bar-item">Coffee Shop Demo</div></div>
+        <div class="wp-hero">
+          <h1>Fresh-roasted coffee.</h1>
+          <p>Single-origin beans from Ethiopia, Colombia, Sumatra.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="topcap">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/</span></div>
+      <div class="tc-name saved"><span class="dot"></span> Coffee Shop Demo</div>
+      <div class="tc-btn primary"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+
+    <div class="sheet sheet--menu">
+      <div class="menu-list">
+        <div class="menu-head">Quick actions</div>
+        <div class="menu-item"><i data-lucide="rotate-cw"></i> Refresh iframe <span class="kbd">⌘R</span></div>
+        <div class="menu-item"><i data-lucide="maximize-2"></i> Fullscreen iframe <span class="kbd">F</span></div>
+        <div class="menu-item"><i data-lucide="command"></i> Command palette <span class="kbd">⌘K</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-head">Export this Playground</div>
+        <div class="menu-item"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:#4b5563"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.36-3.87-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.79.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg> Export to GitHub as PR…</div>
+        <div class="menu-item"><i data-lucide="file-archive"></i> Download .zip</div>
+        <div class="menu-sep"></div>
+        <div class="menu-head">Settings (quick)</div>
+        <div class="menu-item"><i data-lucide="sliders-horizontal"></i> Open Manage › Settings</div>
+        <div class="menu-item"><i data-lucide="languages"></i> Site language: English</div>
+        <div class="menu-item"><i data-lucide="globe"></i> Network: enabled</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item"><i data-lucide="circle-help"></i> Docs &amp; keyboard shortcuts</div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab active"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <div class="anno r" style="bottom: 220px; right: 360px;">Export to GitHub PR + Download .zip — both in overflow</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 10: DESKTOP — FULLSCREEN iframe (chrome hidden) -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 10 · Fullscreen iframe · only a small Esc pill remains · the gap from #15 fixed</span></div>
+  <div class="desktop">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar">
+          <div class="wp-logo"></div>
+          <div class="wp-bar-item">Coffee Shop Demo</div>
+          <div class="wp-bar-item">+ New</div>
+          <div class="wp-bar-item">Edit Page</div>
+          <div class="wp-bar-item">Customize</div>
+          <div class="wp-bar-item right">Howdy, admin</div>
+        </div>
+        <div class="wp-hero">
+          <h1>Fresh-roasted coffee, delivered weekly to your door.</h1>
+          <p>Single-origin beans from small farms in Ethiopia, Colombia, and Sumatra. Subscribe once, taste the world. Shipping within 48 hours of roast.</p>
+          <div class="wp-cta">
+            <div class="btn">Shop the menu</div>
+            <div class="btn ghost">Our story</div>
+          </div>
+        </div>
+        <div class="wp-grid">
+          <div class="wp-card"><div class="badge">Featured</div><h3>Ethiopia Yirgacheffe</h3><p>Bright, floral, citrus-forward. A spring favorite.</p></div>
+          <div class="wp-card"><div class="badge">New</div><h3>Colombia Huila</h3><p>Chocolate, brown sugar, and a hint of pecan.</p></div>
+          <div class="wp-card"><div class="badge">Subscriber</div><h3>Sumatra Mandheling</h3><p>Earthy, full-bodied, with a syrupy finish.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fs-pill">
+      Fullscreen iframe
+      <span class="kbd">Esc</span>
+      <span class="exit"><i data-lucide="minimize-2"></i> Exit</span>
+    </div>
+
+    <div class="anno t" style="top: 70px; left: 50%; transform:translateX(-50%);">All chrome dismissed. The iframe is the document.</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 11: DESKTOP — Content-aware tint on dark theme -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 11 · Same chrome, dark blueprint · glass picks up the iframe's tone (earning its keep)</span></div>
+  <div class="desktop">
+    <div class="stage">
+      <div class="wp-page dark">
+        <div class="wp-admin-bar"><div class="wp-logo"></div><div class="wp-bar-item">Gaming News</div><div class="wp-bar-item right">Howdy, editor</div></div>
+        <div class="wp-hero">
+          <h1>The biggest games to watch this winter.</h1>
+          <p>Coverage of GDC, Tokyo Game Show, and indie launches. By the team behind the Spiel theme.</p>
+          <div class="wp-cta"><div class="btn">Read all</div><div class="btn ghost">Subscribe</div></div>
+        </div>
+        <div class="wp-grid">
+          <div class="wp-card"><div class="badge">Featured</div><h3>The Year in Soulslikes</h3><p>2024 was the genre's best year yet — here's why.</p></div>
+          <div class="wp-card"><div class="badge">Review</div><h3>Helldivers 2 patch 1.000.401</h3><p>Stratagems redux, friendly-fire toggles, more.</p></div>
+          <div class="wp-card"><div class="badge">Indie</div><h3>Cocoon &amp; the year of puzzle</h3><p>Why mechanic-first design is back.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- darker glass to match the dark page -->
+    <div class="topcap" style="background: rgba(11,13,17,.5); border-color: rgba(255,255,255,.1); color:#f3f5f9;">
+      <div class="tc-btn" style="color:#f3f5f9;"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider" style="background:rgba(255,255,255,.12);"></div>
+      <div class="tc-url" style="background:rgba(255,255,255,.08); color:#cfd5df;"><i data-lucide="lock" style="width:13px;height:13px;color:#6b7280"></i><span class="scheme" style="color:#9aa1ac">playground.wordpress.net</span><span class="path" style="color:#60a5fa">/category/reviews/</span></div>
+      <div class="tc-name saved" style="background:rgba(34,197,94,.18); color:#86efac;"><span class="dot" style="background:#86efac; box-shadow: 0 0 0 3px rgba(134,239,172,.18);"></span> Gaming News</div>
+      <div class="tc-btn primary" style="background:#f3f5f9; color:#0b0d11;"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle" style="background: rgba(11,13,17,.5); border-color: rgba(255,255,255,.1); color:#f3f5f9;"><i data-lucide="maximize-2"></i></div>
+
+    <div class="tabbar" style="background: rgba(11,13,17,.48); border-color: rgba(255,255,255,.1);">
+      <div class="tab" style="color:#cfd5df;"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab" style="color:#cfd5df;"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider" style="background:rgba(255,255,255,.12);"></div>
+      <div class="tab" style="color:#cfd5df;"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab" style="color:#cfd5df;"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <div class="anno t" style="bottom: 78px; left: 530px;">Content-aware tint: the same glass takes on the iframe's tone</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- STATE 12: DESKTOP — Faded chrome (iframe scrolling) -->
+<!-- ====================================================== -->
+<div class="frame-row">
+  <div class="frame-label"><span class="frame-kicker">Desktop — 1440 × 900</span> <span class="frame-meta">State 12 · scroll fade · tab bar drops to 15% while you read · returns on touch</span></div>
+  <div class="desktop">
+    <div class="stage">
+      <div class="wp-page warm">
+        <div class="wp-admin-bar"><div class="wp-logo"></div><div class="wp-bar-item">Coffee Shop Demo</div></div>
+        <div class="wp-hero" style="top: 60px;">
+          <h1>Brewing guides for every method.</h1>
+          <p>From AeroPress to V60 to siphon — recipes, grind notes, and water ratios.</p>
+        </div>
+        <div class="wp-grid" style="top: 360px;">
+          <div class="wp-card"><div class="badge">Method</div><h3>The 4:6 V60</h3><p>Tetsu Kasuya's recipe explained, with grams and seconds.</p></div>
+          <div class="wp-card"><div class="badge">Method</div><h3>AeroPress inverted</h3><p>A forgiving recipe for any bean. Two-minute brew.</p></div>
+          <div class="wp-card"><div class="badge">Method</div><h3>Siphon (vacuum pot)</h3><p>The drama, the science, the actual taste.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="topcap" style="opacity:.4;">
+      <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+      <div class="tc-divider"></div>
+      <div class="tc-url"><i data-lucide="lock" style="width:13px;height:13px;color:#9aa1ac"></i><span class="scheme">playground.wordpress.net</span><span class="path">/brewing/</span></div>
+      <div class="tc-name saved"><span class="dot"></span> Coffee Shop Demo</div>
+      <div class="tc-btn primary"><i data-lucide="check"></i></div>
+    </div>
+
+    <div class="fs-toggle" style="opacity:.4;"><i data-lucide="maximize-2"></i></div>
+
+    <div class="tabbar faded">
+      <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+      <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+      <div class="divider"></div>
+      <div class="tab"><i data-lucide="user-cog"></i><span>WP Admin</span></div>
+      <div class="tab"><i data-lucide="more-horizontal"></i><span>Menu</span></div>
+    </div>
+
+    <div class="anno b" style="top: 24px; left: 60px;">Chrome is alive but quiet — opacity 0.15</div>
+  </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- ========== MOBILE STATES (390×844) ============= -->
+<!-- ====================================================== -->
+
+<div class="frame-row" style="display:flex; gap: 28px; flex-wrap:wrap; justify-content:center; max-width: 1440px;">
+
+  <!-- M1: idle -->
+  <div>
+    <div class="frame-label" style="margin-top:32px;"><span class="frame-kicker">Mobile — 390 × 844</span> <span class="frame-meta">idle</span></div>
+    <div class="mobile">
+      <div class="stage">
+        <div class="wp-page warm wp-page--m">
+          <div class="wp-admin-bar" style="height:28px; font-size:11px; padding: 0 10px;"><div class="wp-logo"></div><div class="wp-bar-item">Coffee Shop</div></div>
+          <div class="wp-hero">
+            <h1>Fresh coffee, weekly.</h1>
+            <p>Single-origin beans from small farms.</p>
+            <div class="wp-cta"><div class="btn" style="padding:10px 14px; font-size:13px;">Shop</div><div class="btn ghost" style="padding:10px 14px; font-size:13px;">Our story</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="topcap">
+        <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+        <div class="tc-url"><span class="scheme">playground.../</span></div>
+        <div class="tc-btn primary"><i data-lucide="bookmark"></i></div>
+      </div>
+      <div class="fs-toggle"><i data-lucide="maximize-2"></i></div>
+      <div class="tabbar">
+        <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+        <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+        <div class="tab"><i data-lucide="user-cog"></i><span>Admin</span></div>
+        <div class="tab"><i data-lucide="more-horizontal"></i><span>More</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M2: Sites sheet open -->
+  <div>
+    <div class="frame-label" style="margin-top:32px;"><span class="frame-kicker">Mobile — 390 × 844</span> <span class="frame-meta">Sites sheet · launcher</span></div>
+    <div class="mobile">
+      <div class="stage">
+        <div class="wp-page warm wp-page--m">
+          <div class="wp-admin-bar" style="height:28px; font-size:11px; padding: 0 10px;"><div class="wp-logo"></div></div>
+        </div>
+      </div>
+      <div class="topcap">
+        <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+        <div class="tc-url"><span class="scheme">playground.../</span></div>
+        <div class="tc-btn primary"><i data-lucide="bookmark"></i></div>
+      </div>
+      <div class="sheet sheet--sites">
+        <div class="sheet-head">
+          <div class="sh-grip"></div>
+          <h2>Sites</h2>
+          <div class="sh-close"><i data-lucide="x"></i></div>
+        </div>
+        <div class="sheet-body">
+          <div class="sites-section">
+            <h3>Start new</h3>
+            <div class="new-grid">
+              <div class="new-tile t-vanilla"><div class="nt-icon"><i data-lucide="circle"></i></div><div class="nt-text"><strong>Vanilla WP</strong><span>WP 6.7</span></div></div>
+              <div class="new-tile t-wp"><div class="nt-icon"><i data-lucide="git-pull-request"></i></div><div class="nt-text"><strong>WordPress PR</strong><span>Core PR</span></div></div>
+              <div class="new-tile t-gut"><div class="nt-icon"><i data-lucide="git-pull-request-arrow"></i></div><div class="nt-text"><strong>Gutenberg PR</strong><span>Test PR</span></div></div>
+              <div class="new-tile t-gh"><div class="nt-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.36-3.87-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.79.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg></div><div class="nt-text"><strong>From GitHub</strong><span>Repo URL</span></div></div>
+              <div class="new-tile t-bp"><div class="nt-icon"><i data-lucide="link"></i></div><div class="nt-text"><strong>Blueprint URL</strong><span>JSON URL</span></div></div>
+              <div class="new-tile t-zip"><div class="nt-icon"><i data-lucide="file-archive"></i></div><div class="nt-text"><strong>Import .zip</strong><span>Restore</span></div></div>
+            </div>
+          </div>
+          <div class="sites-section" style="margin-top:14px;">
+            <h3>Your Playgrounds <span class="ct">· 3</span></h3>
+            <div class="yp-list">
+              <div class="yp-item active"><div class="yp-thumb">CS</div><div class="yp-text"><strong>Coffee Shop Demo</strong><span>WP 6.7 · 42 MB · live</span></div><span class="yp-state live">live</span></div>
+              <div class="yp-item"><div class="yp-thumb" style="background: linear-gradient(135deg,#dbeafe,#2563eb); color:#fff;">PR</div><div class="yp-text"><strong>core PR #6512</strong><span>WP trunk · 38 MB · 2h</span></div></div>
+              <div class="yp-item"><div class="yp-thumb" style="background: linear-gradient(135deg,#f3e8ff,#7c3aed); color:#fff;">UN</div><div class="yp-text"><strong>Kentwood University</strong><span>WP 6.6 · 51 MB · 1d</span></div></div>
+            </div>
+          </div>
+          <div class="sites-section" style="margin-top:14px;">
+            <h3>43 Blueprints</h3>
+            <div class="bp-search"><i data-lucide="search"></i><input placeholder="Search…"/></div>
+            <div class="bp-filters" style="margin-top:8px;">
+              <div class="pill active">All</div>
+              <div class="pill">Featured</div>
+              <div class="pill">Website</div>
+              <div class="pill">WooCommerce</div>
+              <div class="pill">Themes</div>
+            </div>
+            <div class="bp-cards" style="margin-top:10px;">
+              <div class="bp-card"><div class="thumb th-art"><span class="label">VUEO</span></div><div class="body"><h4>Art Gallery</h4></div></div>
+              <div class="bp-card"><div class="thumb th-coffee"><span class="label">WOO</span></div><div class="body"><h4>Coffee Shop</h4></div></div>
+              <div class="bp-card"><div class="thumb th-game"><span class="label">SPIEL</span></div><div class="body"><h4>Gaming News</h4></div></div>
+              <div class="bp-card"><div class="thumb th-blog"><span class="label">SUBSTRATA</span></div><div class="body"><h4>Personal Blog</h4></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab active"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+        <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+        <div class="tab"><i data-lucide="user-cog"></i><span>Admin</span></div>
+        <div class="tab"><i data-lucide="more-horizontal"></i><span>More</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M3: Manage sheet -->
+  <div>
+    <div class="frame-label" style="margin-top:32px;"><span class="frame-kicker">Mobile — 390 × 844</span> <span class="frame-meta">Manage › Logs</span></div>
+    <div class="mobile">
+      <div class="stage">
+        <div class="wp-page warm wp-page--m">
+          <div class="wp-admin-bar" style="height:28px; font-size:11px; padding: 0 10px;"><div class="wp-logo"></div></div>
+        </div>
+      </div>
+      <div class="topcap">
+        <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+        <div class="tc-url"><span class="scheme">playground.../wp-admin</span></div>
+        <div class="tc-btn primary"><i data-lucide="check"></i></div>
+      </div>
+      <div class="sheet sheet--manage">
+        <div class="sheet-head">
+          <div class="sh-grip"></div>
+          <h2>Manage</h2>
+          <div class="sh-close"><i data-lucide="x"></i></div>
+        </div>
+        <div class="sheet-body">
+          <div class="mgr-title">
+            <input value="Coffee Shop" style="font-size:16px; min-width:0;"/>
+            <div class="chip" style="background:rgba(22,163,74,.1); color:#16a34a; padding:4px 8px; font-size:10px;"><i data-lucide="check-check"></i> Saved</div>
+            <div class="right"><div class="more"><i data-lucide="more-horizontal"></i></div></div>
+          </div>
+          <div class="mgr-tabs">
+            <div class="mgr-tab"><i data-lucide="settings"></i>Settings</div>
+            <div class="mgr-tab"><i data-lucide="folder-tree"></i>Files</div>
+            <div class="mgr-tab"><i data-lucide="file-code"></i>BP</div>
+            <div class="mgr-tab"><i data-lucide="database"></i>DB</div>
+            <div class="mgr-tab active"><i data-lucide="terminal"></i>Logs</div>
+          </div>
+          <div class="logs-grid">
+            <div class="logs-toolbar" style="flex-wrap:wrap;">
+              <div class="search" style="flex:1; min-width:0;"><i data-lucide="search"></i><input placeholder="Filter…"/></div>
+              <div class="filter" style="flex-shrink:0;">
+                <div class="ft active">All</div>
+                <div class="ft" style="color:#f87171">Err</div>
+              </div>
+            </div>
+            <div class="logs-list" style="font-size:11px;">
+              <div class="row" style="grid-template-columns: 60px 50px 1fr; gap:6px;"><span class="ts">14:08:12</span><span class="lvl info">INFO</span><span class="msg">Booted in 1.84s · PHP 8.3 · WP 6.7</span></div>
+              <div class="row" style="grid-template-columns: 60px 50px 1fr; gap:6px;"><span class="ts">14:08:13</span><span class="lvl warn">WARN</span><span class="msg">PHP Warning: Undefined array key "session_cookie" in wc-session-handler.php on line 287</span></div>
+              <div class="row" style="grid-template-columns: 60px 50px 1fr; gap:6px;"><span class="ts">14:08:14</span><span class="lvl err">ERR</span><span class="msg">PHP Fatal: Call to undefined function wc_get_product_id_by_sku() in seed-products.php:42</span></div>
+              <div class="row" style="grid-template-columns: 60px 50px 1fr; gap:6px;"><span class="ts">14:08:14</span><span class="lvl notice">NOT</span><span class="msg">Auto-recovery: theme reactivated</span></div>
+              <div class="row" style="grid-template-columns: 60px 50px 1fr; gap:6px;"><span class="ts">14:08:17</span><span class="lvl info">INFO</span><span class="msg">REST: GET /wp-json/wp/v2/coffee_product (200)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+        <div class="tab active"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+        <div class="tab"><i data-lucide="user-cog"></i><span>Admin</span></div>
+        <div class="tab"><i data-lucide="more-horizontal"></i><span>More</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- M4: Booting -->
+  <div>
+    <div class="frame-label" style="margin-top:32px;"><span class="frame-kicker">Mobile — 390 × 844</span> <span class="frame-meta">booting</span></div>
+    <div class="mobile">
+      <div class="stage">
+        <div class="boot-overlay">
+          <div class="glow"></div>
+          <div class="boot-spinner"></div>
+          <div class="wp-mark">W</div>
+          <div class="boot-title" style="font-size:16px;">Booting Coffee Shop…</div>
+          <div class="boot-step" style="font-size:11px;">Step 3 of 7</div>
+          <div class="boot-steps">
+            <div class="bsr done"><div class="bsr-icon"><i data-lucide="check" style="width:12px;height:12px"></i></div> defineWpConfigConsts</div>
+            <div class="bsr done"><div class="bsr-icon"><i data-lucide="check" style="width:12px;height:12px"></i></div> installPlugin woocommerce</div>
+            <div class="bsr now"><div class="bsr-icon"><i data-lucide="circle" style="width:12px;height:12px"></i></div> activateTheme coffee</div>
+            <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed" style="width:12px;height:12px"></i></div> importWxr sample-products</div>
+            <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed" style="width:12px;height:12px"></i></div> setSiteOptions</div>
+            <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed" style="width:12px;height:12px"></i></div> installPlugin shipping</div>
+            <div class="bsr next"><div class="bsr-icon"><i data-lucide="circle-dashed" style="width:12px;height:12px"></i></div> runPHP seed gateway</div>
+          </div>
+        </div>
+      </div>
+      <div class="topcap">
+        <div class="tc-btn"><i data-lucide="rotate-cw"></i></div>
+        <div class="tc-url"><span class="scheme" style="color:#fbbf24">booting…</span></div>
+        <div class="tc-btn primary"><i data-lucide="bookmark"></i></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><i data-lucide="layout-grid"></i><span>Sites</span></div>
+        <div class="tab"><i data-lucide="sliders-horizontal"></i><span>Manage</span></div>
+        <div class="tab"><i data-lucide="user-cog"></i><span>Admin</span></div>
+        <div class="tab"><i data-lucide="more-horizontal"></i><span>More</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====================================================== -->
+<!-- DESIGN NOTES BLOCK -->
+<!-- ====================================================== -->
+<div class="scores">
+  <h3>Affordance count at idle (State 1)</h3>
+  <ul>
+    <li>1. Refresh (top capsule)</li>
+    <li>2. URL/address bar</li>
+    <li>3. Save-state pill (primary verb — Save)</li>
+    <li>4. Fullscreen-iframe toggle</li>
+    <li>5. Sites tab (launcher home)</li>
+    <li>6. Manage tab (Site-Manager home — Settings/Files/Blueprint/DB/Logs swap inside)</li>
+    <li>7. WP Admin tab</li>
+    <li>8. Menu tab (overflow — settings popover + Additional actions live here)</li>
+    <li>= 8 affordances</li>
+  </ul>
+</div>
+
+<script>
+  // initialize Lucide icons once on page load
+  if (window.lucide && lucide.createIcons) {
+    lucide.createIcons();
+  }
+</script>
+
+</body>
+</html>
