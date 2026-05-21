@@ -1,0 +1,15 @@
+# 056 — Stage Manager
+
+## Thesis
+Each Playground is a **Space**; every panel inside it is a **floating window** that lives on a Stage. The left rail collects your other Spaces as tilted thumbnail stacks (Apple's macOS Stage Manager idiom). Switching playgrounds is literal: you click another space and the windows on the current stage slide off-screen while the windows of the new space slide in. The iframe is the main window, but it is co-equal with smaller floating windows for Settings, Files, Blueprint, DB, and Logs — instead of a hidden tabbed sidebar, the panels are *visible at the same time*, draggable, and they remember where you put them per-space. The launcher ("Saved Playgrounds") is itself a special pinned space called **Launchpad**.
+
+## What I remixed / merged / removed
+- The **Site Manager** is no longer a sidebar — its five tabs (Settings, Files, Blueprint, Database, Logs) become five floating window types you summon onto the stage from a bottom-edge Dock. Tabs collapse to translucent panels you can co-arrange with the iframe.
+- The **three settings entry points** (popover, sidebar tab, info-notice) collapse into one Settings window that can either float on the stage or be invoked as a quick popover from the top bar — same window, two presentation modes.
+- The **launcher drawer** becomes the **Launchpad Space**, accessible by clicking its tile in the left rail (or the "+" at the top of the rail). It contains the same three sections (Start new · Start from blueprint · Your Playgrounds) but presented as three floating windows on a stage of their own. The full 43-blueprint gallery is a fourth window that opens from "View all".
+- The **"Unsaved Playground" warning** becomes a yellow ribbon on the space tile in the rail — you can *see* across all your spaces which ones aren't persisted. Save is one click on the ribbon itself.
+- The **Additional actions menu** (Export to GitHub PR / Download .zip) lives in the top-right of the iframe window's chrome; on mobile it folds into the action sheet.
+- **Mobile** abandons the multi-window metaphor: spaces become a horizontal carousel at the top, the iframe fills the screen, and the floating windows become a bottom sheet you swipe up.
+
+## Trade-offs
+Stage Manager visually communicates *multiple simultaneous contexts* better than any tabbed sidebar ever could, and seeing four spaces at once with their "unsaved" warnings prevents data loss. The cost is screen real estate: at 1440px the iframe shrinks to roughly 70% width to leave room for the rail and the floating window edges. The metaphor also assumes users grasp Spaces/Stages — first-touch users see only **one** Space (the current one) with the rail still empty until they create more, so the learning curve is gentle. Power-users get a desktop-like canvas. The tilt/drop-shadow aesthetic is opinionated; on the WordPress brand it reads less playful than `playground.wordpress.net` does today, but the metaphor of "your sandbox is a physical desk" is on-brief for a playground.
