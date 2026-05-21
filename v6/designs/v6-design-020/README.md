@@ -1,0 +1,19 @@
+# V6 Design 020 - Bento Depth Workbench
+
+## Thesis
+Bento Depth Workbench treats WordPress Playground as one live site plus one modular workbench. The iframe stays central and credible, with a full-size preview mode for uninterrupted browsing. The secondary surface is a single bento pane that swaps between Sites and Site Manager; Sites owns saved playgrounds, all six start routes, import, featured blueprints, and the full 43-item gallery, while Site Manager owns settings, files, blueprint authoring, database, logs, WP Admin, homepage, and exports. The seam between them teaches preview/workbench ratios through visible detents rather than hidden resizing behavior.
+
+## TypeUI Skill Used
+I used the assigned **TypeUI Bento** skill from `v6/style-skills/typeui-bento.md`. It shapes the design beyond colors: Inter drives the compact 12/14/16/20/24/32 hierarchy, JetBrains Mono is used for labels, address paths, ratio text, code, and logs, spacing follows the 4/8/12/16/24/32 rhythm, radii stay at 4px/8px, and the surface model is a grid of small functional bento blocks instead of generic cards. The palette uses the skill's warm surface and peach primary, balanced with the blue secondary for tool emphasis, semantic success/warning/danger states, crisp borders, and measured elevation/blur.
+
+## Remix / Merge / Remove
+From `018-quiet-rail-to-loud`, I kept restraint, one secondary surface, and a quiet-to-loud reveal, but replaced the dark rail skin with bento surfaces. From `023-smart-resize`, I kept ratio detents, focus shift, and full preview; the gauge is visible and labeled so it teaches itself. From `036-corner-widget-control-center`, I kept the Sites widget as the canonical saved-site and launch door, but did not copy four corner widgets. From `035-three-layer-depth`, I borrowed measured shadow, blur, and content-aware tint as visual polish only; depth does not define navigation. I explicitly avoided `030-two-row-top-bar`: there is one compact command capsule, not separate persistent identity and context rows.
+
+## Feature Coverage
+The mock covers refresh, address/path input, playground name, Save, saved Playgrounds launcher, Site Manager/tools access, settings access, Vanilla WordPress, WordPress PR, Gutenberg PR/branch, From GitHub, Blueprint URL, Import `.zip`, featured blueprints, full gallery search and category filters, saved playgrounds, Settings, Files, Blueprint editor, Database, Logs, WP Admin, Homepage, Export to GitHub PR, Download `.zip`, loading/booting, active session, launcher/gallery open, save/resume, destructive Apply & Reset confirmation/cancel/final state, route-specific input forms, toast notification, and full-size preview mode.
+
+## Trade-Offs
+The top command capsule still exposes Sites, Tools, and Settings because the current product has those top-level controls. To preserve one-door discipline, those buttons route into the same single workbench instead of spawning separate drawers or popovers. The bento panel can get dense when the full blueprint gallery and Manager tools share the same surface, but the ratio detents let the workbench expand without losing the iframe. On mobile the model rotates into a vertical split with the same seam and panel logic; it needs scrolling for gallery and code surfaces, but it does not become a separate mobile product.
+
+## Self-Critique / Revision Note
+After checking `v6/INSIGHTS.md`, I revised the concept to keep blueprint discovery inside Sites and active `blueprint.json` authoring inside Manager, avoiding a duplicate Blueprints door. After checking `v6/STYLE_VARIATION_SYSTEM.md`, I tightened the Bento style through grid density, radii, mono labels, peach/blue contrast, surface elevation, and state language instead of only recoloring a prior layout. Remaining risk: the required top settings access can read as a duplicate, so the gear deliberately deep-links to Manager -> Settings and never opens a second settings UI.
