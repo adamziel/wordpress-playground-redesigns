@@ -1,0 +1,15 @@
+# 078 — wp-admin styled (faux-WP)
+
+## Thesis
+This design dissolves the visual seam between the Playground chrome and the WordPress site it hosts. The toolbar becomes the **WordPress admin bar** (`#1d2327`, 32px tall, with the W mark and a "howdy"-style site label). The Site Manager becomes the **left admin menu** (`#1d2327`, 160px wide, blue active state `#2271b1`, exact Dashicons-style icons, sub-menus). The iframe sits inside an `#f0f0f1` content well exactly where wp-admin's main column would live. Power users already think in wp-admin grammar — saved sites become a "Sites" menu, blueprints become a "Library", logs/db/files become "Tools" sub-items. The result feels like you are *one level above* wp-admin in the same dashboard.
+
+## What I remixed / merged / removed
+- **Top toolbar -> WordPress admin bar.** Refresh, address bar, name label, save, settings cog, saved-playgrounds dropdown all live on the dark admin bar in `#admin-bar` style. The address bar uses the screen-reader-style search input pattern.
+- **Site Manager sidebar -> WordPress admin left menu.** Its 5 tabs (Settings, Files, Blueprint, Database, Logs) become menu items with a fly-out submenu on hover (just like Posts > Add New). WP Admin / Homepage / Additional Actions are grouped under a "Navigate" item. Export-to-PR and Download .zip live under a "Tools" submenu mirroring wp-admin's own Tools menu.
+- **Saved Playgrounds launcher -> wp-admin "Posts list" screen.** When opened it is rendered as a `wp-list-table` of saved sites with bulk-actions and a "Add New" button group (Vanilla / WordPress PR / Gutenberg PR / From GitHub / Blueprint URL / Import .zip). The 43-blueprint gallery uses the same surface but in grid mode with the standard subsubsub filter row (All | Featured | Website | …) and a search box on the right.
+- **Settings popover -> the "Screen Options" tab.** Quick edit lives behind the same pull-down tab WordPress already uses, so it visually matches.
+- **Notifications** become standard `notice notice-success / notice-warning` strips above the content well.
+- **Removed:** nothing functional. Just the duplication: the settings popover, settings tab, and "Save site locally" notice share one Screen Options panel + one persistent admin notice.
+
+## Trade-offs
+The intentional aesthetic — looking exactly like wp-admin — risks confusing users about *where* they are: is this the inner site or the Playground around it? I mitigate this by tinting the outer admin bar a slightly darker hue and labelling it "WordPress Playground" with a small "outer" badge, and by drawing a subtle blue inset border around the iframe area. The faux-wp-admin styling also dates: when WordPress refreshes its admin look (e.g. a future Gutenberg phase-3 dashboard), this design would need to follow. Finally, the wp-admin pattern was designed for content management, not for switching between disposable sandboxes, so we shoehorn "Sites" and "Library" into a left menu that originally only listed CPTs — power users will get it instantly, brand-new users may not realise this is the Playground rather than a logged-in WordPress site.
