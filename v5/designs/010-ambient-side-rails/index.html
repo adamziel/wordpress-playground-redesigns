@@ -1,0 +1,1510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WordPress Playground — Ambient Side Rails</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@latest/font/lucide.css">
+<style>
+  :root{
+    /* sampled "ambient" tones — these would be derived from the iframe in production */
+    --wp-ambient-a: #2d4a7e;   /* deep blue (Vanilla WP) */
+    --wp-ambient-b: #5e7fb0;
+    --wp-ink: #0c0f15;
+    --wp-ink-2: #1a1f2b;
+    --wp-paper: #f6f7fb;
+    --line: rgba(255,255,255,.08);
+    --line-strong: rgba(255,255,255,.16);
+    --text: #e8ecf3;
+    --text-mute: rgba(232,236,243,.62);
+    --text-dim: rgba(232,236,243,.42);
+    --accent: #7aa7ff;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #fb7185;
+    --rail-w: 24px;
+    --top-h: 40px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#06070b;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-feature-settings:"cv11","ss01","ss03";-webkit-font-smoothing:antialiased}
+  body{font-size:13.5px;line-height:1.4;padding:48px 36px 96px;background:
+    radial-gradient(900px 600px at 10% 0%, rgba(45,74,126,.18), transparent 60%),
+    radial-gradient(900px 600px at 90% 100%, rgba(94,127,176,.10), transparent 60%),
+    #06070b}
+
+  /* page scaffolding */
+  .page-head{max-width:1440px;margin:0 auto 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px}
+  .page-head h1{font-size:22px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+  .page-head .sub{color:var(--text-mute);font-size:13px;max-width:640px}
+  .page-head .meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);text-align:right;line-height:1.6}
+  .page-head .meta strong{color:var(--accent);font-weight:500}
+
+  .scene{max-width:1440px;margin:0 auto 56px}
+  .scene-label{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding:0 4px}
+  .scene-label .l{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute)}
+  .scene-label .l b{color:var(--text);font-weight:600}
+  .scene-label .r{font-size:11.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
+
+  /* the playground frame -------------------------------------------- */
+  .pg{
+    position:relative;
+    width:1440px;height:900px;
+    border-radius:18px;
+    overflow:hidden;
+    background:#0a0d14;
+    box-shadow:0 40px 120px -30px rgba(0,0,0,.7),0 0 0 1px var(--line);
+  }
+  .pg.mobile{width:390px;height:844px;border-radius:42px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7),0 0 0 1px var(--line),inset 0 0 0 6px #15171f}
+
+  /* TOP BAR — 40px, slim */
+  .top{
+    position:absolute;left:0;right:0;top:0;height:var(--top-h);
+    display:flex;align-items:center;
+    padding:0 14px;
+    z-index:50;
+    background:linear-gradient(180deg,rgba(10,13,20,.78),rgba(10,13,20,.32) 70%,transparent);
+    backdrop-filter:blur(18px) saturate(150%);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+    color:var(--text);
+  }
+  .top .brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12.5px;letter-spacing:-.005em;color:var(--text)}
+  .top .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good)}
+  .top .brand .name{color:var(--text)}
+  .top .brand .name.unsaved{color:var(--warn)}
+  .top .brand .name.unsaved::after{content:"• unsaved";color:var(--warn);font-weight:450;margin-left:6px;font-size:11px;opacity:.85}
+  .top .brand .sep{color:var(--text-dim);font-weight:400;margin:0 6px}
+
+  .url-pill{
+    flex:1;max-width:560px;margin:0 auto;
+    height:26px;
+    display:flex;align-items:center;gap:8px;
+    padding:0 4px 0 10px;
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--line-strong);
+    border-radius:13px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;color:var(--text);
+  }
+  .url-pill .lock{color:var(--good);font-size:11px}
+  .url-pill .path{flex:1;color:var(--text);opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .url-pill .save{
+    height:20px;padding:0 8px;border-radius:10px;
+    display:flex;align-items:center;gap:5px;
+    font-family:'Inter',sans-serif;font-size:10.5px;font-weight:550;
+    background:rgba(122,167,255,.18);color:#a8c5ff;border:1px solid rgba(122,167,255,.32);
+  }
+  .url-pill .save.saved{background:rgba(74,222,128,.16);color:#86efac;border-color:rgba(74,222,128,.3)}
+  .url-pill .save.saving{background:rgba(251,191,36,.16);color:#fde68a;border-color:rgba(251,191,36,.3)}
+  .url-pill .refresh{height:20px;width:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-mute);background:transparent;font-size:12px}
+  .top .right{display:flex;align-items:center;gap:6px;color:var(--text-mute);font-size:13px}
+  .top .right .iconbtn{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+  .top .right .iconbtn:hover{background:rgba(255,255,255,.06)}
+  .top .right .kbd{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);padding:2px 5px;border:1px solid var(--line);border-radius:4px}
+
+  /* iframe — fills everything */
+  .iframe{
+    position:absolute;
+    top:var(--top-h);left:var(--rail-w);right:var(--rail-w);bottom:0;
+    background:#fff;
+    overflow:hidden;
+  }
+  .iframe.dark{background:#101418}
+
+  /* AMBIENT RAILS — the design's namesake */
+  .rail{
+    position:absolute;
+    top:var(--top-h);bottom:0;
+    width:var(--rail-w);
+    cursor:pointer;
+    z-index:40;
+    /* the rail itself is a soft inset glow of the sampled iframe color */
+  }
+  .rail.left{left:0;background:linear-gradient(90deg,var(--wp-ambient-a),rgba(45,74,126,.0))}
+  .rail.right{right:0;background:linear-gradient(270deg,var(--wp-ambient-a),rgba(45,74,126,.0))}
+  .rail::before{
+    /* the bright color seam against the iframe */
+    content:"";position:absolute;top:0;bottom:0;width:1px;
+    background:linear-gradient(180deg,transparent,var(--wp-ambient-b) 20%,var(--wp-ambient-b) 80%,transparent);
+    opacity:.9;
+  }
+  .rail.left::before{right:0}
+  .rail.right::before{left:0}
+  .rail .chev{
+    position:absolute;top:50%;transform:translateY(-50%);
+    width:22px;height:54px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:14px;
+    background:rgba(255,255,255,.08);
+    border:1px solid var(--line-strong);
+    backdrop-filter:blur(10px);
+    border-radius:0 10px 10px 0;
+    opacity:.0;transition:opacity .18s;
+  }
+  .rail.right .chev{right:0;border-radius:10px 0 0 10px;left:auto}
+  .rail.left .chev{left:0}
+  .rail:hover .chev,.rail.show-chev .chev{opacity:1}
+  .rail .label{
+    position:absolute;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:center;
+    white-space:nowrap;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.6);font-weight:600;
+    pointer-events:none;
+  }
+  .rail.left .label{left:-22px}
+  .rail.right .label{right:-22px}
+  .rail .count{
+    position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    width:16px;height:16px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9.5px;font-weight:600;color:#fff;
+    background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.2);
+  }
+
+  /* tickmarks on the right rail show the 5 site-manager sections at a glance */
+  .rail.right .ticks{position:absolute;top:50%;transform:translateY(-50%);left:50%;margin-left:-3px;display:flex;flex-direction:column;gap:6px}
+  .rail.right .ticks i{display:block;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45)}
+  .rail.right .ticks i.active{background:#fff;box-shadow:0 0 6px rgba(255,255,255,.8)}
+
+  /* SECONDARY SURFACE — one pane, swappable. Slides over iframe from the right (Site Manager) or left (Launcher). */
+  .pane{
+    position:absolute;top:var(--top-h);bottom:0;z-index:60;
+    background:rgba(15,18,26,.86);
+    backdrop-filter:blur(28px) saturate(160%);
+    -webkit-backdrop-filter:blur(28px) saturate(160%);
+    border-left:1px solid var(--line-strong);
+    box-shadow:-20px 0 60px -20px rgba(0,0,0,.5);
+    color:var(--text);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .pane.right{right:0;width:520px;border-left:1px solid var(--line-strong);border-right:none}
+  .pane.left{left:0;width:420px;border-right:1px solid var(--line-strong);border-left:none;box-shadow:20px 0 60px -20px rgba(0,0,0,.5)}
+  .pane.wide{width:880px}
+  .pane-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+  .pane-head h3{margin:0;font-size:13px;font-weight:600;letter-spacing:-.005em}
+  .pane-head .close{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-mute);font-size:13px}
+  .pane-head .close:hover{background:rgba(255,255,255,.06);color:var(--text)}
+  .pane-tabs{display:flex;padding:0 12px;border-bottom:1px solid var(--line);gap:2px}
+  .pane-tabs .t{
+    padding:8px 12px;font-size:12px;color:var(--text-mute);font-weight:500;
+    border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;cursor:pointer;
+  }
+  .pane-tabs .t i{font-size:13px;opacity:.8}
+  .pane-tabs .t:hover{color:var(--text)}
+  .pane-tabs .t.active{color:var(--text);border-bottom-color:var(--accent)}
+  .pane-tabs .t .badge{font-size:9.5px;background:rgba(251,113,133,.18);color:#fda4af;padding:1px 5px;border-radius:6px;font-weight:600;margin-left:2px}
+  .pane-body{flex:1;overflow:auto;padding:16px}
+  .pane-foot{padding:10px 16px;border-top:1px solid var(--line);background:rgba(0,0,0,.18);display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+  /* common form bits */
+  .row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .lbl{font-size:12px;color:var(--text-mute);font-weight:500}
+  .row .lbl strong{color:var(--text);display:block;font-weight:550;font-size:12.5px;margin-bottom:2px}
+  .row .ctrl{font-size:12px;color:var(--text)}
+  .select{
+    height:26px;padding:0 24px 0 9px;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--line-strong);
+    border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239aa3b4' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat;background-position:right 6px center;
+    appearance:none;-webkit-appearance:none;
+  }
+  .toggle{width:32px;height:18px;border-radius:9px;background:rgba(255,255,255,.1);position:relative;border:1px solid var(--line-strong)}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:all .15s}
+  .toggle.on{background:rgba(122,167,255,.4);border-color:rgba(122,167,255,.5)}
+  .toggle.on::after{left:14px;background:#fff}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:7px;font-size:12px;font-weight:550;font-family:inherit;border:1px solid var(--line-strong);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer}
+  .btn:hover{background:rgba(255,255,255,.09)}
+  .btn.primary{background:var(--accent);color:#08111f;border-color:var(--accent)}
+  .btn.primary:hover{background:#92b8ff}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--text-mute)}
+  .btn.danger{background:rgba(251,113,133,.14);color:#fda4af;border-color:rgba(251,113,133,.3)}
+  .btn .sub{font-size:10.5px;color:var(--text-dim);font-weight:450;margin-left:auto}
+
+  /* SECTION: Settings panel */
+  .danger-zone{margin-top:14px;padding:12px;border-radius:10px;border:1px dashed rgba(251,113,133,.35);background:rgba(251,113,133,.05)}
+  .danger-zone h4{margin:0 0 4px;font-size:12px;font-weight:600;color:#fda4af}
+  .danger-zone p{margin:0 0 10px;font-size:11.5px;color:var(--text-mute);line-height:1.5}
+  .danger-zone .confirm{display:flex;gap:8px;align-items:center}
+  .danger-zone .confirm input{
+    flex:1;height:26px;padding:0 9px;border-radius:6px;
+    background:rgba(0,0,0,.3);border:1px solid var(--line-strong);
+    color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11.5px;
+  }
+  .danger-zone .confirm input:focus{outline:1px solid rgba(251,113,133,.6)}
+  .danger-zone .hint{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#fda4af;display:inline-block;padding:1px 6px;border-radius:4px;background:rgba(251,113,133,.12)}
+
+  /* FILE TREE */
+  .file-tree{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.8;color:var(--text)}
+  .file-tree .f{display:flex;align-items:center;gap:6px;padding:1px 6px;border-radius:4px}
+  .file-tree .f i{font-size:13px;color:var(--text-mute);width:14px}
+  .file-tree .f.dir>i{color:#fbbf24}
+  .file-tree .f.active{background:rgba(122,167,255,.16);color:#cfdcff}
+  .file-tree .indent{padding-left:14px;border-left:1px solid var(--line);margin-left:6px}
+
+  /* BLUEPRINT EDITOR */
+  .code{
+    font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;
+    background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:12px;
+    color:#d4d8e1;overflow:auto;white-space:pre;
+  }
+  .code .k{color:#7aa7ff}
+  .code .s{color:#86efac}
+  .code .n{color:#fde68a}
+  .code .c{color:var(--text-dim);font-style:italic}
+
+  /* DATABASE */
+  .table-list{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .table-list .tg{font-size:11px;padding:4px 9px;border-radius:14px;border:1px solid var(--line-strong);background:rgba(255,255,255,.04);color:var(--text);font-family:'JetBrains Mono',monospace}
+  .table-list .tg.active{background:rgba(122,167,255,.2);border-color:rgba(122,167,255,.4);color:#cfdcff}
+  table.db{width:100%;border-collapse:collapse;font-size:11.5px;font-family:'JetBrains Mono',monospace}
+  table.db th,table.db td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line)}
+  table.db th{color:var(--text-mute);font-weight:600;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+
+  /* LOGS */
+  .logs{font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7}
+  .logs .ln{display:grid;grid-template-columns:62px 56px 1fr;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .logs .ln .t{color:var(--text-dim)}
+  .logs .ln .lvl{font-weight:600;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center}
+  .logs .ln.warning .lvl{color:var(--warn)}
+  .logs .ln.notice .lvl{color:#a78bfa}
+  .logs .ln.deprecated .lvl{color:#fda4af}
+  .logs .ln.info .lvl{color:#67e8f9}
+  .logs .ln .msg{color:var(--text);white-space:pre-wrap;word-break:break-word}
+  .logs .ln .msg .path{color:var(--text-dim)}
+
+  /* LAUNCHER (left pane) */
+  .launcher h4{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:0 0 10px}
+  .launcher h4:not(:first-child){margin-top:18px}
+  .new-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+  .new-tile{
+    display:flex;flex-direction:column;gap:4px;
+    padding:9px 10px;border-radius:8px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);cursor:pointer;
+  }
+  .new-tile:hover{background:rgba(255,255,255,.07)}
+  .new-tile .t{font-size:11.5px;font-weight:550;display:flex;align-items:center;gap:6px;color:var(--text)}
+  .new-tile .t i{font-size:12px;color:var(--accent)}
+  .new-tile .d{font-size:10.5px;color:var(--text-dim);line-height:1.35}
+
+  .saved-list{display:flex;flex-direction:column;gap:4px}
+  .saved-item{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:8px;cursor:pointer}
+  .saved-item:hover{background:rgba(255,255,255,.05)}
+  .saved-item.active{background:rgba(122,167,255,.13);border:1px solid rgba(122,167,255,.28);padding:7px 8px}
+  .saved-item .av{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:11px;flex-shrink:0}
+  .saved-item .meta{flex:1;min-width:0}
+  .saved-item .meta .n{font-size:12px;font-weight:550;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .saved-item .meta .s{font-size:10.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .saved-item .dot{width:5px;height:5px;border-radius:50%;background:var(--good)}
+
+  /* BLUEPRINT GALLERY — uses the wide pane */
+  .gallery{display:flex;flex-direction:column;height:100%}
+  .gallery-toolbar{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .gallery-toolbar .search{
+    flex:1;display:flex;align-items:center;gap:8px;
+    height:30px;padding:0 12px;
+    background:rgba(0,0,0,.28);border:1px solid var(--line-strong);
+    border-radius:7px;font-size:12px;color:var(--text)
+  }
+  .gallery-toolbar .search i{color:var(--text-mute);font-size:13px}
+  .gallery-toolbar .search input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font-family:inherit;font-size:12.5px}
+  .gallery-toolbar .kbd{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);padding:1px 5px;border:1px solid var(--line);border-radius:4px}
+  .cats{display:flex;gap:5px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line)}
+  .cats .c{font-size:11px;padding:4px 10px;border-radius:14px;border:1px solid var(--line);color:var(--text-mute);cursor:pointer;background:rgba(255,255,255,.02);font-weight:500}
+  .cats .c.active{background:rgba(122,167,255,.16);border-color:rgba(122,167,255,.4);color:#cfdcff}
+  .cats .c .count{font-size:9.5px;color:var(--text-dim);margin-left:4px;font-weight:500}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 16px;overflow:auto}
+  .card{
+    background:rgba(255,255,255,.03);border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;
+  }
+  .card:hover{background:rgba(255,255,255,.05);border-color:var(--line-strong)}
+  .card .thumb{height:84px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);font-weight:700;font-size:18px;letter-spacing:-.01em;position:relative}
+  .card .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.35))}
+  .card .body{padding:9px 11px}
+  .card .t{font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px}
+  .card .d{font-size:10.5px;color:var(--text-dim);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:6px;min-height:30px}
+  .card .tags{display:flex;flex-wrap:wrap;gap:4px}
+  .card .tags i{font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(255,255,255,.06);color:var(--text-mute);font-style:normal;letter-spacing:.02em;font-weight:500}
+  .card.featured .body::before{content:"★ FEATURED";display:block;font-size:8.5px;letter-spacing:.14em;color:#fde68a;font-weight:600;margin-bottom:4px}
+
+  /* BOOT STATE */
+  .boot{
+    position:absolute;inset:var(--top-h) var(--rail-w) 0 var(--rail-w);
+    background:radial-gradient(800px 600px at center, rgba(45,74,126,.4), #0c0f15 70%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+    color:var(--text);
+  }
+  .boot .mark{width:84px;height:84px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;position:relative}
+  .boot .mark::before,.boot .mark::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(122,167,255,.35);border-top-color:transparent}
+  .boot .mark::after{inset:-14px;border-color:rgba(122,167,255,.2);border-top-color:transparent}
+  .boot .mark .wp{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:#cfdcff;line-height:1}
+  .boot .name{font-size:18px;font-weight:600;letter-spacing:-.005em}
+  .boot .progress{width:380px;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;position:relative}
+  .boot .progress .bar{position:absolute;left:0;top:0;height:100%;width:62%;background:linear-gradient(90deg,transparent,#7aa7ff,transparent);border-radius:2px}
+  .boot .steps{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-mute);line-height:1.9;width:380px}
+  .boot .steps .s{display:flex;gap:10px;align-items:flex-start}
+  .boot .steps .s .ic{width:14px;color:var(--good)}
+  .boot .steps .s.pending .ic{color:var(--text-dim)}
+  .boot .steps .s.current .ic{color:var(--warn)}
+  .boot .steps .s.pending{color:var(--text-dim)}
+
+  /* WORKING (the "iframe" — we paint a fake WP site) */
+  .wp-site{position:absolute;inset:0;background:#fff;color:#1a1f2b;font-family:'Inter',sans-serif;overflow:hidden}
+  .wp-site .wp-hdr{height:62px;background:#1a1f2b;color:#fff;display:flex;align-items:center;padding:0 28px;gap:28px;font-size:13.5px}
+  .wp-site .wp-hdr .logo{font-weight:700;letter-spacing:-.01em;font-size:16px}
+  .wp-site .wp-hdr nav a{color:#cdd5e0;text-decoration:none;font-weight:500;font-size:12.5px}
+  .wp-site .hero{padding:64px 28px 40px;background:linear-gradient(140deg,#2d4a7e,#5e7fb0);color:#fff}
+  .wp-site .hero h1{margin:0 0 14px;font-size:42px;font-weight:700;letter-spacing:-.02em;max-width:680px;line-height:1.1}
+  .wp-site .hero p{margin:0;font-size:15px;max-width:560px;line-height:1.5;color:rgba(255,255,255,.85)}
+  .wp-site .hero .cta{margin-top:20px;display:inline-flex;align-items:center;gap:8px;background:#fff;color:#2d4a7e;padding:11px 20px;border-radius:24px;font-weight:600;font-size:13px}
+  .wp-site .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:36px 28px}
+  .wp-site .grid3 .post{background:#f4f5f9;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .wp-site .grid3 .post .ph{height:128px;background:#dde2eb}
+  .wp-site .grid3 .post:nth-child(2) .ph{background:#cfd8e6}
+  .wp-site .grid3 .post:nth-child(3) .ph{background:#bcc7d8}
+  .wp-site .grid3 .post .b{padding:14px 16px}
+  .wp-site .grid3 .post .b h3{margin:0 0 4px;font-size:13.5px;font-weight:600;letter-spacing:-.005em}
+  .wp-site .grid3 .post .b p{margin:0;font-size:12px;color:#6a7282;line-height:1.5}
+
+  /* corner indicator that you can press Esc to leave fullscreen */
+  .esc-hint{
+    position:absolute;top:8px;right:8px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--text);background:rgba(15,18,26,.7);
+    padding:3px 6px;border-radius:5px;border:1px solid var(--line-strong);
+    z-index:80;opacity:0;transition:opacity .2s;backdrop-filter:blur(10px);
+  }
+  .pg:hover .esc-hint{opacity:1}
+  .pg.fullscreen .esc-hint{opacity:1}
+  .pg.fullscreen .top,.pg.fullscreen .rail{display:none}
+  .pg.fullscreen .iframe{top:0;left:0;right:0;bottom:0}
+  .pg.fullscreen .boot{top:0;left:0;right:0;bottom:0}
+
+  /* TOAST */
+  .toast{
+    position:absolute;left:50%;transform:translateX(-50%);bottom:18px;
+    background:rgba(15,18,26,.86);backdrop-filter:blur(18px);
+    border:1px solid var(--line-strong);border-radius:10px;
+    padding:9px 13px;font-size:12px;color:var(--text);
+    display:flex;align-items:center;gap:9px;z-index:70;
+    box-shadow:0 10px 30px -10px rgba(0,0,0,.6);
+  }
+  .toast i{color:var(--good)}
+  .toast .sub{color:var(--text-mute);font-size:11px;margin-left:2px}
+
+  /* MENU (top-right popover) */
+  .menu{
+    position:absolute;top:calc(var(--top-h) + 6px);right:8px;z-index:80;
+    background:rgba(15,18,26,.92);backdrop-filter:blur(28px) saturate(160%);
+    border:1px solid var(--line-strong);border-radius:10px;
+    padding:6px;min-width:240px;
+    box-shadow:0 20px 60px -12px rgba(0,0,0,.6);
+  }
+  .menu .item{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;font-size:12px;color:var(--text);cursor:pointer}
+  .menu .item:hover{background:rgba(255,255,255,.07)}
+  .menu .item i{font-size:13px;color:var(--text-mute);width:16px}
+  .menu .item .kbd{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim)}
+  .menu .sep{height:1px;background:var(--line);margin:5px 4px}
+  .menu .group{padding:5px 9px 3px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);font-weight:600}
+
+  /* MOBILE specifics — same layout, narrower */
+  .mobile .top{padding:0 10px 0 8px}
+  .mobile .brand{font-size:11.5px}
+  .mobile .brand .sep,.mobile .brand .pgname{display:none}
+  .mobile .url-pill{max-width:none;margin:0 8px}
+  .mobile .url-pill .path{font-size:10.5px}
+  .mobile .iframe{left:var(--rail-w);right:var(--rail-w)}
+  .mobile .pane.right{width:340px}
+  .mobile .pane.left{width:330px}
+  .mobile .wp-site .hero h1{font-size:26px}
+  .mobile .wp-site .hero{padding:34px 18px 24px}
+  .mobile .wp-site .grid3{grid-template-columns:1fr;padding:20px 18px;gap:12px}
+  .mobile .wp-site .grid3 .post .ph{height:96px}
+  .mobile .wp-site .wp-hdr{padding:0 16px;height:50px;gap:14px;font-size:12px}
+  .mobile .wp-site .wp-hdr nav{display:flex;gap:14px;overflow:hidden}
+  .mobile .menu{right:6px;min-width:210px}
+
+  /* color variants for ambient — used in the warm-theme demo (mobile) */
+  .pg.warm{--wp-ambient-a:#a8421a;--wp-ambient-b:#d97a3a}
+  .pg.warm .wp-site .hero{background:linear-gradient(140deg,#a8421a,#d97a3a)}
+  .pg.warm .wp-site .hero .cta{color:#a8421a}
+  .pg.warm .wp-site .grid3 .post .ph{background:#f1d4c4}
+  .pg.warm .wp-site .grid3 .post:nth-child(2) .ph{background:#ebc3ab}
+  .pg.warm .wp-site .grid3 .post:nth-child(3) .ph{background:#e0a988}
+
+  /* affordance counter overlay (debug aid for designer + reviewer) */
+  .count-tag{
+    position:absolute;background:#fde68a;color:#3a2a02;font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:600;padding:1px 5px;border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:90;
+  }
+
+  /* small detail */
+  .keystroke{display:inline-flex;align-items:center;gap:3px}
+  .keystroke kbd{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    padding:1px 5px;border-radius:4px;
+    background:rgba(255,255,255,.08);border:1px solid var(--line-strong);
+    color:var(--text-mute);font-weight:500;
+  }
+
+  /* MOBILE LAYOUT WRAPPER */
+  .mobiles-wrap{display:flex;gap:36px;align-items:flex-start}
+  .mobiles-wrap .mobile-cap{display:flex;flex-direction:column;align-items:flex-start}
+  .mobiles-wrap .mobile-cap .cap{font-size:11px;color:var(--text-mute);font-family:'JetBrains Mono',monospace;margin-bottom:8px;letter-spacing:.04em}
+
+  /* Footer */
+  .footer{max-width:1440px;margin:48px auto 0;color:var(--text-dim);font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7;padding:0 4px}
+  .footer .row2{display:flex;gap:32px;flex-wrap:wrap}
+  .footer .row2 .col{flex:1;min-width:240px}
+  .footer .row2 h5{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:0 0 8px}
+  .footer .row2 ul{list-style:none;padding:0;margin:0}
+  .footer .row2 li{padding:2px 0}
+  .footer .row2 li b{color:var(--text);font-weight:500}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <h1>WordPress Playground — Ambient Side Rails</h1>
+    <div class="sub">Direction v5 / #10. Two 24-pixel rails sip the WordPress site's color and glow it back. Hover unfurls one secondary pane that swaps Settings, Files, Blueprint, Database, Logs. The iframe is the document; the rails are punctuation.</div>
+  </div>
+  <div class="meta">
+    DIRECTION 10 · AMBIENT SIDE RAILS<br>
+    extends v1/#38 GLASSMORPHISM, v1/#15 WIN11, v1/#64 DEVTOOLS<br>
+    <strong>idle affordances: 8</strong> · top bar 40px · rails 24px
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 1 — WORKING SESSION @ 1440×900                                  -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 1.</b> Working session — idle. Saved playground "Coffee Shop". 8 affordances visible.</div>
+    <div class="r">1440 × 900 · desktop</div>
+  </div>
+
+  <div class="pg" id="scene1">
+    <!-- top bar (slim, 40px) -->
+    <div class="top">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="name pgname">Coffee Shop</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock"></i>
+        <span class="path">playground.wordpress.net<span style="color:var(--text-dim)">/scope:f8a/</span>?p=14</span>
+        <span class="refresh"><i class="lucide lucide-rotate-cw"></i></span>
+        <span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved 2m ago</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn" title="Open fullscreen iframe (F)"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn" title="Menu (More)"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <!-- left rail: launcher / saved sites -->
+    <div class="rail left" title="Saved playgrounds and launcher">
+      <span class="count">5</span>
+      <span class="label">LAUNCHER</span>
+    </div>
+
+    <!-- iframe (fake WordPress site - Coffee Shop blueprint) -->
+    <div class="iframe">
+      <div class="wp-site">
+        <div class="wp-hdr">
+          <div class="logo">Mornings Coffee Co.</div>
+          <nav style="display:flex;gap:22px">
+            <a href="#">Menu</a><a href="#">Beans</a><a href="#">Subscriptions</a><a href="#">Locations</a><a href="#">Journal</a>
+          </nav>
+          <div style="margin-left:auto;display:flex;gap:14px;align-items:center;color:#cdd5e0;font-size:12px">
+            <i class="lucide lucide-search"></i><i class="lucide lucide-user"></i><i class="lucide lucide-shopping-bag"></i>
+          </div>
+        </div>
+        <div class="hero">
+          <h1>Slow-roasted single-origin coffee, shipped Tuesday.</h1>
+          <p>Family-run since 2014. We roast on Mondays in small batches so what arrives at your door was green a week ago.</p>
+          <div class="cta">Shop the menu <i class="lucide lucide-arrow-right"></i></div>
+        </div>
+        <div class="grid3">
+          <div class="post"><div class="ph"></div><div class="b"><h3>Ethiopia Yirgacheffe</h3><p>Bright, jasmine, citrus zest. 250g whole bean.</p></div></div>
+          <div class="post"><div class="ph"></div><div class="b"><h3>Colombia Huila</h3><p>Caramel, plum, almond. 250g whole bean.</p></div></div>
+          <div class="post"><div class="ph"></div><div class="b"><h3>Decaf Brazil</h3><p>Cocoa, hazelnut. Swiss-water decaffeinated.</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- right rail: site manager — with vertical "tickmarks" hinting 5 sections -->
+    <div class="rail right" title="Site Manager — Settings · Files · Blueprint · Database · Logs">
+      <span class="label">SITE MANAGER</span>
+      <span class="ticks">
+        <i title="Settings"></i><i title="Files"></i><i title="Blueprint" class="active"></i><i title="Database"></i><i title="Logs"></i>
+      </span>
+    </div>
+
+    <div class="esc-hint">F · fullscreen iframe</div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 2 — WORKING SESSION + RIGHT RAIL OPENED (Blueprint tab)        -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 2.</b> Right rail expanded → one secondary pane, Site Manager swappable tabs.</div>
+    <div class="r">Same session · Blueprint tab</div>
+  </div>
+
+  <div class="pg" id="scene2">
+    <div class="top">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="name pgname">Coffee Shop</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock"></i>
+        <span class="path">playground.wordpress.net<span style="color:var(--text-dim)">/scope:f8a/</span>?p=14</span>
+        <span class="refresh"><i class="lucide lucide-rotate-cw"></i></span>
+        <span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved 2m ago</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <div class="rail left" title="Saved playgrounds and launcher">
+      <span class="count">5</span>
+      <span class="label">LAUNCHER</span>
+    </div>
+
+    <!-- iframe is dimmed slightly behind the pane -->
+    <div class="iframe" style="right:520px">
+      <div class="wp-site">
+        <div class="wp-hdr">
+          <div class="logo">Mornings Coffee Co.</div>
+          <nav style="display:flex;gap:22px;font-size:12px">
+            <a href="#">Menu</a><a href="#">Beans</a><a href="#">Subscriptions</a><a href="#">Locations</a>
+          </nav>
+        </div>
+        <div class="hero" style="padding-bottom:32px">
+          <h1 style="font-size:34px">Slow-roasted single-origin coffee, shipped Tuesday.</h1>
+          <p>Family-run since 2014. We roast on Mondays.</p>
+        </div>
+        <div class="grid3" style="grid-template-columns:repeat(2,1fr)">
+          <div class="post"><div class="ph"></div><div class="b"><h3>Ethiopia Yirgacheffe</h3><p>Bright, jasmine, citrus zest.</p></div></div>
+          <div class="post"><div class="ph"></div><div class="b"><h3>Colombia Huila</h3><p>Caramel, plum, almond.</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- right rail: still visible at left edge of the pane as the indicator -->
+    <div class="rail right show-chev" style="right:520px" title="Drag inward to widen, or close">
+      <span class="label">SITE MANAGER</span>
+      <span class="ticks">
+        <i></i><i></i><i class="active"></i><i></i><i></i>
+      </span>
+      <span class="chev"><i class="lucide lucide-chevron-right"></i></span>
+    </div>
+
+    <!-- the one secondary pane -->
+    <div class="pane right">
+      <div class="pane-head">
+        <h3>Coffee Shop <span style="color:var(--text-dim);font-weight:450;margin-left:6px;font-size:11.5px;font-family:'JetBrains Mono',monospace">f8a · saved 2m ago</span></h3>
+        <div style="display:flex;gap:4px">
+          <span class="btn ghost" title="Open WP admin"><i class="lucide lucide-shield" style="font-size:13px"></i></span>
+          <span class="btn ghost" title="Homepage"><i class="lucide lucide-home" style="font-size:13px"></i></span>
+          <span class="btn ghost" title="Additional actions"><i class="lucide lucide-more-vertical" style="font-size:13px"></i></span>
+          <span class="close"><i class="lucide lucide-x"></i></span>
+        </div>
+      </div>
+      <div class="pane-tabs">
+        <span class="t"><i class="lucide lucide-settings-2"></i>Settings</span>
+        <span class="t"><i class="lucide lucide-folder-tree"></i>Files</span>
+        <span class="t active"><i class="lucide lucide-file-code"></i>Blueprint</span>
+        <span class="t"><i class="lucide lucide-database"></i>Database <span class="badge">beta</span></span>
+        <span class="t"><i class="lucide lucide-terminal"></i>Logs <span class="badge" style="background:rgba(251,191,36,.16);color:#fde68a">3</span></span>
+      </div>
+      <div class="pane-body" style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="btn primary"><i class="lucide lucide-play" style="font-size:12px"></i>Run Blueprint</span>
+          <span class="btn"><i class="lucide lucide-link" style="font-size:12px"></i>Copy link</span>
+          <span class="btn"><i class="lucide lucide-download" style="font-size:12px"></i>Download bundle</span>
+          <span style="margin-left:auto;font-size:10.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace">blueprint.json · 42 lines</span>
+        </div>
+        <div class="code"><span class="c">// Coffee Shop · WooCommerce storefront blueprint</span>
+{
+  <span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+  <span class="k">"landingPage"</span>: <span class="s">"/"</span>,
+  <span class="k">"preferredVersions"</span>: { <span class="k">"php"</span>: <span class="s">"8.3"</span>, <span class="k">"wp"</span>: <span class="s">"6.7"</span> },
+  <span class="k">"features"</span>: { <span class="k">"networking"</span>: <span class="n">true</span> },
+  <span class="k">"steps"</span>: [
+    { <span class="k">"step"</span>: <span class="s">"login"</span>, <span class="k">"username"</span>: <span class="s">"admin"</span> },
+    { <span class="k">"step"</span>: <span class="s">"installTheme"</span>,
+      <span class="k">"themeData"</span>: { <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"https://…/mornings.zip"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"installPlugin"</span>,
+      <span class="k">"pluginData"</span>: { <span class="k">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"runPHP"</span>,
+      <span class="k">"code"</span>: <span class="s">"&lt;?php require '/wordpress/wp-load.php'; wc_create_order(…);"</span> },
+    { <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>,
+      <span class="k">"options"</span>: { <span class="k">"blogname"</span>: <span class="s">"Mornings Coffee Co."</span> } }
+  ]
+}</div>
+        <div style="margin-top:6px">
+          <div style="font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin-bottom:6px">Bundle files</div>
+          <div class="file-tree">
+            <div class="f dir"><i class="lucide lucide-folder"></i>blueprint/</div>
+            <div class="indent">
+              <div class="f active"><i class="lucide lucide-file-code"></i>blueprint.json</div>
+              <div class="f"><i class="lucide lucide-file"></i>README.md</div>
+              <div class="f dir"><i class="lucide lucide-folder"></i>assets/</div>
+              <div class="indent">
+                <div class="f"><i class="lucide lucide-image"></i>hero-bag.jpg</div>
+                <div class="f"><i class="lucide lucide-archive"></i>mornings-theme.zip</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pane-foot">
+        <span style="font-size:11px;color:var(--text-mute);font-family:'JetBrains Mono',monospace">Run rewrites the site · keeps saved files</span>
+        <span class="btn ghost"><i class="lucide lucide-external-link" style="font-size:12px"></i>Open in editor pane</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 3 — LEFT RAIL EXPANDED: LAUNCHER (saved + sources + featured)   -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 3.</b> Left rail expanded → Launcher. Six sources, your saved sites, featured blueprints.</div>
+    <div class="r">Same iframe stays alive on the right</div>
+  </div>
+
+  <div class="pg" id="scene3">
+    <div class="top">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="name pgname">Coffee Shop</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock"></i>
+        <span class="path">playground.wordpress.net<span style="color:var(--text-dim)">/scope:f8a/</span>?p=14</span>
+        <span class="refresh"><i class="lucide lucide-rotate-cw"></i></span>
+        <span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <!-- iframe pushed right -->
+    <div class="iframe" style="left:420px">
+      <div class="wp-site">
+        <div class="wp-hdr">
+          <div class="logo">Mornings Coffee Co.</div>
+          <nav style="display:flex;gap:18px;font-size:12px"><a href="#">Menu</a><a href="#">Beans</a><a href="#">Subscriptions</a></nav>
+        </div>
+        <div class="hero" style="padding:42px 22px 28px">
+          <h1 style="font-size:30px">Slow-roasted single-origin coffee.</h1>
+          <p>Family-run since 2014.</p>
+        </div>
+        <div class="grid3" style="grid-template-columns:repeat(2,1fr);padding:24px 22px">
+          <div class="post"><div class="ph"></div><div class="b"><h3>Ethiopia Yirgacheffe</h3><p>Bright, jasmine, citrus.</p></div></div>
+          <div class="post"><div class="ph"></div><div class="b"><h3>Colombia Huila</h3><p>Caramel, plum, almond.</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- left rail hugged against the pane -->
+    <div class="rail left show-chev" style="left:420px" title="Drag outward to close">
+      <span class="count">5</span>
+      <span class="label">LAUNCHER</span>
+      <span class="chev" style="right:0;border-radius:10px 0 0 10px;left:auto"><i class="lucide lucide-chevron-left"></i></span>
+    </div>
+
+    <!-- the same secondary pane component, just docked left this time -->
+    <div class="pane left launcher">
+      <div class="pane-head">
+        <h3>Launcher</h3>
+        <span class="close"><i class="lucide lucide-x"></i></span>
+      </div>
+      <div class="pane-tabs">
+        <span class="t active"><i class="lucide lucide-layers"></i>Your sites <span class="badge" style="background:rgba(74,222,128,.15);color:#86efac">5</span></span>
+        <span class="t"><i class="lucide lucide-sparkles"></i>Start new</span>
+        <span class="t"><i class="lucide lucide-grid"></i>Blueprints <span class="badge" style="background:rgba(255,255,255,.08);color:var(--text-mute)">43</span></span>
+      </div>
+      <div class="pane-body">
+        <h4>Your playgrounds</h4>
+        <div class="saved-list">
+          <div class="saved-item active">
+            <div class="av" style="background:linear-gradient(135deg,#2d4a7e,#5e7fb0)">C</div>
+            <div class="meta"><div class="n">Coffee Shop</div><div class="s">WP 6.7 · PHP 8.3 · 24 MB · open now</div></div>
+            <span class="dot" title="running"></span>
+          </div>
+          <div class="saved-item">
+            <div class="av" style="background:linear-gradient(135deg,#a8421a,#d97a3a)">G</div>
+            <div class="meta"><div class="n">Gutenberg PR #65812</div><div class="s">WP nightly · PHP 8.2 · 38 MB · 1h ago</div></div>
+          </div>
+          <div class="saved-item">
+            <div class="av" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">A</div>
+            <div class="meta"><div class="n">Art Gallery (Vueo)</div><div class="s">WP 6.6 · PHP 8.1 · 17 MB · yesterday</div></div>
+          </div>
+          <div class="saved-item">
+            <div class="av" style="background:linear-gradient(135deg,#059669,#10b981)">F</div>
+            <div class="meta"><div class="n">Friends Plugin · feeds</div><div class="s">WP 6.7 · PHP 8.3 · 9 MB · 3d ago</div></div>
+          </div>
+          <div class="saved-item">
+            <div class="av" style="background:linear-gradient(135deg,#0891b2,#0e7490)">U</div>
+            <div class="meta"><div class="n">University site (Kentwood)</div><div class="s">WP 6.7 · PHP 8.3 · 12 MB · 1w ago</div></div>
+          </div>
+          <div class="saved-item" style="opacity:.7">
+            <div class="av" style="background:rgba(255,255,255,.06);color:var(--text-mute);border:1px dashed var(--line-strong)"><i class="lucide lucide-import" style="font-size:13px"></i></div>
+            <div class="meta"><div class="n">Unsaved Playground</div><div class="s">not saved · will lose on refresh</div></div>
+          </div>
+        </div>
+
+        <h4>Start a new playground</h4>
+        <div class="new-grid">
+          <div class="new-tile"><div class="t"><i class="lucide lucide-circle-plus"></i>Vanilla WordPress</div><div class="d">Clean WP 6.7 on PHP 8.3</div></div>
+          <div class="new-tile"><div class="t"><i class="lucide lucide-git-pull-request"></i>WordPress PR</div><div class="d">Boot from a core PR number</div></div>
+          <div class="new-tile"><div class="t"><i class="lucide lucide-git-branch"></i>Gutenberg PR</div><div class="d">Block editor PR preview</div></div>
+          <div class="new-tile"><div class="t"><i class="lucide lucide-github"></i>From GitHub</div><div class="d">Theme or plugin from repo</div></div>
+          <div class="new-tile"><div class="t"><i class="lucide lucide-link"></i>Blueprint URL</div><div class="d">Paste a blueprint JSON URL</div></div>
+          <div class="new-tile"><div class="t"><i class="lucide lucide-upload"></i>Import .zip</div><div class="d">Drop a previously exported zip</div></div>
+        </div>
+
+        <h4>Featured blueprints <span style="float:right;font-size:10.5px;font-weight:500;color:var(--accent);text-transform:none;letter-spacing:0">Browse all 43 →</span></h4>
+        <div class="new-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="new-tile" style="background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(236,72,153,.10))"><div class="t" style="color:#e9d5ff"><i class="lucide lucide-palette"></i>Art Gallery</div><div class="d">Vueo theme + sample artworks</div></div>
+          <div class="new-tile" style="background:linear-gradient(135deg,rgba(168,66,26,.18),rgba(217,122,58,.10))"><div class="t" style="color:#fed7aa"><i class="lucide lucide-coffee"></i>Coffee Shop</div><div class="d">WooCommerce storefront</div></div>
+          <div class="new-tile" style="background:linear-gradient(135deg,rgba(5,150,105,.18),rgba(16,185,129,.10))"><div class="t" style="color:#a7f3d0"><i class="lucide lucide-rss"></i>Feed Reader</div><div class="d">Friends plugin + ActivityPub</div></div>
+          <div class="new-tile" style="background:linear-gradient(135deg,rgba(220,38,38,.18),rgba(248,113,113,.10))"><div class="t" style="color:#fecaca"><i class="lucide lucide-gamepad-2"></i>Gaming News</div><div class="d">Spiel theme</div></div>
+          <div class="new-tile" style="background:linear-gradient(135deg,rgba(8,145,178,.18),rgba(34,211,238,.10))"><div class="t" style="color:#a5f3fc"><i class="lucide lucide-heart-handshake"></i>Non-profit</div><div class="d">Koinonia theme</div></div>
+          <div class="new-tile" style="background:rgba(255,255,255,.04)"><div class="t" style="color:var(--accent)"><i class="lucide lucide-arrow-right"></i>Browse all 43 →</div><div class="d">Search · 10 categories</div></div>
+        </div>
+      </div>
+      <div class="pane-foot">
+        <span style="font-size:11px;color:var(--text-mute)">5 saved · 24 MB used</span>
+        <span class="btn"><i class="lucide lucide-settings" style="font-size:12px"></i>Storage</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 4 — BLUEPRINT GALLERY (wide pane — same component, swapped tab) -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 4.</b> Blueprint gallery — same left pane, "Blueprints" tab. 43 cards · search · 10 categories.</div>
+    <div class="r">One secondary surface, swapped content</div>
+  </div>
+
+  <div class="pg" id="scene4">
+    <div class="top">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="name pgname">Coffee Shop</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock"></i>
+        <span class="path">playground.wordpress.net<span style="color:var(--text-dim)">/scope:f8a/</span>?p=14</span>
+        <span class="refresh"><i class="lucide lucide-rotate-cw"></i></span>
+        <span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <div class="iframe" style="left:880px">
+      <div class="wp-site">
+        <div class="wp-hdr">
+          <div class="logo">Mornings…</div>
+        </div>
+        <div class="hero" style="padding:30px 18px"><h1 style="font-size:22px">Coffee</h1></div>
+      </div>
+    </div>
+
+    <div class="rail left show-chev" style="left:880px">
+      <span class="count">5</span>
+      <span class="label">LAUNCHER</span>
+      <span class="chev" style="right:0;border-radius:10px 0 0 10px;left:auto"><i class="lucide lucide-chevron-left"></i></span>
+    </div>
+
+    <div class="pane left wide gallery">
+      <div class="pane-head">
+        <h3>Launcher</h3>
+        <span class="close"><i class="lucide lucide-x"></i></span>
+      </div>
+      <div class="pane-tabs">
+        <span class="t"><i class="lucide lucide-layers"></i>Your sites <span class="badge" style="background:rgba(74,222,128,.15);color:#86efac">5</span></span>
+        <span class="t"><i class="lucide lucide-sparkles"></i>Start new</span>
+        <span class="t active"><i class="lucide lucide-grid"></i>Blueprints <span class="badge" style="background:rgba(255,255,255,.08);color:var(--text-mute)">43</span></span>
+      </div>
+
+      <div class="gallery-toolbar">
+        <div class="search">
+          <i class="lucide lucide-search"></i>
+          <input placeholder="Search 43 blueprints — themes, plugins, experiments, demo content…" value="">
+          <span class="kbd">/</span>
+        </div>
+        <span class="btn"><i class="lucide lucide-sliders" style="font-size:12px"></i>Filters</span>
+      </div>
+      <div class="cats">
+        <span class="c active">All <span class="count">43</span></span>
+        <span class="c">Featured <span class="count">5</span></span>
+        <span class="c">Website <span class="count">10</span></span>
+        <span class="c">Personal <span class="count">5</span></span>
+        <span class="c">Content <span class="count">6</span></span>
+        <span class="c">Themes <span class="count">6</span></span>
+        <span class="c">Gutenberg <span class="count">4</span></span>
+        <span class="c">Experiments <span class="count">3</span></span>
+        <span class="c">WooCommerce <span class="count">4</span></span>
+        <span class="c">News <span class="count">2</span></span>
+      </div>
+
+      <div class="grid">
+        <!-- 18 cards -->
+        <div class="card featured"><div class="thumb" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">Art Gallery</div><div class="body"><div class="t">Art Gallery</div><div class="d">An art gallery created with the Vueo theme.</div><div class="tags"><i>Website</i><i>Personal</i></div></div></div>
+        <div class="card featured"><div class="thumb" style="background:linear-gradient(135deg,#a8421a,#d97a3a)">Coffee Shop</div><div class="body"><div class="t">Coffee Shop</div><div class="d">A stylish WooCommerce coffee shop storefront with custom theme.</div><div class="tags"><i>WooCommerce</i><i>Store</i></div></div></div>
+        <div class="card featured"><div class="thumb" style="background:linear-gradient(135deg,#059669,#10b981)">Feed Reader</div><div class="body"><div class="t">Feed Reader with Friends Plugin</div><div class="d">Read feeds (incl. ActivityPub) via the Friends plugin.</div><div class="tags"><i>rss</i><i>social</i></div></div></div>
+        <div class="card featured"><div class="thumb" style="background:linear-gradient(135deg,#dc2626,#f87171)">Gaming News</div><div class="body"><div class="t">Gaming News</div><div class="d">A gaming news site created with the Spiel theme.</div><div class="tags"><i>Website</i><i>News</i></div></div></div>
+        <div class="card featured"><div class="thumb" style="background:linear-gradient(135deg,#0891b2,#22d3ee)">Non-profit</div><div class="body"><div class="t">Non-profit Organization</div><div class="d">A non-profit site created with the Koinonia theme.</div><div class="tags"><i>Website</i><i>Organization</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#3730a3,#6366f1)">Personal Blog</div><div class="body"><div class="t">Personal Blog</div><div class="d">A personal blog site created with the Substrata theme.</div><div class="tags"><i>Website</i><i>Personal</i><i>Blog</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#475569,#94a3b8)">Resume</div><div class="body"><div class="t">Personal Resume</div><div class="d">A resume site created with the Readymade theme.</div><div class="tags"><i>Website</i><i>Personal</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#374151,#9ca3af)">Photography</div><div class="body"><div class="t">Photography Portfolio</div><div class="d">A photography portfolio with the Grammer theme.</div><div class="tags"><i>Website</i><i>Photography</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#be185d,#f472b6)">Skincare</div><div class="body"><div class="t">Skincare Blog</div><div class="d">A skincare blog with the Piel theme.</div><div class="tags"><i>News</i><i>Blog</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#1d4ed8,#60a5fa)">University</div><div class="body"><div class="t">University Website</div><div class="d">A university site with the Kentwood theme.</div><div class="tags"><i>Education</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#0d9488,#5eead4)">Create Block Theme</div><div class="body"><div class="t">Create Block Theme</div><div class="d">Install Create Block Theme and start editing right away.</div><div class="tags"><i>Editor</i><i>theme</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#7e22ce,#c084fc)">Twenty-Twenty-Five</div><div class="body"><div class="t">Demo of Twenty-Twenty-Five</div><div class="d">Demo content for the TT5 default theme.</div><div class="tags"><i>Themes</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#b45309,#fbbf24)">Books CPT</div><div class="body"><div class="t">Custom Post Type: Books</div><div class="d">Add a custom post type to playground.</div><div class="tags"><i>Content</i><i>CPT</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#4338ca,#818cf8)">Gutenberg Latest</div><div class="body"><div class="t">Latest Gutenberg plugin</div><div class="d">A preview of the latest Gutenberg plugin.</div><div class="tags"><i>Gutenberg</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#5b21b6,#a78bfa)">Dataview Exp.</div><div class="body"><div class="t">Enable all Dataview Experiments</div><div class="d">Enable multiple Experiments within the Gutenberg plugin.</div><div class="tags"><i>Experiments</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#1e40af,#3b82f6)">WPGraphQL</div><div class="body"><div class="t">Use WPGraphQL to query WP</div><div class="d">Loads WordPress with WPGraphQL active.</div><div class="tags"><i>API</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#831843,#db2777)">WooCommerce Setup</div><div class="body"><div class="t">Minimal WooCommerce Setup</div><div class="d">Sample products, shipping, payment methods.</div><div class="tags"><i>WooCommerce</i></div></div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#312e81,#6366f1)">WP Beta</div><div class="body"><div class="t">WordPress Beta</div><div class="d">Test the latest WP Beta/RC with theme test data.</div><div class="tags"><i>Testing</i></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 5 — BOOTING                                                     -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 5.</b> Booting a new blueprint. Rails dim; iframe area shows step log.</div>
+    <div class="r">Transient state</div>
+  </div>
+
+  <div class="pg" id="scene5">
+    <div class="top">
+      <div class="brand">
+        <span class="dot" style="background:var(--warn);box-shadow:0 0 8px var(--warn)"></span>
+        <span class="name unsaved pgname">Unsaved Playground</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">booting · Coffee Shop · WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock" style="color:var(--text-dim)"></i>
+        <span class="path" style="color:var(--text-dim)">playground.wordpress.net/scope:b2c/ — establishing scope…</span>
+        <span class="save saving"><i class="lucide lucide-loader-2" style="font-size:10px"></i>Booting…</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <div class="rail left" style="opacity:.5">
+      <span class="label">LAUNCHER</span>
+    </div>
+
+    <div class="iframe">
+      <div class="boot">
+        <div class="mark"><div class="wp">WP</div></div>
+        <div class="name">Coffee Shop · booting blueprint</div>
+        <div class="progress"><div class="bar"></div></div>
+        <div class="steps">
+          <div class="s"><span class="ic"><i class="lucide lucide-check"></i></span>Loading PHP 8.3 (WASM) · 8.4 MB</div>
+          <div class="s"><span class="ic"><i class="lucide lucide-check"></i></span>Mounting WordPress 6.7 core · 21 files</div>
+          <div class="s"><span class="ic"><i class="lucide lucide-check"></i></span>Starting SQLite database</div>
+          <div class="s current"><span class="ic"><i class="lucide lucide-loader-2"></i></span>installPlugin: woocommerce (resolving)</div>
+          <div class="s pending"><span class="ic"><i class="lucide lucide-circle"></i></span>installTheme: mornings.zip</div>
+          <div class="s pending"><span class="ic"><i class="lucide lucide-circle"></i></span>runPHP: seed orders &amp; products</div>
+          <div class="s pending"><span class="ic"><i class="lucide lucide-circle"></i></span>setSiteOptions: blogname</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim)">step 4 of 7 · 62% · est. 8s</div>
+      </div>
+    </div>
+
+    <div class="rail right" style="opacity:.5">
+      <span class="label">SITE MANAGER</span>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 6 — APPLY+RESET DESTRUCTIVE CONFIRMATION                        -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 6.</b> Settings tab open. <b>Apply &amp; Reset</b> requires typing the playground name. Destructive ≠ small red banner.</div>
+    <div class="r">Confirm-by-typing pattern</div>
+  </div>
+
+  <div class="pg" id="scene6">
+    <div class="top">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="name pgname">Coffee Shop</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock"></i>
+        <span class="path">playground.wordpress.net<span style="color:var(--text-dim)">/scope:f8a/</span>?p=14</span>
+        <span class="refresh"><i class="lucide lucide-rotate-cw"></i></span>
+        <span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <div class="rail left"><span class="count">5</span><span class="label">LAUNCHER</span></div>
+    <div class="iframe" style="right:520px">
+      <div class="wp-site">
+        <div class="wp-hdr"><div class="logo">Mornings Coffee Co.</div></div>
+        <div class="hero" style="padding:32px 22px"><h1 style="font-size:24px">Coffee Shop, dimmed.</h1></div>
+      </div>
+    </div>
+
+    <div class="rail right show-chev" style="right:520px">
+      <span class="label">SITE MANAGER</span>
+      <span class="ticks"><i class="active"></i><i></i><i></i><i></i><i></i></span>
+      <span class="chev"><i class="lucide lucide-chevron-right"></i></span>
+    </div>
+
+    <div class="pane right">
+      <div class="pane-head">
+        <h3>Coffee Shop <span style="color:var(--text-dim);font-weight:450;margin-left:6px;font-size:11.5px;font-family:'JetBrains Mono',monospace">f8a · saved 2m ago</span></h3>
+        <div style="display:flex;gap:4px">
+          <span class="btn ghost" title="WP admin"><i class="lucide lucide-shield" style="font-size:13px"></i></span>
+          <span class="btn ghost" title="Homepage"><i class="lucide lucide-home" style="font-size:13px"></i></span>
+          <span class="btn ghost" title="More"><i class="lucide lucide-more-vertical" style="font-size:13px"></i></span>
+          <span class="close"><i class="lucide lucide-x"></i></span>
+        </div>
+      </div>
+      <div class="pane-tabs">
+        <span class="t active"><i class="lucide lucide-settings-2"></i>Settings</span>
+        <span class="t"><i class="lucide lucide-folder-tree"></i>Files</span>
+        <span class="t"><i class="lucide lucide-file-code"></i>Blueprint</span>
+        <span class="t"><i class="lucide lucide-database"></i>Database <span class="badge">beta</span></span>
+        <span class="t"><i class="lucide lucide-terminal"></i>Logs</span>
+      </div>
+      <div class="pane-body">
+        <div style="font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:0 0 4px">Runtime</div>
+        <div class="row"><div class="lbl"><strong>WordPress</strong>Currently running 6.7</div><select class="select"><option>6.7 (stable)</option><option>6.6.2</option><option>nightly</option><option>beta-2</option></select></div>
+        <div class="row"><div class="lbl"><strong>PHP</strong>Used by the runtime</div><select class="select"><option>8.3</option><option>8.2</option><option>8.1</option><option>7.4</option></select></div>
+        <div class="row"><div class="lbl"><strong>Language</strong>Admin locale</div><select class="select"><option>English (US)</option><option>日本語</option><option>Français</option></select></div>
+        <div class="row"><div class="lbl"><strong>Network access</strong>Outbound HTTP from PHP</div><div class="toggle on"></div></div>
+        <div class="row"><div class="lbl"><strong>Multisite</strong>Run as a network</div><div class="toggle"></div></div>
+
+        <div style="font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:18px 0 4px">Storage</div>
+        <div class="row"><div class="lbl"><strong>Persist to browser (OPFS)</strong>5 saved · 24 MB used</div><div class="toggle on"></div></div>
+        <div class="row"><div class="lbl"><strong>Save state</strong>Saved 2 minutes ago</div><span style="font-size:11px;color:#86efac;display:flex;align-items:center;gap:5px"><i class="lucide lucide-check-circle-2" style="font-size:14px"></i>Saved</span></div>
+
+        <div class="danger-zone">
+          <h4><i class="lucide lucide-alert-triangle" style="font-size:13px;vertical-align:-2px"></i> Apply &amp; Reset</h4>
+          <p>Applying changes will <b>wipe the site database, regenerate WordPress, and lose unsaved files</b>. The current Coffee Shop save will be preserved as a separate snapshot you can restore.</p>
+          <div style="font-size:11px;color:var(--text-mute);margin-bottom:8px">Type <span class="hint">Coffee Shop</span> to confirm:</div>
+          <div class="confirm">
+            <input value="Coffee Sh" placeholder="Coffee Shop">
+            <span class="btn danger" style="opacity:.5;cursor:not-allowed">Apply &amp; Reset</span>
+          </div>
+        </div>
+      </div>
+      <div class="pane-foot">
+        <span style="font-size:11px;color:var(--text-mute);font-family:'JetBrains Mono',monospace">Settings change live only after Apply &amp; Reset</span>
+        <span class="btn ghost">Discard changes</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 7 — MENU + ADDITIONAL ACTIONS + TOAST                           -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 7.</b> Top-right menu open. One door to "Export GitHub PR" and "Download .zip". Save-state transition toast at bottom.</div>
+    <div class="r">Single canonical home for additional actions</div>
+  </div>
+
+  <div class="pg" id="scene7">
+    <div class="top">
+      <div class="brand">
+        <span class="dot"></span>
+        <span class="name pgname">Coffee Shop</span>
+        <span class="sep">/</span>
+        <span style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px">WP 6.7 · PHP 8.3</span>
+      </div>
+      <div class="url-pill">
+        <i class="lucide lucide-lock"></i>
+        <span class="path">playground.wordpress.net<span style="color:var(--text-dim)">/scope:f8a/</span>?p=14</span>
+        <span class="refresh"><i class="lucide lucide-rotate-cw"></i></span>
+        <span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Just now</span>
+      </div>
+      <div class="right">
+        <span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span>
+        <span class="iconbtn" style="background:rgba(255,255,255,.09)"><i class="lucide lucide-more-horizontal"></i></span>
+      </div>
+    </div>
+
+    <div class="rail left"><span class="count">5</span><span class="label">LAUNCHER</span></div>
+    <div class="iframe">
+      <div class="wp-site">
+        <div class="wp-hdr"><div class="logo">Mornings Coffee Co.</div>
+          <nav style="display:flex;gap:22px"><a href="#">Menu</a><a href="#">Beans</a></nav>
+        </div>
+        <div class="hero"><h1 style="font-size:34px">Slow-roasted single-origin coffee, shipped Tuesday.</h1></div>
+        <div class="grid3"><div class="post"><div class="ph"></div><div class="b"><h3>Ethiopia Yirgacheffe</h3><p>Bright, jasmine, citrus.</p></div></div>
+        <div class="post"><div class="ph"></div><div class="b"><h3>Colombia Huila</h3><p>Caramel, plum, almond.</p></div></div>
+        <div class="post"><div class="ph"></div><div class="b"><h3>Decaf Brazil</h3><p>Cocoa, hazelnut.</p></div></div></div>
+      </div>
+    </div>
+    <div class="rail right"><span class="label">SITE MANAGER</span><span class="ticks"><i></i><i></i><i></i><i></i><i></i></span></div>
+
+    <!-- the kebab menu -->
+    <div class="menu">
+      <div class="group">Active site</div>
+      <div class="item"><i class="lucide lucide-shield"></i>Open /wp-admin<span class="kbd">⌘A</span></div>
+      <div class="item"><i class="lucide lucide-home"></i>Open homepage</div>
+      <div class="item"><i class="lucide lucide-edit-2"></i>Rename playground</div>
+      <div class="sep"></div>
+      <div class="group">Export</div>
+      <div class="item"><i class="lucide lucide-github"></i>Export to GitHub PR…</div>
+      <div class="item"><i class="lucide lucide-download"></i>Download .zip<span class="kbd">⌘E</span></div>
+      <div class="sep"></div>
+      <div class="group">View</div>
+      <div class="item"><i class="lucide lucide-maximize-2"></i>Fullscreen iframe<span class="kbd">F</span></div>
+      <div class="item"><i class="lucide lucide-command"></i>Command palette<span class="kbd">⌘K</span></div>
+      <div class="item"><i class="lucide lucide-help-circle"></i>About Playground</div>
+    </div>
+
+    <!-- a toast showing the saved-state transition -->
+    <div class="toast">
+      <i class="lucide lucide-check-circle-2"></i>
+      <span>Saved <b>Coffee Shop</b> to browser storage</span>
+      <span class="sub">· 24 MB · OPFS</span>
+      <span style="margin-left:10px;color:var(--accent);font-weight:500;cursor:pointer">Undo</span>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 8 — LOGS, FILES, DATABASE EXAMPLES (one row, swapped content)   -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 8.</b> Same right pane — Logs / Files / Database tabs. One surface, swappable.</div>
+    <div class="r">Three crops at the same scale</div>
+  </div>
+
+  <div style="display:flex;gap:24px;align-items:flex-start;justify-content:flex-start">
+
+    <!-- LOGS crop -->
+    <div class="pg" style="width:460px;height:560px">
+      <div class="top">
+        <div class="brand" style="font-size:11px"><span class="dot"></span><span class="name pgname">Coffee Shop</span></div>
+        <div class="url-pill" style="max-width:none"><i class="lucide lucide-lock"></i><span class="path">…f8a/?p=14</span><span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved</span></div>
+        <div class="right"><span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span></div>
+      </div>
+      <div class="rail left"><span class="count">5</span></div>
+      <div class="iframe" style="right:0;left:24px;background:#0a0d14"></div>
+      <div class="pane right" style="right:0;width:436px">
+        <div class="pane-head"><h3>Coffee Shop · Logs</h3><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="pane-tabs" style="overflow-x:auto">
+          <span class="t"><i class="lucide lucide-settings-2"></i>Settings</span>
+          <span class="t"><i class="lucide lucide-folder-tree"></i>Files</span>
+          <span class="t"><i class="lucide lucide-file-code"></i>Blueprint</span>
+          <span class="t"><i class="lucide lucide-database"></i>DB</span>
+          <span class="t active"><i class="lucide lucide-terminal"></i>Logs <span class="badge" style="background:rgba(251,191,36,.16);color:#fde68a">3</span></span>
+        </div>
+        <div style="padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:center">
+          <div style="flex:1;display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;background:rgba(0,0,0,.28);border:1px solid var(--line-strong);border-radius:6px;font-size:11px;color:var(--text)"><i class="lucide lucide-search" style="font-size:11px;color:var(--text-mute)"></i><span style="color:var(--text-mute)">filter…</span></div>
+          <span class="btn ghost" style="height:24px;font-size:11px">All</span>
+          <span class="btn ghost" style="height:24px;font-size:11px;color:var(--warn)">Warn</span>
+        </div>
+        <div class="pane-body logs" style="padding:6px 10px">
+          <div class="ln warning"><span class="t">14:02:11</span><span class="lvl">warn</span><span class="msg">PHP Warning: Undefined array key "stripe_key" in <span class="path">/wp-content/plugins/woocommerce-gateway-stripe/main.php:42</span></span></div>
+          <div class="ln notice"><span class="t">14:02:11</span><span class="lvl">notice</span><span class="msg">function_exists() called on deprecated WC_Cart::add_to_cart_handler</span></div>
+          <div class="ln deprecated"><span class="t">14:02:10</span><span class="lvl">deprc</span><span class="msg">jQuery.fn.ready() is deprecated in WP 6.7. <span class="path">wp-includes/js/jquery/jquery.min.js</span></span></div>
+          <div class="ln info"><span class="t">14:02:08</span><span class="lvl">info</span><span class="msg">WP_DEBUG_LOG initialized · 3 errors collected this session</span></div>
+          <div class="ln warning"><span class="t">14:01:54</span><span class="lvl">warn</span><span class="msg">Slow query (412ms): SELECT * FROM wp_posts WHERE post_status='publish' ORDER BY RAND() LIMIT 24</span></div>
+          <div class="ln info"><span class="t">14:01:52</span><span class="lvl">info</span><span class="msg">Plugin activated: woocommerce 9.4.1</span></div>
+          <div class="ln info"><span class="t">14:01:51</span><span class="lvl">info</span><span class="msg">Theme activated: mornings (v1.4.0)</span></div>
+          <div class="ln info"><span class="t">14:01:49</span><span class="lvl">info</span><span class="msg">Blueprint step setSiteOptions completed in 12ms</span></div>
+          <div class="ln info"><span class="t">14:01:48</span><span class="lvl">info</span><span class="msg">Blueprint step runPHP completed in 884ms (seeded 6 products, 4 orders)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILES crop -->
+    <div class="pg" style="width:460px;height:560px">
+      <div class="top">
+        <div class="brand" style="font-size:11px"><span class="dot"></span><span class="name pgname">Coffee Shop</span></div>
+        <div class="url-pill" style="max-width:none"><i class="lucide lucide-lock"></i><span class="path">…f8a/?p=14</span><span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved</span></div>
+        <div class="right"><span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span></div>
+      </div>
+      <div class="rail left"><span class="count">5</span></div>
+      <div class="iframe" style="right:0;left:24px;background:#0a0d14"></div>
+      <div class="pane right" style="right:0;width:436px">
+        <div class="pane-head"><h3>Coffee Shop · Files</h3><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="pane-tabs" style="overflow-x:auto">
+          <span class="t"><i class="lucide lucide-settings-2"></i>Settings</span>
+          <span class="t active"><i class="lucide lucide-folder-tree"></i>Files</span>
+          <span class="t"><i class="lucide lucide-file-code"></i>Blueprint</span>
+          <span class="t"><i class="lucide lucide-database"></i>DB</span>
+          <span class="t"><i class="lucide lucide-terminal"></i>Logs</span>
+        </div>
+        <div style="padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:6px">
+          <span class="btn ghost" style="height:24px;font-size:11px"><i class="lucide lucide-file-plus" style="font-size:12px"></i>New file</span>
+          <span class="btn ghost" style="height:24px;font-size:11px"><i class="lucide lucide-folder-plus" style="font-size:12px"></i>New folder</span>
+          <span style="margin-left:auto;font-size:10.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;align-self:center">/wordpress/</span>
+        </div>
+        <div class="pane-body" style="display:flex;gap:12px;padding:10px 12px">
+          <div class="file-tree" style="width:170px">
+            <div class="f dir"><i class="lucide lucide-folder-open"></i>wordpress</div>
+            <div class="indent">
+              <div class="f dir"><i class="lucide lucide-folder"></i>wp-admin</div>
+              <div class="f dir"><i class="lucide lucide-folder-open"></i>wp-content</div>
+              <div class="indent">
+                <div class="f dir"><i class="lucide lucide-folder"></i>plugins</div>
+                <div class="f dir"><i class="lucide lucide-folder-open"></i>themes</div>
+                <div class="indent">
+                  <div class="f dir"><i class="lucide lucide-folder-open"></i>mornings</div>
+                  <div class="indent">
+                    <div class="f"><i class="lucide lucide-file"></i>style.css</div>
+                    <div class="f active"><i class="lucide lucide-file-code"></i>functions.php</div>
+                    <div class="f"><i class="lucide lucide-file"></i>header.php</div>
+                  </div>
+                </div>
+              </div>
+              <div class="f dir"><i class="lucide lucide-folder"></i>wp-includes</div>
+              <div class="f"><i class="lucide lucide-file-code"></i>wp-config.php</div>
+            </div>
+          </div>
+          <div class="code" style="flex:1;font-size:10.5px">
+<span class="c">&lt;?php
+/**
+ * Mornings — coffee shop theme functions
+ */</span>
+<span class="k">function</span> mornings_setup() {
+  <span class="k">add_theme_support</span>(<span class="s">'title-tag'</span>);
+  <span class="k">add_theme_support</span>(<span class="s">'post-thumbnails'</span>);
+  <span class="k">register_nav_menu</span>(<span class="s">'primary'</span>,
+    <span class="s">'Primary'</span>);
+}
+add_action(<span class="s">'after_setup_theme'</span>,
+  <span class="s">'mornings_setup'</span>);
+
+<span class="c">// WooCommerce</span>
+add_theme_support(<span class="s">'woocommerce'</span>);</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATABASE crop -->
+    <div class="pg" style="width:460px;height:560px">
+      <div class="top">
+        <div class="brand" style="font-size:11px"><span class="dot"></span><span class="name pgname">Coffee Shop</span></div>
+        <div class="url-pill" style="max-width:none"><i class="lucide lucide-lock"></i><span class="path">…f8a/?p=14</span><span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i>Saved</span></div>
+        <div class="right"><span class="iconbtn"><i class="lucide lucide-more-horizontal"></i></span></div>
+      </div>
+      <div class="rail left"><span class="count">5</span></div>
+      <div class="iframe" style="right:0;left:24px;background:#0a0d14"></div>
+      <div class="pane right" style="right:0;width:436px">
+        <div class="pane-head"><h3>Coffee Shop · DB <span class="badge" style="background:rgba(251,113,133,.18);color:#fda4af;margin-left:4px">beta</span></h3><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="pane-tabs" style="overflow-x:auto">
+          <span class="t"><i class="lucide lucide-settings-2"></i>Settings</span>
+          <span class="t"><i class="lucide lucide-folder-tree"></i>Files</span>
+          <span class="t"><i class="lucide lucide-file-code"></i>Blueprint</span>
+          <span class="t active"><i class="lucide lucide-database"></i>DB <span class="badge">beta</span></span>
+          <span class="t"><i class="lucide lucide-terminal"></i>Logs</span>
+        </div>
+        <div style="padding:8px 12px;border-bottom:1px solid var(--line);background:rgba(251,113,133,.06);font-size:10.5px;color:#fda4af;display:flex;align-items:center;gap:6px"><i class="lucide lucide-alert-circle" style="font-size:12px"></i>Early access — schema may change. <a style="color:#fda4af;text-decoration:underline" href="#">Report on GitHub</a></div>
+        <div class="pane-body">
+          <div class="table-list">
+            <span class="tg active">wp_posts</span>
+            <span class="tg">wp_postmeta</span>
+            <span class="tg">wp_options</span>
+            <span class="tg">wp_users</span>
+            <span class="tg">wp_wc_orders</span>
+            <span class="tg">wp_wc_order_meta</span>
+          </div>
+          <table class="db">
+            <thead><tr><th>ID</th><th>post_title</th><th>post_status</th><th>post_type</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Sample Page</td><td>publish</td><td>page</td></tr>
+              <tr><td>2</td><td>Hello world!</td><td>publish</td><td>post</td></tr>
+              <tr><td>14</td><td>Homepage</td><td>publish</td><td>page</td></tr>
+              <tr><td>21</td><td>Ethiopia Yirgacheffe</td><td>publish</td><td>product</td></tr>
+              <tr><td>22</td><td>Colombia Huila</td><td>publish</td><td>product</td></tr>
+              <tr><td>23</td><td>Decaf Brazil</td><td>publish</td><td>product</td></tr>
+              <tr><td>24</td><td>Subscriptions</td><td>publish</td><td>page</td></tr>
+              <tr><td>31</td><td>Order #1001</td><td>wc-processing</td><td>shop_order</td></tr>
+              <tr><td>32</td><td>Order #1002</td><td>wc-completed</td><td>shop_order</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px;font-size:10.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace">9 of 142 rows · query: SELECT * FROM wp_posts LIMIT 9</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- SCENE 9 — MOBILE 390×844                                              -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 9.</b> Mobile is the same layout, narrower. Same rails. Same one secondary surface. Two ambient tints demonstrated.</div>
+    <div class="r">390 × 844 · iPhone 14</div>
+  </div>
+
+  <div class="mobiles-wrap">
+
+    <!-- Mobile A: cool ambient (Coffee Shop reskin to cool theme) — working session -->
+    <div class="mobile-cap">
+      <div class="cap">A · Idle · cool ambient (Vanilla WP)</div>
+      <div class="pg mobile">
+        <div class="top">
+          <div class="brand"><span class="dot"></span><span class="name pgname">Coffee…</span></div>
+          <div class="url-pill"><i class="lucide lucide-lock"></i><span class="path">…/?p=14</span><span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i></span></div>
+          <div class="right"><span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span></div>
+        </div>
+        <div class="rail left"><span class="count">5</span></div>
+        <div class="iframe">
+          <div class="wp-site">
+            <div class="wp-hdr"><div class="logo">Mornings</div><nav><a href="#">Menu</a><a href="#">Beans</a></nav></div>
+            <div class="hero"><h1>Slow-roasted single-origin.</h1><p>Family-run since 2014.</p><div class="cta">Shop <i class="lucide lucide-arrow-right"></i></div></div>
+            <div class="grid3">
+              <div class="post"><div class="ph"></div><div class="b"><h3>Ethiopia Yirgacheffe</h3><p>Bright, jasmine, citrus.</p></div></div>
+              <div class="post"><div class="ph"></div><div class="b"><h3>Colombia Huila</h3><p>Caramel, plum, almond.</p></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="rail right"><span class="ticks"><i></i><i></i><i class="active"></i><i></i><i></i></span></div>
+      </div>
+    </div>
+
+    <!-- Mobile B: warm ambient (different theme color sampled) — right rail open with Logs -->
+    <div class="mobile-cap">
+      <div class="cap">B · Right rail open · warm ambient</div>
+      <div class="pg mobile warm">
+        <div class="top">
+          <div class="brand"><span class="dot"></span><span class="name pgname">Art Galle…</span></div>
+          <div class="url-pill"><i class="lucide lucide-lock"></i><span class="path">…/wp-admin</span><span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i></span></div>
+          <div class="right"><span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span></div>
+        </div>
+        <div class="rail left"><span class="count">5</span></div>
+        <div class="iframe" style="right:0">
+          <div class="wp-site">
+            <div class="wp-hdr"><div class="logo">Vueo</div></div>
+            <div class="hero"><h1>The Anna Karenina exhibit, opening soon.</h1></div>
+          </div>
+        </div>
+        <div class="rail right show-chev"><span class="ticks"><i></i><i></i><i></i><i></i><i class="active"></i></span><span class="chev"><i class="lucide lucide-chevron-right"></i></span></div>
+        <div class="pane right" style="width:300px;background:rgba(36,18,12,.92);border-left-color:rgba(217,122,58,.3)">
+          <div class="pane-head"><h3>Art Gallery · Logs</h3><span class="close"><i class="lucide lucide-x"></i></span></div>
+          <div class="pane-tabs" style="overflow-x:auto;flex-shrink:0">
+            <span class="t"><i class="lucide lucide-settings-2"></i></span>
+            <span class="t"><i class="lucide lucide-folder-tree"></i></span>
+            <span class="t"><i class="lucide lucide-file-code"></i></span>
+            <span class="t"><i class="lucide lucide-database"></i></span>
+            <span class="t active"><i class="lucide lucide-terminal"></i>Logs <span class="badge" style="background:rgba(251,191,36,.16);color:#fde68a">2</span></span>
+          </div>
+          <div class="pane-body logs" style="padding:6px 10px">
+            <div class="ln warning"><span class="t">14:02:11</span><span class="lvl">warn</span><span class="msg">Undefined index "vueo_options"</span></div>
+            <div class="ln notice"><span class="t">14:02:10</span><span class="lvl">notc</span><span class="msg">jQuery deprecated</span></div>
+            <div class="ln info"><span class="t">14:01:48</span><span class="lvl">info</span><span class="msg">Theme activated: Vueo (v2.1.0)</span></div>
+            <div class="ln info"><span class="t">14:01:48</span><span class="lvl">info</span><span class="msg">Imported 28 sample artworks</span></div>
+            <div class="ln info"><span class="t">14:01:46</span><span class="lvl">info</span><span class="msg">runPHP step (332ms)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile C: left rail open — launcher -->
+    <div class="mobile-cap">
+      <div class="cap">C · Left rail open · launcher</div>
+      <div class="pg mobile">
+        <div class="top">
+          <div class="brand"><span class="dot"></span><span class="name pgname">Coffee…</span></div>
+          <div class="url-pill"><i class="lucide lucide-lock"></i><span class="path">…</span><span class="save saved"><i class="lucide lucide-check" style="font-size:10px"></i></span></div>
+          <div class="right"><span class="iconbtn"><i class="lucide lucide-maximize-2"></i></span></div>
+        </div>
+        <div class="rail left show-chev" style="left:300px"><span class="count">5</span><span class="chev" style="right:0;border-radius:10px 0 0 10px;left:auto"><i class="lucide lucide-chevron-left"></i></span></div>
+        <div class="iframe" style="left:324px;background:#0a0d14"></div>
+        <div class="pane left launcher" style="width:300px">
+          <div class="pane-head"><h3>Launcher</h3><span class="close"><i class="lucide lucide-x"></i></span></div>
+          <div class="pane-tabs" style="font-size:11px">
+            <span class="t active" style="font-size:11px"><i class="lucide lucide-layers"></i>Sites</span>
+            <span class="t" style="font-size:11px"><i class="lucide lucide-sparkles"></i>New</span>
+            <span class="t" style="font-size:11px"><i class="lucide lucide-grid"></i>43</span>
+          </div>
+          <div class="pane-body" style="padding:12px">
+            <h4>Your playgrounds</h4>
+            <div class="saved-list">
+              <div class="saved-item active"><div class="av" style="background:linear-gradient(135deg,#2d4a7e,#5e7fb0)">C</div><div class="meta"><div class="n">Coffee Shop</div><div class="s">open · 24 MB</div></div><span class="dot"></span></div>
+              <div class="saved-item"><div class="av" style="background:linear-gradient(135deg,#a8421a,#d97a3a)">G</div><div class="meta"><div class="n">Gutenberg PR #65812</div><div class="s">nightly · 38 MB</div></div></div>
+              <div class="saved-item"><div class="av" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">A</div><div class="meta"><div class="n">Art Gallery (Vueo)</div><div class="s">17 MB · yesterday</div></div></div>
+              <div class="saved-item"><div class="av" style="background:linear-gradient(135deg,#059669,#10b981)">F</div><div class="meta"><div class="n">Friends · feeds</div><div class="s">9 MB</div></div></div>
+              <div class="saved-item"><div class="av" style="background:linear-gradient(135deg,#0891b2,#0e7490)">U</div><div class="meta"><div class="n">University</div><div class="s">12 MB</div></div></div>
+            </div>
+            <h4>Start new</h4>
+            <div class="new-grid">
+              <div class="new-tile"><div class="t"><i class="lucide lucide-circle-plus"></i>Vanilla</div></div>
+              <div class="new-tile"><div class="t"><i class="lucide lucide-git-pull-request"></i>WP PR</div></div>
+              <div class="new-tile"><div class="t"><i class="lucide lucide-git-branch"></i>GB PR</div></div>
+              <div class="new-tile"><div class="t"><i class="lucide lucide-github"></i>GitHub</div></div>
+              <div class="new-tile"><div class="t"><i class="lucide lucide-link"></i>URL</div></div>
+              <div class="new-tile"><div class="t"><i class="lucide lucide-upload"></i>.zip</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- =================================================================== -->
+<!-- SCENE 10 — FULLSCREEN IFRAME (Esc to exit) — proof of toggle          -->
+<!-- =================================================================== -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l"><b>Scene 10.</b> Fullscreen iframe — press F or fullscreen icon. Rails &amp; top bar gone. Esc returns.</div>
+    <div class="r">Esc-to-exit pattern</div>
+  </div>
+
+  <div class="pg fullscreen" style="height:600px">
+    <div class="iframe">
+      <div class="wp-site">
+        <div class="wp-hdr">
+          <div class="logo">Mornings Coffee Co.</div>
+          <nav style="display:flex;gap:22px">
+            <a href="#">Menu</a><a href="#">Beans</a><a href="#">Subscriptions</a><a href="#">Locations</a><a href="#">Journal</a>
+          </nav>
+          <div style="margin-left:auto;display:flex;gap:14px;align-items:center;color:#cdd5e0;font-size:12px">
+            <i class="lucide lucide-search"></i><i class="lucide lucide-user"></i><i class="lucide lucide-shopping-bag"></i>
+          </div>
+        </div>
+        <div class="hero">
+          <h1>Slow-roasted single-origin coffee, shipped Tuesday.</h1>
+          <p>Family-run since 2014. We roast on Mondays in small batches.</p>
+          <div class="cta">Shop the menu <i class="lucide lucide-arrow-right"></i></div>
+        </div>
+        <div class="grid3">
+          <div class="post"><div class="ph"></div><div class="b"><h3>Ethiopia Yirgacheffe</h3><p>Bright, jasmine, citrus zest.</p></div></div>
+          <div class="post"><div class="ph"></div><div class="b"><h3>Colombia Huila</h3><p>Caramel, plum, almond.</p></div></div>
+          <div class="post"><div class="ph"></div><div class="b"><h3>Decaf Brazil</h3><p>Cocoa, hazelnut.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="esc-hint">Esc · exit fullscreen</div>
+  </div>
+</div>
+
+
+<!-- =================================================================== -->
+<!-- AFFORDANCE LEDGER + DESIGN NOTES                                      -->
+<!-- =================================================================== -->
+<div class="footer">
+  <div class="row2">
+    <div class="col">
+      <h5>Idle affordance ledger (target ≤ 8)</h5>
+      <ul>
+        <li>1 · <b>Left rail</b> — one door to "Launcher" (Your sites + Start new + 43 Blueprints)</li>
+        <li>2 · <b>Right rail</b> — one door to "Site Manager" (Settings · Files · Blueprint · DB · Logs)</li>
+        <li>3 · <b>Top bar identity</b> — name + saved-state dot + version chip (single static cluster)</li>
+        <li>4 · <b>URL pill</b> — address field with embedded refresh + saved-state</li>
+        <li>5 · <b>Refresh</b> — embedded in URL pill</li>
+        <li>6 · <b>Save state</b> — embedded in URL pill (clickable; becomes "Save now" when unsaved)</li>
+        <li>7 · <b>Fullscreen iframe</b> — F or icon top-right</li>
+        <li>8 · <b>More menu</b> — kebab top-right (one home for Export GitHub PR, Download .zip, etc.)</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h5>One door per feature</h5>
+      <ul>
+        <li><b>Settings</b> → only Site Manager · Settings tab (popover + info-notice button removed)</li>
+        <li><b>Apply &amp; Reset</b> → confirm-by-typing the playground name. No more "tiny red banner"</li>
+        <li><b>Launcher</b> → only the left rail. No second nav for blueprints</li>
+        <li><b>Export GitHub PR / Download .zip</b> → only the kebab menu</li>
+        <li><b>WP-admin / Homepage</b> → only the Site Manager header (also reachable via URL pill)</li>
+      </ul>
+      <h5 style="margin-top:14px">Ambient color — what it earns</h5>
+      <ul>
+        <li>Rails sample the iframe's dominant color (live). The chrome <b>belongs</b> to the site rather than over-printing it.</li>
+        <li>The seam between rail and iframe is a 1px theme-color line — a "lit edge" the eye reads as boundary, not chrome.</li>
+        <li>Demonstrated cool (Vanilla WP) and warm (Art Gallery) tints on mobile B.</li>
+        <li>No glass-for-glass-sake: the only blurred panels are the secondary pane and the menu, where they overlap the iframe.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  // Tiny script: clicking a rail expands its pane (demonstration only — designs are static crops).
+  // Provided so a reviewer dropping the file into a browser can click around.
+  document.querySelectorAll('.rail').forEach(r=>{
+    r.addEventListener('click',()=>{
+      r.classList.toggle('show-chev');
+    });
+  });
+  document.querySelectorAll('.pane .close').forEach(c=>{
+    c.addEventListener('click',e=>{
+      const pane = c.closest('.pane');
+      if(pane) pane.style.display='none';
+    });
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='f' || e.key==='F'){
+      document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('fullscreen'));
+    }
+    if(e.key==='Escape'){
+      document.querySelectorAll('.pg').forEach(p=>p.classList.remove('fullscreen'));
+    }
+  });
+</script>
+
+</body>
+</html>
