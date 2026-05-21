@@ -1,0 +1,10 @@
+# 039 — Neumorphism
+
+## Thesis
+Playground reimagined as a single piece of warm, soft clay. Every control — toolbar buttons, panels, tabs, blueprint cards — is either pillowed out of the surface or pressed into it. There is no border, no divider, no shadow stronger than what light and a soft material would create. The whole UI uses one monochrome palette (a sand/clay base with subtle ink for text) so visual hierarchy comes entirely from depth: convex = afford, concave = active/pressed, flush = container. A single accent ink is reserved for one thing: destructive confirmation.
+
+## What I remixed / merged / removed
+The three settings entry points are still all present but reuse the same physical "settings pillow": the popover is the same pressed control surface as the Site Manager Settings tab, so users learn it once. The Site Manager and the Saved-Playgrounds launcher are merged into one left "drawer" with a pressed segmented selector switching between Launcher (sections: New / Blueprints / Your Playgrounds) and Workspace (tabs: Settings / Files / Blueprint / Database / Logs). Address bar, refresh, name label, save, launcher trigger, site-manager toggle and settings popover all live in a single soft top pillow. The blueprint browser becomes a full panel with search + category chips (pressed when active) + 43 cards. Logs get pressed-in level chips. The destructive "Apply & Reset" is the only place an accent color appears — it's a pressed coral pillow, deliberately different from everything else.
+
+## Trade-offs
+Neumorphism is famously low-contrast — I've leaned warm and bumped text to near-black to keep WCAG AA on body text, but the soft buttons themselves rely on shape rather than contrast, which is a known accessibility weakness. I accept that here as a stylistic constraint of the direction; in production this would need a "high contrast" mode toggle. The monochrome palette also means tags/categories can't rely on color — they're shape-coded with subtle icon glyphs instead. Finally, the shadows are expensive on low-end GPUs; in a real ship I'd use SVG filters cached as images.
