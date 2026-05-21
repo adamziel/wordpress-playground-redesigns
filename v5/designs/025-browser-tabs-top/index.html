@@ -1,0 +1,1833 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WordPress Playground — Browser Tabs Across the Top</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@latest/font/lucide.css">
+<style>
+  :root{
+    --bg-page:#0a0c10;
+    --bg-chrome:#1f2026;          /* tab strip background (Chrome dark-ish) */
+    --bg-chrome-2:#16171c;        /* inactive tab fill */
+    --bg-toolbar:#2a2c33;         /* address bar row */
+    --bg-content:#ffffff;         /* iframe area when light */
+    --bg-dock:#101218;            /* devtools dock */
+    --bg-dock-2:#161922;
+    --line:rgba(255,255,255,.08);
+    --line-strong:rgba(255,255,255,.16);
+    --line-dock:rgba(255,255,255,.06);
+    --text:#e9ecf3;
+    --text-mute:rgba(233,236,243,.62);
+    --text-dim:rgba(233,236,243,.4);
+    --ink:#0c0f15;
+    --ink-mute:#5a6072;
+    --ink-dim:#8a91a2;
+    --accent:#3b82f6;             /* Chrome-blue accent */
+    --accent-soft:rgba(59,130,246,.18);
+    --good:#22c55e;
+    --warn:#f59e0b;
+    --bad:#ef4444;
+    --tab-h:36px;
+    --addr-h:40px;
+    --chrome-h:76px;              /* tab strip + address bar */
+    --dock-h-collapsed:32px;
+    --wp-blue:#2271b1;
+    --wp-blue-dark:#135e96;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#06070b;color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-feature-settings:"cv11","ss01","ss03";-webkit-font-smoothing:antialiased}
+  body{
+    font-size:13.5px;line-height:1.4;
+    padding:48px 36px 96px;
+    background:
+      radial-gradient(900px 600px at 12% -10%, rgba(59,130,246,.10), transparent 60%),
+      radial-gradient(900px 600px at 88% 110%, rgba(34,113,177,.08), transparent 60%),
+      #06070b;
+  }
+  a{color:inherit}
+
+  /* page scaffolding */
+  .page-head{max-width:1440px;margin:0 auto 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px}
+  .page-head h1{font-size:22px;font-weight:600;margin:0 0 4px;letter-spacing:-.012em}
+  .page-head .sub{color:var(--text-mute);font-size:13px;max-width:680px;line-height:1.5}
+  .page-head .meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);text-align:right;line-height:1.7}
+  .page-head .meta b{color:#a8c5ff;font-weight:500}
+
+  .scene{max-width:1440px;margin:0 auto 56px}
+  .scene-label{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding:0 4px}
+  .scene-label .l{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute)}
+  .scene-label .l b{color:var(--text);font-weight:600}
+  .scene-label .r{font-size:11.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
+
+  /* the playground frame -------------------------------------------- */
+  .pg{
+    position:relative;
+    width:1440px;height:900px;
+    border-radius:14px;
+    overflow:hidden;
+    background:var(--bg-chrome);
+    box-shadow:0 40px 120px -30px rgba(0,0,0,.7),0 0 0 1px var(--line);
+    color:var(--text);
+  }
+  .pg.mobile{width:390px;height:844px;border-radius:42px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7),0 0 0 1px var(--line),inset 0 0 0 6px #15171f}
+
+  /* ============== TAB STRIP (36px) ============== */
+  .tabstrip{
+    position:absolute;left:0;right:0;top:0;height:var(--tab-h);
+    background:var(--bg-chrome);
+    display:flex;align-items:flex-end;
+    padding:0 8px 0 12px;
+    z-index:30;
+    user-select:none;
+  }
+  .tabstrip .tabs{display:flex;align-items:flex-end;gap:1px;flex:1;min-width:0;overflow:hidden}
+  .tab{
+    position:relative;
+    height:30px;
+    display:flex;align-items:center;gap:8px;
+    padding:0 10px 0 12px;
+    min-width:140px;max-width:220px;
+    background:var(--bg-chrome-2);
+    border-radius:9px 9px 0 0;
+    font-size:12px;color:var(--text-mute);
+    cursor:default;
+    transition:background .15s;
+    flex-shrink:1;
+  }
+  .tab:hover{background:#1f2129;color:var(--text)}
+  .tab.active{
+    background:var(--bg-toolbar);
+    color:var(--text);
+    height:32px;
+    box-shadow:0 -1px 0 0 var(--bg-toolbar);
+  }
+  .tab .fav{
+    width:14px;height:14px;border-radius:3px;
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;font-weight:700;color:#fff;
+  }
+  .tab .fav.wp{background:var(--wp-blue);}
+  .tab .fav.coffee{background:#8b4513}
+  .tab .fav.gallery{background:#7c3aed}
+  .tab .fav.gutenberg{background:#0f172a;border:1px solid #334155}
+  .tab .fav.woo{background:#7f54b3}
+  .tab .fav.gh{background:#24292f}
+  .tab .fav.unsaved{background:transparent;border:1.5px dashed rgba(255,255,255,.32);color:var(--text-dim)}
+  .tab .fav.booting{background:rgba(245,158,11,.18);color:var(--warn);animation:spin 1.2s linear infinite}
+  .tab .ttl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:12px;letter-spacing:-.005em}
+  .tab .unsaved-dot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0;box-shadow:0 0 0 2px var(--bg-chrome-2)}
+  .tab.active .unsaved-dot{box-shadow:0 0 0 2px var(--bg-toolbar)}
+  .tab .close{
+    width:16px;height:16px;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--text-dim);
+    flex-shrink:0;opacity:0;transition:opacity .12s,background .12s;
+  }
+  .tab:hover .close,.tab.active .close{opacity:1}
+  .tab .close:hover{background:rgba(255,255,255,.1);color:var(--text)}
+  .tab.booting{background:rgba(245,158,11,.06)}
+  .tab.booting.active{background:var(--bg-toolbar)}
+  .tab .booting-bar{position:absolute;bottom:0;left:8px;right:8px;height:1.5px;background:rgba(245,158,11,.2);border-radius:1px;overflow:hidden}
+  .tab .booting-bar i{display:block;height:100%;width:62%;background:var(--warn);border-radius:1px;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+  /* the "+" new-tab button */
+  .newtab{
+    width:28px;height:28px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:6px;
+    color:var(--text-mute);
+    margin-left:6px;flex-shrink:0;
+    background:transparent;
+    cursor:default;
+    transition:background .12s,color .12s;
+  }
+  .newtab:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .newtab i{font-size:16px}
+
+  /* right side of tab strip: minimize / maximize / close (visual only — these are window controls of the playground frame in our screenshots, mostly decorative; cf. Chrome) */
+  .winctl{display:flex;align-items:center;gap:2px;margin-left:auto;padding-left:8px}
+  .winctl .w{width:28px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;border-radius:4px}
+  .winctl .w:hover{background:rgba(255,255,255,.06);color:var(--text)}
+  .winctl .w.close:hover{background:#e81123;color:#fff}
+
+  /* ============== ADDRESS BAR (40px) ============== */
+  .toolbar{
+    position:absolute;left:0;right:0;top:var(--tab-h);height:var(--addr-h);
+    background:var(--bg-toolbar);
+    display:flex;align-items:center;gap:6px;
+    padding:0 12px;
+    z-index:29;
+    border-bottom:1px solid var(--line);
+  }
+  .iconbtn{
+    width:30px;height:30px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text);font-size:16px;
+    background:transparent;
+    transition:background .12s;
+    flex-shrink:0;cursor:default;
+  }
+  .iconbtn:hover{background:rgba(255,255,255,.08)}
+  .iconbtn.disabled{color:var(--text-dim);cursor:not-allowed}
+  .iconbtn.active{background:rgba(255,255,255,.1);color:#fff}
+  .iconbtn .badge{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--warn)}
+
+  .addr{
+    flex:1;
+    height:30px;
+    display:flex;align-items:center;gap:0;
+    padding:0 0 0 4px;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--line-strong);
+    border-radius:15px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;color:var(--text);
+    transition:border-color .12s,background .12s;
+    min-width:0;
+  }
+  .addr:hover{background:rgba(255,255,255,.07)}
+  .addr.focused{background:#fff;color:var(--ink);border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+
+  /* the "scheme pill" — Chrome's https-style indicator, repurposed for save-state */
+  .scheme{
+    display:flex;align-items:center;gap:5px;
+    height:22px;padding:0 9px 0 7px;border-radius:11px;
+    font-family:'Inter',sans-serif;font-size:10.5px;font-weight:550;letter-spacing:.01em;
+    margin-left:2px;
+    flex-shrink:0;
+    cursor:default;
+  }
+  .scheme i{font-size:11px}
+  .scheme.unsaved{background:rgba(245,158,11,.18);color:#fde68a;border:1px solid rgba(245,158,11,.32)}
+  .scheme.unsaved:hover{background:rgba(245,158,11,.28)}
+  .scheme.saved{background:rgba(34,197,94,.16);color:#86efac;border:1px solid rgba(34,197,94,.3)}
+  .scheme.booting{background:rgba(59,130,246,.16);color:#bfdbfe;border:1px solid rgba(59,130,246,.32)}
+
+  .addr .urlpath{flex:1;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);min-width:0}
+  .addr.focused .urlpath{color:var(--ink)}
+  .addr .urlpath .host{color:var(--text-mute)}
+  .addr.focused .urlpath .host{color:var(--ink-dim)}
+  .addr .star{width:24px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;margin-right:2px}
+
+  /* right-side toolbar buttons */
+  .tools-r{display:flex;align-items:center;gap:2px;margin-left:6px}
+
+  /* ============== IFRAME CONTENT ============== */
+  .stage{
+    position:absolute;left:0;right:0;top:var(--chrome-h);bottom:0;
+    background:var(--bg-content);
+    display:flex;flex-direction:column;
+  }
+  .stage.dock-open{bottom:340px}
+  .stage.dock-collapsed{bottom:var(--dock-h-collapsed)}
+
+  .iframe{
+    flex:1;position:relative;overflow:hidden;
+    background:#fff;
+  }
+
+  /* fake WordPress site renderings */
+  .wp-site{position:absolute;inset:0;color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:14px;overflow:hidden}
+
+  /* Coffee shop site */
+  .wp-coffee{background:#f8f3ec}
+  .wp-coffee .nav{height:64px;background:#231b13;color:#f8f3ec;display:flex;align-items:center;padding:0 56px;gap:32px;font-size:13px;letter-spacing:.02em}
+  .wp-coffee .nav .brand{font-family:'Inter',serif;font-weight:700;font-size:18px;letter-spacing:.04em;flex:1}
+  .wp-coffee .nav .nav-a{opacity:.82;cursor:default}
+  .wp-coffee .nav .nav-a:hover{opacity:1}
+  .wp-coffee .nav .cart{background:#c79050;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600}
+  .wp-coffee .hero{padding:90px 56px 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  .wp-coffee .hero h1{font-family:'Inter',serif;font-size:56px;line-height:1.05;letter-spacing:-.02em;color:#231b13;margin:0 0 20px;font-weight:700}
+  .wp-coffee .hero h1 em{font-style:italic;color:#8b4513;font-weight:500}
+  .wp-coffee .hero p{color:#5e4a36;font-size:15px;line-height:1.6;max-width:440px;margin:0 0 28px}
+  .wp-coffee .hero .cta{display:inline-flex;align-items:center;gap:10px;background:#231b13;color:#f8f3ec;padding:14px 24px;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+  .wp-coffee .hero-img{aspect-ratio:1;background:linear-gradient(135deg,#c79050,#8b4513);border-radius:12px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;font-size:140px}
+  .wp-coffee .hero-img::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.2), transparent 50%)}
+  .wp-coffee .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:24px 56px 80px}
+  .wp-coffee .prod{background:#fff;border:1px solid #e7dccc;border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px}
+  .wp-coffee .prod .pic{aspect-ratio:1;background:linear-gradient(140deg,#e9d4b8,#c79050);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:48px;color:#fff}
+  .wp-coffee .prod h3{margin:0;font-size:14px;font-weight:600;color:#231b13;font-family:'Inter',serif}
+  .wp-coffee .prod .row{display:flex;justify-content:space-between;align-items:center;color:#5e4a36;font-size:12px}
+  .wp-coffee .prod .price{color:#8b4513;font-weight:600;font-size:14px}
+
+  /* Vanilla WP site */
+  .wp-vanilla{background:#fff;color:#1d2327}
+  .wp-vanilla .top{height:46px;background:#1d2327;color:#fff;display:flex;align-items:center;padding:0 24px;font-size:13px;gap:18px}
+  .wp-vanilla .top .br{font-weight:600}
+  .wp-vanilla .body{padding:80px 56px;max-width:920px;margin:0 auto;font-family:Georgia,serif}
+  .wp-vanilla h1{font-size:48px;font-weight:400;letter-spacing:-.01em;margin:0 0 16px;color:#1d2327}
+  .wp-vanilla .meta-row{color:#646970;font-size:13px;margin-bottom:32px;font-family:'Inter',sans-serif}
+  .wp-vanilla p{font-size:17px;line-height:1.7;color:#2c3338;margin:0 0 20px}
+  .wp-vanilla .card{margin-top:40px;border:1px solid #dcdcde;border-radius:6px;padding:24px;background:#fafbfc}
+
+  /* Gutenberg PR site */
+  .wp-gb{background:#fff;color:#1e1e1e;font-family:'Inter',sans-serif}
+  .wp-gb .admin{height:46px;background:#1d2327;color:#fff;display:flex;align-items:center;padding:0 20px;gap:16px;font-size:12.5px}
+  .wp-gb .admin .l{font-weight:600;color:#fff}
+  .wp-gb .admin .sep{color:#646970}
+  .wp-gb .edit{display:grid;grid-template-columns:60px 1fr 280px;height:calc(100% - 46px)}
+  .wp-gb .edit .left{background:#1e1e1e;color:#fff;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .wp-gb .edit .left .ic{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#a7aaad;border-radius:4px}
+  .wp-gb .edit .left .ic.active{background:#fff;color:#1e1e1e}
+  .wp-gb .edit .center{padding:48px;overflow:auto;background:#fff}
+  .wp-gb .edit .center .block{padding:8px 0;outline:0;border:0;font-size:18px;line-height:1.6}
+  .wp-gb .edit .center .block.h{font-size:36px;font-weight:700;line-height:1.2;margin-bottom:16px}
+  .wp-gb .edit .center .selected{outline:1px solid #2271b1;outline-offset:8px}
+  .wp-gb .edit .right{background:#f0f0f1;border-left:1px solid #dcdcde;padding:16px;font-size:12px;color:#3c434a}
+  .wp-gb .edit .right .tab{display:flex;border-bottom:1px solid #dcdcde;margin:-16px -16px 16px}
+  .wp-gb .edit .right .tab .t{flex:1;text-align:center;padding:12px;font-size:11.5px;font-weight:600}
+  .wp-gb .edit .right .tab .t.active{border-bottom:2px solid #2271b1;color:#2271b1}
+  .wp-gb .edit .right .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:11.5px}
+  .wp-gb .edit .right .row span:last-child{color:#1e1e1e;font-weight:500}
+
+  /* Boot screen */
+  .boot{position:absolute;inset:0;background:radial-gradient(ellipse at center,#1a2438,#0a0d14);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:36px;color:#fff}
+  .boot .wp-mark{
+    width:96px;height:96px;border-radius:50%;
+    background:linear-gradient(135deg,#3858e9,#2271b1);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:48px;font-family:Georgia,serif;
+    box-shadow:0 0 60px rgba(56,88,233,.4);
+    position:relative;
+  }
+  .boot .wp-mark::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(255,255,255,.12);border-top-color:rgba(255,255,255,.7);animation:spin 1.2s linear infinite}
+  .boot .step{font-size:13px;color:rgba(255,255,255,.7);font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+  .boot .step b{color:#fff;font-weight:500}
+  .boot .title{font-size:22px;font-weight:500;letter-spacing:-.01em}
+  .boot .progress{width:340px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+  .boot .progress i{display:block;width:64%;height:100%;background:linear-gradient(90deg,#3858e9,#7aa7ff);border-radius:2px}
+  .boot .logline{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.45);max-width:520px;text-align:center;line-height:1.7}
+  .boot .logline span{color:rgba(167,212,247,.85)}
+
+  /* ============== DOCK COLLAPSED (devtools) — 32px ============== */
+  .dock-handle{
+    position:absolute;left:0;right:0;bottom:0;height:var(--dock-h-collapsed);
+    background:var(--bg-dock);
+    display:flex;align-items:center;
+    padding:0 12px;gap:14px;
+    border-top:1px solid var(--line);
+    z-index:20;
+    color:var(--text-mute);font-size:11.5px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .dock-handle .grip{display:flex;flex-direction:column;gap:2px;padding:6px 4px;cursor:row-resize}
+  .dock-handle .grip i{display:block;width:18px;height:1.5px;background:rgba(255,255,255,.2);border-radius:1px}
+  .dock-handle .status-pip{display:flex;align-items:center;gap:6px;padding:0 0}
+  .dock-handle .status-pip .d{width:6px;height:6px;border-radius:50%}
+  .dock-handle .status-pip .d.ok{background:var(--good);box-shadow:0 0 4px var(--good)}
+  .dock-handle .status-pip .d.warn{background:var(--warn);box-shadow:0 0 4px var(--warn)}
+  .dock-handle .status-pip .d.err{background:var(--bad);box-shadow:0 0 4px var(--bad)}
+  .dock-handle .spacer{flex:1}
+  .dock-handle .open-cta{
+    display:flex;align-items:center;gap:6px;
+    color:var(--text-mute);font-family:'Inter',sans-serif;font-size:11px;
+  }
+  .dock-handle .open-cta b{color:var(--text);font-weight:550}
+  .dock-handle .open-cta kbd{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    background:rgba(255,255,255,.06);border:1px solid var(--line-strong);
+    border-radius:3px;padding:1px 5px;color:var(--text);
+  }
+
+  /* ============== DOCK EXPANDED (devtools panel) ============== */
+  .dock{
+    position:absolute;left:0;right:0;bottom:0;height:340px;
+    background:var(--bg-dock);
+    border-top:1px solid var(--line);
+    z-index:25;
+    display:flex;flex-direction:column;
+    color:var(--text);
+  }
+  .dock .dock-tabs{
+    display:flex;align-items:center;
+    background:var(--bg-dock-2);
+    border-bottom:1px solid var(--line-dock);
+    height:32px;padding:0 8px;gap:0;
+    flex-shrink:0;
+  }
+  .dock .dt{
+    height:32px;padding:0 14px;
+    display:flex;align-items:center;gap:6px;
+    font-size:11.5px;color:var(--text-mute);font-weight:500;
+    border-bottom:2px solid transparent;
+    cursor:default;
+  }
+  .dock .dt i{font-size:12px}
+  .dock .dt:hover{color:var(--text)}
+  .dock .dt.active{color:#fff;border-bottom-color:var(--accent);background:linear-gradient(180deg,rgba(59,130,246,.06),transparent)}
+  .dock .dt .ct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);background:rgba(255,255,255,.06);padding:1px 5px;border-radius:6px}
+  .dock .dt.active .ct{color:#bfdbfe;background:rgba(59,130,246,.18)}
+  .dock-tabs .grow{flex:1}
+  .dock-tabs .dt-icon{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--text-mute);font-size:13px;border-radius:4px}
+  .dock-tabs .dt-icon:hover{background:rgba(255,255,255,.06);color:var(--text)}
+
+  .dock .pane{flex:1;display:flex;min-height:0;overflow:hidden}
+
+  /* ---- LOGS pane ---- */
+  .logs-pane{flex:1;display:flex;flex-direction:column;min-width:0}
+  .logs-pane .toolbar2{height:30px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid var(--line-dock);background:rgba(255,255,255,.015);flex-shrink:0}
+  .logs-pane .toolbar2 .filter{display:flex;align-items:center;gap:5px;padding:3px 8px;background:rgba(255,255,255,.04);border:1px solid var(--line-dock);border-radius:5px;font-size:11px;color:var(--text-mute)}
+  .logs-pane .toolbar2 .filter.active{color:var(--text);background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.3)}
+  .logs-pane .toolbar2 .filter .dot{width:6px;height:6px;border-radius:50%}
+  .logs-pane .toolbar2 .filter .dot.err{background:var(--bad)}
+  .logs-pane .toolbar2 .filter .dot.warn{background:var(--warn)}
+  .logs-pane .toolbar2 .filter .dot.info{background:var(--accent)}
+  .logs-pane .toolbar2 .search{margin-left:auto;display:flex;align-items:center;gap:6px;padding:3px 8px;background:rgba(255,255,255,.04);border:1px solid var(--line-dock);border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-mute);min-width:160px}
+  .logs-pane .toolbar2 .search i{font-size:11px}
+  .logs-pane .toolbar2 .clear{padding:3px 8px;font-size:11px;color:var(--text-mute);border-radius:4px}
+  .logs-pane .body{flex:1;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55}
+  .log-row{display:grid;grid-template-columns:64px 70px 1fr;gap:10px;padding:3px 12px;border-bottom:1px solid rgba(255,255,255,.025);align-items:baseline}
+  .log-row:hover{background:rgba(255,255,255,.025)}
+  .log-row .t{color:var(--text-dim);font-size:10.5px}
+  .log-row .lvl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:1px 6px;border-radius:3px;display:inline-block;width:max-content}
+  .log-row .lvl.error{color:#fca5a5;background:rgba(239,68,68,.12)}
+  .log-row .lvl.warn{color:#fde68a;background:rgba(245,158,11,.12)}
+  .log-row .lvl.info{color:#bfdbfe;background:rgba(59,130,246,.12)}
+  .log-row .lvl.notice{color:#c4b5fd;background:rgba(167,139,250,.12)}
+  .log-row .msg{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .log-row .msg .file{color:#a8c5ff}
+  .log-row .msg .num{color:#86efac}
+
+  /* ---- FILES pane (sources-style) ---- */
+  .files-pane{flex:1;display:flex;min-width:0}
+  .files-pane .tree{width:260px;flex-shrink:0;border-right:1px solid var(--line-dock);overflow:auto;background:rgba(0,0,0,.12);padding:6px 0;font-size:11.5px}
+  .files-pane .tree .row{display:flex;align-items:center;gap:5px;padding:2px 10px;color:var(--text-mute);cursor:default;line-height:1.6}
+  .files-pane .tree .row:hover{background:rgba(255,255,255,.04);color:var(--text)}
+  .files-pane .tree .row.active{background:rgba(59,130,246,.18);color:#fff}
+  .files-pane .tree .row i{font-size:12px;flex-shrink:0;color:var(--text-dim);width:14px}
+  .files-pane .tree .row.active i{color:#bfdbfe}
+  .files-pane .tree .row.dir i{color:#fbbf24}
+  .files-pane .tree .row.php i{color:#a78bfa}
+  .files-pane .tree .indent-1{padding-left:24px}
+  .files-pane .tree .indent-2{padding-left:38px}
+  .files-pane .tree .indent-3{padding-left:52px}
+
+  .files-pane .editor{flex:1;display:flex;flex-direction:column;min-width:0;background:#0e1015}
+  .files-pane .editor .bar{height:28px;display:flex;align-items:center;padding:0 10px;gap:8px;border-bottom:1px solid var(--line-dock);font-size:11px;color:var(--text-mute);font-family:'JetBrains Mono',monospace;flex-shrink:0}
+  .files-pane .editor .bar .new{margin-left:auto;display:flex;gap:4px}
+  .files-pane .editor .bar .new .b{padding:2px 8px;background:rgba(255,255,255,.05);border:1px solid var(--line-dock);border-radius:4px;color:var(--text-mute);font-size:10.5px}
+  .files-pane .editor .code{flex:1;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;padding:8px 0}
+  .files-pane .editor .code .ln{display:grid;grid-template-columns:36px 1fr;gap:8px;padding:0 8px;color:var(--text)}
+  .files-pane .editor .code .ln .n{color:var(--text-dim);text-align:right;font-size:10.5px;padding-top:1px}
+  .files-pane .editor .code .ln.h{background:rgba(59,130,246,.06)}
+  .files-pane .editor .code .k{color:#c084fc}
+  .files-pane .editor .code .s{color:#86efac}
+  .files-pane .editor .code .f{color:#7dd3fc}
+  .files-pane .editor .code .c{color:var(--text-dim);font-style:italic}
+  .files-pane .editor .code .v{color:#fbbf24}
+
+  /* ---- SETTINGS pane ---- */
+  .settings-pane{flex:1;display:flex;min-width:0;overflow:auto}
+  .settings-pane .col{flex:1;padding:16px 24px;border-right:1px solid var(--line-dock)}
+  .settings-pane .col:last-child{border-right:0}
+  .settings-pane h4{margin:0 0 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:600;color:var(--text-mute)}
+  .settings-pane .field{margin-bottom:14px}
+  .settings-pane .field label{display:block;font-size:11.5px;color:var(--text-mute);margin-bottom:4px}
+  .settings-pane .field .val{display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,.04);border:1px solid var(--line-dock);border-radius:5px;font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace}
+  .settings-pane .field .val i{margin-left:auto;color:var(--text-dim);font-size:12px}
+  .settings-pane .toggle{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:12px;color:var(--text)}
+  .settings-pane .toggle .sw{width:30px;height:18px;border-radius:9px;background:rgba(255,255,255,.1);position:relative;flex-shrink:0}
+  .settings-pane .toggle .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .settings-pane .toggle.on .sw{background:var(--accent)}
+  .settings-pane .toggle.on .sw::after{left:14px}
+  .settings-pane .danger{
+    margin-top:14px;padding:12px;
+    background:rgba(239,68,68,.06);
+    border:1px solid rgba(239,68,68,.2);
+    border-radius:6px;
+  }
+  .settings-pane .danger .t{font-size:11.5px;color:#fca5a5;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .settings-pane .danger p{font-size:11px;color:var(--text-mute);margin:0 0 8px;line-height:1.5}
+  .settings-pane .danger .btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.35);color:#fecaca;border-radius:5px;font-size:11px;font-weight:550}
+
+  /* ---- BLUEPRINT pane ---- */
+  .blueprint-pane{flex:1;display:flex;min-width:0}
+  .blueprint-pane .tree{width:200px;flex-shrink:0;border-right:1px solid var(--line-dock);background:rgba(0,0,0,.12);padding:8px 0;font-size:11.5px;color:var(--text-mute)}
+  .blueprint-pane .tree .row{display:flex;align-items:center;gap:5px;padding:3px 12px;line-height:1.5}
+  .blueprint-pane .tree .row.active{background:rgba(59,130,246,.18);color:#fff}
+  .blueprint-pane .tree .row i{font-size:11px;color:var(--text-dim);width:14px}
+  .blueprint-pane .editor{flex:1;display:flex;flex-direction:column;background:#0e1015;min-width:0}
+  .blueprint-pane .editor .bar{height:30px;display:flex;align-items:center;padding:0 10px;gap:6px;border-bottom:1px solid var(--line-dock);flex-shrink:0}
+  .blueprint-pane .editor .bar .btn{padding:3px 9px;background:rgba(255,255,255,.05);border:1px solid var(--line-dock);border-radius:4px;color:var(--text-mute);font-size:10.5px;display:flex;align-items:center;gap:5px}
+  .blueprint-pane .editor .bar .btn.primary{background:rgba(59,130,246,.18);color:#bfdbfe;border-color:rgba(59,130,246,.32)}
+  .blueprint-pane .editor .bar .btn i{font-size:11px}
+  .blueprint-pane .editor .code{flex:1;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;padding:8px 12px;color:var(--text)}
+  .blueprint-pane .editor .code .ln{display:flex;gap:14px}
+  .blueprint-pane .editor .code .ln .n{color:var(--text-dim);font-size:10.5px;width:24px;text-align:right;flex-shrink:0;user-select:none}
+  .blueprint-pane .editor .code .k{color:#fbbf24}
+  .blueprint-pane .editor .code .s{color:#86efac}
+  .blueprint-pane .editor .code .num{color:#fb7185}
+  .blueprint-pane .editor .code .b{color:#c084fc;font-weight:500}
+  .blueprint-pane .editor .code .br{color:var(--text-dim)}
+
+  /* ---- DATABASE pane ---- */
+  .db-pane{flex:1;display:flex;flex-direction:column;min-width:0}
+  .db-pane .notice{padding:8px 12px;background:rgba(245,158,11,.08);border-bottom:1px solid rgba(245,158,11,.18);color:#fde68a;font-size:11px;display:flex;align-items:center;gap:8px}
+  .db-pane .notice i{font-size:13px}
+  .db-pane .notice .lnk{color:#bfdbfe;margin-left:auto;text-decoration:underline}
+  .db-pane .row2{display:flex;flex:1;min-height:0}
+  .db-pane .tables{width:200px;border-right:1px solid var(--line-dock);background:rgba(0,0,0,.12);padding:8px 0;overflow:auto}
+  .db-pane .tables .t{padding:4px 14px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-mute);display:flex;align-items:center;gap:6px}
+  .db-pane .tables .t i{font-size:11px;color:var(--text-dim)}
+  .db-pane .tables .t.active{background:rgba(59,130,246,.18);color:#fff}
+  .db-pane .tables .t .c{margin-left:auto;font-size:10px;color:var(--text-dim)}
+  .db-pane .query{flex:1;display:flex;flex-direction:column;background:#0e1015}
+  .db-pane .query .bar{height:30px;display:flex;align-items:center;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-mute);border-bottom:1px solid var(--line-dock);gap:6px}
+  .db-pane .query .bar .run{margin-left:auto;background:rgba(34,197,94,.16);color:#86efac;border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:2px 8px;font-size:10.5px}
+  .db-pane .query .table{flex:1;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11px}
+  .db-pane .query .table table{border-collapse:collapse;width:100%}
+  .db-pane .query .table th{position:sticky;top:0;background:#161922;color:var(--text-mute);text-align:left;padding:5px 10px;font-weight:600;font-size:10.5px;border-bottom:1px solid var(--line-dock)}
+  .db-pane .query .table td{padding:4px 10px;color:var(--text);border-bottom:1px solid rgba(255,255,255,.025);white-space:nowrap;font-size:11px}
+  .db-pane .query .table tr:hover td{background:rgba(255,255,255,.025)}
+  .db-pane .query .table .id{color:#fb7185}
+  .db-pane .query .table .str{color:#86efac}
+  .db-pane .query .table .nul{color:var(--text-dim);font-style:italic}
+
+  /* ============== NEW-TAB PAGE (LAUNCHER) ============== */
+  .newtab-page{
+    position:absolute;left:0;right:0;top:var(--chrome-h);bottom:0;
+    background:linear-gradient(180deg,#0f1218,#0a0c10);
+    overflow:auto;
+    color:var(--text);
+  }
+  .nt-inner{max-width:1080px;margin:0 auto;padding:48px 48px 80px}
+
+  /* Hero / start search */
+  .nt-hero{text-align:center;padding:24px 0 36px}
+  .nt-hero .wp-mark-sm{
+    width:64px;height:64px;border-radius:50%;
+    background:linear-gradient(135deg,#3858e9,#2271b1);
+    display:flex;align-items:center;justify-content:center;color:#fff;
+    font-family:Georgia,serif;font-size:36px;
+    margin:0 auto 18px;
+    box-shadow:0 0 40px rgba(56,88,233,.4);
+  }
+  .nt-hero h2{font-size:26px;font-weight:500;letter-spacing:-.018em;margin:0 0 22px;color:var(--text)}
+  .nt-hero h2 b{font-weight:600}
+  .nt-search{
+    max-width:580px;margin:0 auto;
+    height:46px;
+    display:flex;align-items:center;gap:8px;
+    padding:0 16px;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--line-strong);
+    border-radius:23px;
+    font-size:14px;color:var(--text-mute);
+    backdrop-filter:blur(8px);
+  }
+  .nt-search:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.24)}
+  .nt-search i{font-size:18px;color:var(--text-dim)}
+  .nt-search .ph{flex:1}
+  .nt-search kbd{font-family:'JetBrains Mono',monospace;font-size:10.5px;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:3px;color:var(--text-mute);border:1px solid var(--line-strong)}
+
+  /* sources */
+  .nt-section{margin-top:42px}
+  .nt-section .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .nt-section .sec-head h3{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute);margin:0}
+  .nt-section .sec-head .view-all{font-size:12px;color:#a8c5ff;display:flex;align-items:center;gap:4px}
+  .nt-section .sec-head .view-all i{font-size:13px}
+
+  .sources-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .source-card{
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 12px;
+    display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+    transition:background .12s,border-color .12s;
+    min-height:104px;
+  }
+  .source-card:hover{background:rgba(255,255,255,.06);border-color:var(--line-strong)}
+  .source-card .icn{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .source-card.vanilla .icn{background:rgba(34,113,177,.18);color:#7aa7ff}
+  .source-card.wppr .icn{background:rgba(34,197,94,.15);color:#86efac}
+  .source-card.gbpr .icn{background:rgba(167,139,250,.15);color:#c4b5fd}
+  .source-card.github .icn{background:rgba(255,255,255,.08);color:var(--text)}
+  .source-card.bp-url .icn{background:rgba(245,158,11,.15);color:#fde68a}
+  .source-card.zip .icn{background:rgba(236,72,153,.15);color:#f9a8d4}
+  .source-card .ttl{font-size:12.5px;font-weight:550;color:var(--text);letter-spacing:-.005em}
+  .source-card .desc{font-size:10.5px;color:var(--text-dim);line-height:1.5}
+
+  /* your playgrounds — like browser "frequently visited" */
+  .yp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .yp-card{
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    transition:background .12s,border-color .12s;
+  }
+  .yp-card:hover{background:rgba(255,255,255,.06);border-color:var(--line-strong)}
+  .yp-card .thumb{
+    aspect-ratio:16/9;
+    background:linear-gradient(135deg,#1a2438,#0e1015);
+    position:relative;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .yp-card .thumb::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 20%, rgba(255,255,255,.04), transparent 60%)}
+  .yp-card.coffee .thumb{background:linear-gradient(135deg,#3a2418,#8b4513)}
+  .yp-card.coffee .thumb::after{content:"☕";font-size:52px}
+  .yp-card.gallery .thumb{background:linear-gradient(135deg,#1a103a,#7c3aed)}
+  .yp-card.gallery .thumb::after{content:"🎨";font-size:52px}
+  .yp-card.woo .thumb{background:linear-gradient(135deg,#2d1340,#7f54b3)}
+  .yp-card.woo .thumb::after{content:"🛒";font-size:52px}
+  .yp-card.gh .thumb{background:linear-gradient(135deg,#0d1117,#30363d)}
+  .yp-card.gh .thumb::after{content:"\f09b";font-family:"lucide";font-size:48px;color:#fff}
+  .yp-card .body{padding:10px 12px}
+  .yp-card .body .nm{font-size:12.5px;font-weight:550;color:var(--text);letter-spacing:-.005em;display:flex;align-items:center;gap:5px}
+  .yp-card .body .nm .dot{width:5px;height:5px;border-radius:50%;background:var(--good)}
+  .yp-card .body .meta{font-size:10.5px;color:var(--text-dim);margin-top:3px;font-family:'JetBrains Mono',monospace;letter-spacing:-.01em}
+
+  /* blueprint gallery grid */
+  .bp-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .bp-filter{padding:5px 11px;border-radius:14px;font-size:11.5px;color:var(--text-mute);background:rgba(255,255,255,.04);border:1px solid var(--line);cursor:default}
+  .bp-filter:hover{background:rgba(255,255,255,.07);color:var(--text)}
+  .bp-filter.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .bp-search{margin-left:auto;display:flex;align-items:center;gap:7px;padding:5px 12px;background:rgba(255,255,255,.04);border:1px solid var(--line-strong);border-radius:14px;font-size:11.5px;color:var(--text-mute);min-width:200px;font-family:'JetBrains Mono',monospace}
+  .bp-search i{font-size:12px}
+  .bp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .bp-card{
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:11px 12px 12px;
+    cursor:default;
+    display:flex;flex-direction:column;gap:5px;
+    min-height:96px;
+  }
+  .bp-card:hover{background:rgba(255,255,255,.06);border-color:var(--line-strong)}
+  .bp-card .t{font-size:12px;font-weight:550;color:var(--text);letter-spacing:-.005em;display:flex;align-items:center;gap:6px}
+  .bp-card .t .badge{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#fde68a;background:rgba(245,158,11,.16);padding:1px 5px;border-radius:3px;font-weight:600}
+  .bp-card .d{font-size:10.5px;color:var(--text-dim);line-height:1.45;flex:1}
+  .bp-card .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+  .bp-card .tag{font-size:9.5px;color:var(--text-mute);background:rgba(255,255,255,.05);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace}
+
+  /* Toast region */
+  .toast{position:absolute;left:16px;bottom:48px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(15,23,42,.92);backdrop-filter:blur(16px);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);font-size:12px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);z-index:35}
+  .toast i{color:var(--good);font-size:14px}
+
+  /* "Apply + Reset" confirm sheet */
+  .confirm{position:absolute;inset:var(--chrome-h) 0 0;background:rgba(8,10,14,.62);backdrop-filter:blur(8px);z-index:40;display:flex;align-items:center;justify-content:center}
+  .confirm .sheet{width:440px;background:#161922;border:1px solid var(--line-strong);border-radius:12px;padding:22px 24px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+  .confirm .sheet .ic{width:44px;height:44px;border-radius:50%;background:rgba(239,68,68,.18);color:#fca5a5;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px}
+  .confirm .sheet h3{margin:0 0 6px;font-size:17px;font-weight:600;color:var(--text);letter-spacing:-.012em}
+  .confirm .sheet p{margin:0 0 16px;color:var(--text-mute);font-size:13px;line-height:1.5}
+  .confirm .sheet .typed{padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid var(--line-strong);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .confirm .sheet .typed b{color:var(--bad)}
+  .confirm .sheet .typed input{flex:1;background:transparent;border:0;color:var(--text);font-family:inherit;font-size:inherit;outline:0}
+  .confirm .sheet .btns{display:flex;gap:8px;justify-content:flex-end}
+  .confirm .sheet .btns .btn{padding:8px 14px;border-radius:6px;font-size:12.5px;font-weight:550}
+  .confirm .sheet .btns .btn.cancel{background:rgba(255,255,255,.06);color:var(--text)}
+  .confirm .sheet .btns .btn.danger{background:var(--bad);color:#fff}
+  .confirm .sheet .btns .btn.danger.disabled{opacity:.4}
+
+  /* fullscreen-mode hint band */
+  .fs-hint{
+    position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    background:rgba(8,10,14,.78);backdrop-filter:blur(12px);
+    color:var(--text);font-size:11.5px;
+    padding:6px 14px;border-radius:18px;
+    border:1px solid var(--line-strong);
+    display:flex;align-items:center;gap:8px;
+    z-index:50;
+  }
+  .fs-hint kbd{font-family:'JetBrains Mono',monospace;font-size:10.5px;background:rgba(255,255,255,.1);padding:2px 6px;border-radius:3px;color:#fff;border:1px solid rgba(255,255,255,.18)}
+
+  /* ============== MOBILE ============== */
+  .mobile-tabstrip{
+    position:absolute;left:0;right:0;top:0;height:38px;
+    background:var(--bg-chrome);
+    display:flex;align-items:center;
+    padding:0 10px;gap:6px;
+    z-index:30;
+    overflow-x:auto;
+  }
+  .mobile-tabstrip::-webkit-scrollbar{display:none}
+  .mobile-tab{
+    height:28px;
+    display:flex;align-items:center;gap:6px;
+    padding:0 9px;
+    border-radius:14px;
+    background:rgba(255,255,255,.05);
+    color:var(--text-mute);font-size:11.5px;
+    flex-shrink:0;
+  }
+  .mobile-tab.active{background:rgba(59,130,246,.22);color:#fff}
+  .mobile-tab .fav{width:11px;height:11px;border-radius:2px;flex-shrink:0}
+  .mobile-tab .fav.wp{background:var(--wp-blue)}
+  .mobile-tab .fav.coffee{background:#8b4513}
+  .mobile-tab .fav.gallery{background:#7c3aed}
+  .mobile-tab .fav.unsaved{background:transparent;border:1.5px dashed rgba(255,255,255,.32)}
+  .mobile-tab .x{font-size:10px;color:var(--text-dim)}
+  .mobile-newtab{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-mute);font-size:14px;flex-shrink:0}
+  .mobile-toolbar{
+    position:absolute;left:0;right:0;top:38px;height:36px;
+    background:var(--bg-toolbar);
+    display:flex;align-items:center;gap:6px;
+    padding:0 8px;
+    z-index:29;
+  }
+  .mobile-toolbar .addr{height:26px;border-radius:13px;font-size:11px;padding-left:4px}
+  .mobile-toolbar .scheme{height:18px;padding:0 7px;font-size:9.5px}
+  .mobile-toolbar .scheme i{font-size:9.5px}
+  .mobile-toolbar .addr .urlpath{font-size:11px;padding:0 6px}
+  .mobile-toolbar .iconbtn{width:26px;height:26px;font-size:14px}
+  .mobile-stage{position:absolute;left:0;right:0;top:74px;bottom:46px;background:#fff;overflow:hidden}
+  .mobile-stage.dock-open{bottom:340px}
+  .mobile-dock-tab{
+    position:absolute;left:0;right:0;bottom:0;height:46px;
+    background:var(--bg-dock);border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-around;
+    z-index:25;padding:0 6px;
+  }
+  .mobile-dock-tab .mdt{
+    display:flex;flex-direction:column;align-items:center;gap:1px;
+    color:var(--text-mute);font-size:9.5px;padding:6px 8px;border-radius:5px;
+    min-width:48px;
+  }
+  .mobile-dock-tab .mdt i{font-size:16px}
+  .mobile-dock-tab .mdt.active{color:#fff}
+  .mobile-dock-tab .mdt.active i{color:var(--accent)}
+
+  /* mobile dock-open variant: sheet from bottom with the 5 mini-tabs at top */
+  .mobile-dock-sheet{
+    position:absolute;left:0;right:0;bottom:0;height:340px;
+    background:var(--bg-dock);border-top:1px solid var(--line);
+    z-index:30;display:flex;flex-direction:column;
+  }
+  .mobile-dock-sheet .handle{height:14px;display:flex;align-items:center;justify-content:center}
+  .mobile-dock-sheet .handle i{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);display:block}
+  .mobile-dock-sheet .sub-tabs{display:flex;border-bottom:1px solid var(--line-dock);padding:0 6px;gap:0;overflow-x:auto}
+  .mobile-dock-sheet .sub-tabs::-webkit-scrollbar{display:none}
+  .mobile-dock-sheet .sub-tabs .st{padding:8px 10px;font-size:11px;color:var(--text-mute);border-bottom:2px solid transparent;flex-shrink:0}
+  .mobile-dock-sheet .sub-tabs .st.active{color:#fff;border-bottom-color:var(--accent)}
+
+  /* the WordPress site rendered inside the mobile iframe */
+  .mobile-stage .wp-coffee .hero{padding:32px 20px 18px;grid-template-columns:1fr;gap:18px}
+  .mobile-stage .wp-coffee .hero h1{font-size:32px}
+  .mobile-stage .wp-coffee .nav{height:48px;padding:0 18px;font-size:11px;gap:14px}
+  .mobile-stage .wp-coffee .nav .brand{font-size:14px}
+  .mobile-stage .wp-coffee .grid{grid-template-columns:1fr;padding:0 20px 24px;gap:12px}
+  .mobile-stage .wp-coffee .hero-img{display:none}
+
+  /* ============== ANNOTATIONS ============== */
+  .annot{
+    position:absolute;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;color:#a8c5ff;
+    background:rgba(15,23,42,.95);
+    border:1px solid rgba(122,167,255,.32);
+    padding:3px 7px;border-radius:4px;
+    box-shadow:0 4px 14px -4px rgba(0,0,0,.4);
+    pointer-events:none;
+    line-height:1.2;
+    z-index:60;
+  }
+  .annot.arr::before{content:"";position:absolute;width:10px;height:10px;background:inherit;border:inherit;}
+  .annot.arr-up::before{top:-6px;left:14px;border-bottom:0;border-right:0;transform:rotate(45deg);background:rgba(15,23,42,.95)}
+  .annot.arr-left::before{left:-6px;top:50%;margin-top:-5px;border-top:0;border-right:0;transform:rotate(-45deg);background:rgba(15,23,42,.95)}
+
+  /* device wrapper */
+  .device-row{display:flex;gap:36px;align-items:flex-start}
+  .device-cap{color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:10.5px;text-align:center;margin-top:10px;letter-spacing:.02em}
+
+  /* small helper */
+  .hide{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <h1>WordPress Playground — Browser Tabs Across the Top</h1>
+    <div class="sub">Direction #25 (extends #64 DevTools). Every saved playground is a real browser tab. The "+" tab is the launcher. The URL bar acts on the active tab. Site Manager is the DevTools dock at the bottom, collapsed by default.</div>
+  </div>
+  <div class="meta">
+    v5 · slot <b>025</b> · refinement<br>
+    parent <b>#64 inspector-devtools</b><br>
+    iframe-first · 8 idle affordances · one dock
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SCENE 1: WORKING SESSION (idle, dock collapsed) -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 1 · <b>Working session</b> — three saved tabs, "Coffee Shop" active. Dock collapsed to a 32px status rail.</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+
+    <!-- TAB STRIP -->
+    <div class="tabstrip">
+      <div class="tabs">
+        <div class="tab"><span class="fav wp">W</span><span class="ttl">Vanilla WP 6.7</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab active"><span class="fav coffee">☕</span><span class="ttl">Coffee Shop</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav gallery">A</span><span class="ttl">Art Gallery</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav woo">W</span><span class="ttl">Stylish Press · Woo</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav unsaved">?</span><span class="ttl">Unsaved Playground</span><span class="unsaved-dot" title="unsaved"></span><span class="close"><i class="lucide lucide-x"></i></span></div>
+      </div>
+      <div class="newtab" title="New tab — open launcher"><i class="lucide lucide-plus"></i></div>
+      <div class="winctl">
+        <div class="w"><i class="lucide lucide-minus"></i></div>
+        <div class="w"><i class="lucide lucide-square"></i></div>
+        <div class="w close"><i class="lucide lucide-x"></i></div>
+      </div>
+    </div>
+
+    <!-- ADDRESS BAR -->
+    <div class="toolbar">
+      <div class="iconbtn" title="Refresh"><i class="lucide lucide-rotate-cw"></i></div>
+      <div class="addr">
+        <span class="scheme saved" title="Saved to browser storage"><i class="lucide lucide-check"></i> Saved</span>
+        <span class="urlpath"><span class="host">coffee-shop.playground/</span>shop/cold-brew/</span>
+        <span class="star" title="Bookmark"><i class="lucide lucide-star"></i></span>
+      </div>
+      <div class="tools-r">
+        <div class="iconbtn" title="Fullscreen iframe (F)"><i class="lucide lucide-maximize"></i></div>
+        <div class="iconbtn active" title="Toggle dock (⌘J)"><i class="lucide lucide-panel-bottom"></i></div>
+        <div class="iconbtn" title="More"><i class="lucide lucide-more-vertical"></i></div>
+      </div>
+    </div>
+
+    <!-- IFRAME -->
+    <div class="stage dock-collapsed">
+      <div class="iframe">
+        <div class="wp-site wp-coffee">
+          <div class="nav">
+            <div class="brand">PERCOLATE</div>
+            <span class="nav-a">Shop</span><span class="nav-a">Brew Guides</span><span class="nav-a">Subscriptions</span><span class="nav-a">About</span><span class="nav-a">Journal</span>
+            <span class="cart">Cart · 2</span>
+          </div>
+          <div class="hero">
+            <div>
+              <h1>Cold brew, <em>slow</em><br>extracted.</h1>
+              <p>Hand-poured beans from single-origin farms, cold-steeped for 18 hours so the chocolate notes come forward without the bitterness.</p>
+              <a class="cta">Shop the season <i class="lucide lucide-arrow-right" style="font-size:14px"></i></a>
+            </div>
+            <div class="hero-img">☕</div>
+          </div>
+          <div class="grid">
+            <div class="prod"><div class="pic">🫘</div><h3>Ethiopia Yirgacheffe</h3><div class="row"><span>250g · whole bean</span><span class="price">$18</span></div></div>
+            <div class="prod"><div class="pic">🍫</div><h3>Brazilian Cerrado</h3><div class="row"><span>250g · whole bean</span><span class="price">$16</span></div></div>
+            <div class="prod"><div class="pic">🌅</div><h3>Colombian Huila</h3><div class="row"><span>250g · whole bean</span><span class="price">$17</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLLAPSED DOCK HANDLE -->
+      <div class="dock-handle">
+        <div class="grip"><i></i><i></i><i></i></div>
+        <div class="status-pip"><span class="d ok"></span> PHP 8.3 · WP 6.7 · SQLite</div>
+        <div class="status-pip"><span class="d warn"></span> 2 notices</div>
+        <div class="status-pip"><span class="d ok"></span> 0 errors</div>
+        <div class="spacer"></div>
+        <div class="open-cta"><b>Site Manager</b> &nbsp;·&nbsp; Settings · Files · Blueprint · Database · Logs &nbsp;<kbd>⌘J</kbd></div>
+      </div>
+    </div>
+
+    <!-- annotations -->
+    <div class="annot arr arr-up" style="top:50px;left:560px">tabs ARE the saved playgrounds — no separate list</div>
+    <div class="annot arr arr-up" style="top:50px;left:1180px">"+" tab opens the launcher</div>
+    <div class="annot arr arr-up" style="top:90px;left:478px">single Save state lives in the URL pill — Chrome's https-style indicator</div>
+    <div class="annot arr arr-up" style="top:90px;left:1248px">dock toggle · settings/files/blueprint/db/logs all live below</div>
+    <div class="annot arr arr-up" style="top:880px;left:920px">collapsed dock = passive status (lights, counts) · ⌘J to expand</div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SCENE 2: DOCK OPEN — LOGS tab -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 2 · <b>Site Manager dock open</b> — Logs tab on Stylish Press tab. Devtools-style panel below; iframe stays primary above.</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+
+    <div class="tabstrip">
+      <div class="tabs">
+        <div class="tab"><span class="fav wp">W</span><span class="ttl">Vanilla WP 6.7</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav coffee">☕</span><span class="ttl">Coffee Shop</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav gallery">A</span><span class="ttl">Art Gallery</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab active"><span class="fav woo">W</span><span class="ttl">Stylish Press · Woo</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav unsaved">?</span><span class="ttl">Unsaved Playground</span><span class="unsaved-dot"></span><span class="close"><i class="lucide lucide-x"></i></span></div>
+      </div>
+      <div class="newtab"><i class="lucide lucide-plus"></i></div>
+      <div class="winctl">
+        <div class="w"><i class="lucide lucide-minus"></i></div>
+        <div class="w"><i class="lucide lucide-square"></i></div>
+        <div class="w close"><i class="lucide lucide-x"></i></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="iconbtn"><i class="lucide lucide-rotate-cw"></i></div>
+      <div class="addr">
+        <span class="scheme saved"><i class="lucide lucide-check"></i> Saved</span>
+        <span class="urlpath"><span class="host">stylish-press.playground/</span>wp-admin/options-permalink.php</span>
+        <span class="star"><i class="lucide lucide-star"></i></span>
+      </div>
+      <div class="tools-r">
+        <div class="iconbtn"><i class="lucide lucide-maximize"></i></div>
+        <div class="iconbtn active"><i class="lucide lucide-panel-bottom"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+      </div>
+    </div>
+
+    <div class="stage dock-open">
+      <div class="iframe">
+        <!-- mini WP admin Permalink page -->
+        <div class="wp-site wp-vanilla">
+          <div class="top"><span class="br">WP</span><span>Stylish Press</span><span style="opacity:.7">Edit Site</span><span style="opacity:.7">Comments</span><span style="margin-left:auto;opacity:.85">Howdy, admin</span></div>
+          <div style="display:grid;grid-template-columns:200px 1fr;height:calc(100% - 46px)">
+            <div style="background:#1d2327;color:#c3c4c7;padding:16px 0;font-size:12.5px;font-family:Inter,sans-serif">
+              <div style="padding:8px 16px;color:#fff;background:#2271b1;border-left:3px solid #72aee6">Settings ▾</div>
+              <div style="padding:6px 16px 6px 24px;color:#a7aaad">General</div>
+              <div style="padding:6px 16px 6px 24px;color:#a7aaad">Writing</div>
+              <div style="padding:6px 16px 6px 24px;color:#a7aaad">Reading</div>
+              <div style="padding:6px 16px 6px 24px;color:#a7aaad">Discussion</div>
+              <div style="padding:6px 16px 6px 24px;color:#fff;background:#1f2528;border-left:3px solid #2271b1">Permalinks</div>
+            </div>
+            <div style="padding:32px 40px;background:#f0f0f1;font-family:Inter,sans-serif;font-size:13px;color:#3c434a;overflow:auto">
+              <h1 style="font-size:22px;font-weight:400;color:#1d2327;margin:0 0 18px">Permalink Settings</h1>
+              <p style="margin:0 0 20px;line-height:1.6">A custom URL structure can improve the aesthetics, usability, and forward-compatibility of your links.</p>
+              <div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:20px;max-width:680px">
+                <h3 style="margin:0 0 12px;font-size:14px;color:#1d2327;font-weight:600">Common Settings</h3>
+                <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+                  <label style="display:flex;align-items:flex-start;gap:8px"><input type="radio" disabled style="margin-top:2px"> Plain — <code style="background:#f6f7f7;padding:1px 6px;border-radius:3px;font-size:12px;color:#2c3338">?p=123</code></label>
+                  <label style="display:flex;align-items:flex-start;gap:8px"><input type="radio" disabled checked style="margin-top:2px"> Post name — <code style="background:#f6f7f7;padding:1px 6px;border-radius:3px;font-size:12px;color:#2c3338">/sample-post/</code></label>
+                  <label style="display:flex;align-items:flex-start;gap:8px"><input type="radio" disabled style="margin-top:2px"> Day and name — <code style="background:#f6f7f7;padding:1px 6px;border-radius:3px;font-size:12px;color:#2c3338">/2026/05/21/sample-post/</code></label>
+                  <label style="display:flex;align-items:flex-start;gap:8px"><input type="radio" disabled style="margin-top:2px"> Month and name</label>
+                  <label style="display:flex;align-items:flex-start;gap:8px"><input type="radio" disabled style="margin-top:2px"> Numeric</label>
+                  <label style="display:flex;align-items:flex-start;gap:8px"><input type="radio" disabled style="margin-top:2px"> Custom Structure</label>
+                </div>
+                <button style="margin-top:18px;background:#2271b1;color:#fff;border:0;padding:8px 14px;border-radius:3px;font-size:13px">Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOCK EXPANDED -->
+      <div class="dock">
+        <div class="dock-tabs">
+          <div class="dt"><i class="lucide lucide-sliders-horizontal"></i> Settings</div>
+          <div class="dt"><i class="lucide lucide-folder-tree"></i> Files</div>
+          <div class="dt"><i class="lucide lucide-braces"></i> Blueprint</div>
+          <div class="dt"><i class="lucide lucide-database"></i> Database <span class="ct" style="color:#fde68a;background:rgba(245,158,11,.16)">early</span></div>
+          <div class="dt active"><i class="lucide lucide-terminal"></i> Logs <span class="ct">28</span></div>
+          <div class="grow"></div>
+          <div class="dt-icon" title="Export to GitHub PR"><i class="lucide lucide-git-pull-request-arrow"></i></div>
+          <div class="dt-icon" title="Download .zip"><i class="lucide lucide-download"></i></div>
+          <div class="dt-icon" title="Dock to right"><i class="lucide lucide-panel-right"></i></div>
+          <div class="dt-icon" title="Close dock"><i class="lucide lucide-x"></i></div>
+        </div>
+        <div class="pane">
+          <div class="logs-pane">
+            <div class="toolbar2">
+              <div class="filter active">All <span style="color:var(--text-dim)">28</span></div>
+              <div class="filter"><span class="dot err"></span> Errors <span style="color:var(--text-dim)">2</span></div>
+              <div class="filter"><span class="dot warn"></span> Warnings <span style="color:var(--text-dim)">5</span></div>
+              <div class="filter"><span class="dot info"></span> Notices <span style="color:var(--text-dim)">21</span></div>
+              <div class="search"><i class="lucide lucide-search"></i> Search logs… <kbd style="background:rgba(255,255,255,.06);border:1px solid var(--line-strong);padding:1px 4px;border-radius:3px;font-size:10px;color:var(--text);margin-left:auto">⌘F</kbd></div>
+              <div class="clear">Clear</div>
+            </div>
+            <div class="body">
+              <div class="log-row"><span class="t">14:22:01</span><span class="lvl notice">notice</span><span class="msg">PHP Notice: <span class="file">wc_get_product_attribute_list()</span> · Stock data not yet imported for SKU <span class="num">"WC-CB-250"</span></span></div>
+              <div class="log-row"><span class="t">14:22:01</span><span class="lvl info">info</span><span class="msg">[wp-cron] Running scheduled event: <span class="file">wc_admin_daily</span></span></div>
+              <div class="log-row"><span class="t">14:22:00</span><span class="lvl warn">warn</span><span class="msg">PHP Warning: Undefined array key <span class="num">"shipping_class_id"</span> in <span class="file">/wordpress/wp-content/plugins/woocommerce/includes/class-wc-cart.php</span> on line <span class="num">1487</span></span></div>
+              <div class="log-row"><span class="t">14:21:58</span><span class="lvl info">info</span><span class="msg">REST: GET <span class="file">/wp-json/wc/store/v1/cart</span> → 200 (124 ms)</span></div>
+              <div class="log-row"><span class="t">14:21:57</span><span class="lvl error">error</span><span class="msg">PHP Fatal error: Uncaught Exception: Image upload directory not writable in <span class="file">/wordpress/wp-content/plugins/woocommerce/includes/class-wc-product-import.php:312</span></span></div>
+              <div class="log-row"><span class="t">14:21:55</span><span class="lvl notice">notice</span><span class="msg">PHP Deprecated: <span class="file">jetpack_lazy_images_is_iframe</span> is deprecated since version 12.7</span></div>
+              <div class="log-row"><span class="t">14:21:53</span><span class="lvl info">info</span><span class="msg">Blueprint step <span class="num">5/12</span>: <span class="file">installPlugin</span> — woocommerce.zip (4.2 MB)</span></div>
+              <div class="log-row"><span class="t">14:21:50</span><span class="lvl warn">warn</span><span class="msg">Deprecated filter <span class="num">'woocommerce_admin_register_data_stores'</span> used. Use <span class="num">'woocommerce_data_stores'</span> instead.</span></div>
+              <div class="log-row"><span class="t">14:21:48</span><span class="lvl error">error</span><span class="msg">SQLite: no such table: <span class="file">wp_wc_admin_notes</span> — running upgrade</span></div>
+              <div class="log-row"><span class="t">14:21:46</span><span class="lvl info">info</span><span class="msg">Plugin activated: <span class="file">woocommerce/woocommerce.php</span> (v9.4.0)</span></div>
+              <div class="log-row"><span class="t">14:21:45</span><span class="lvl notice">notice</span><span class="msg">PHP Notice: Undefined index: <span class="num">"locale"</span> in <span class="file">/wordpress/wp-includes/l10n.php</span> on line <span class="num">812</span></span></div>
+              <div class="log-row"><span class="t">14:21:42</span><span class="lvl info">info</span><span class="msg">Theme switched: <span class="file">storefront → stylish-press</span></span></div>
+              <div class="log-row"><span class="t">14:21:40</span><span class="lvl warn">warn</span><span class="msg">cURL: connect timeout to <span class="file">api.wordpress.org/themes/info/1.2/</span> (offline-mode fallback)</span></div>
+              <div class="log-row"><span class="t">14:21:37</span><span class="lvl info">info</span><span class="msg">Boot complete · 6.7s · PHP 8.3 · WP 6.7 · SQLite (memory)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annot arr arr-up" style="top:118px;left:1248px">dock toggle currently active (highlighted)</div>
+    <div class="annot arr arr-up" style="top:580px;left:580px">five Site-Manager tabs as DevTools panels — single secondary surface</div>
+    <div class="annot arr arr-up" style="top:580px;left:1010px">Export to GitHub PR &amp; Download .zip live on the dock chrome (the "additional actions" menu)</div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SCENE 3: NEW-TAB PAGE (LAUNCHER) -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 3 · <b>New Tab page</b> — the launcher. Sources, Your Playgrounds (saved sites as recently-visited tiles), and entry to the 43-blueprint gallery.</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+
+    <div class="tabstrip">
+      <div class="tabs">
+        <div class="tab"><span class="fav wp">W</span><span class="ttl">Vanilla WP 6.7</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav coffee">☕</span><span class="ttl">Coffee Shop</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav gallery">A</span><span class="ttl">Art Gallery</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav woo">W</span><span class="ttl">Stylish Press · Woo</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab active" style="background:linear-gradient(180deg,#0f1218,#101218);"><span class="fav" style="background:transparent;color:var(--text-mute)"><i class="lucide lucide-plus" style="font-size:11px"></i></span><span class="ttl">New tab</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+      </div>
+      <div class="newtab"><i class="lucide lucide-plus"></i></div>
+      <div class="winctl">
+        <div class="w"><i class="lucide lucide-minus"></i></div>
+        <div class="w"><i class="lucide lucide-square"></i></div>
+        <div class="w close"><i class="lucide lucide-x"></i></div>
+      </div>
+    </div>
+
+    <div class="toolbar" style="background:#0f1218">
+      <div class="iconbtn disabled"><i class="lucide lucide-rotate-cw"></i></div>
+      <div class="addr" style="background:rgba(255,255,255,.04);border-color:var(--line)">
+        <span style="padding:0 10px;color:var(--text-dim);font-family:JetBrains Mono,monospace;font-size:11.5px;display:flex;align-items:center;gap:6px"><i class="lucide lucide-sparkles" style="font-size:11px;color:#a8c5ff"></i> playground://new</span>
+        <span class="urlpath" style="text-align:right;color:var(--text-dim)">Search blueprints · paste a PR · type <kbd style="background:rgba(255,255,255,.06);border:1px solid var(--line-strong);padding:1px 5px;border-radius:3px;font-size:10px;color:var(--text-mute)">gh:</kbd> <kbd style="background:rgba(255,255,255,.06);border:1px solid var(--line-strong);padding:1px 5px;border-radius:3px;font-size:10px;color:var(--text-mute)">pr:</kbd> <kbd style="background:rgba(255,255,255,.06);border:1px solid var(--line-strong);padding:1px 5px;border-radius:3px;font-size:10px;color:var(--text-mute)">url:</kbd></span>
+      </div>
+      <div class="tools-r">
+        <div class="iconbtn disabled"><i class="lucide lucide-maximize"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-panel-bottom"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+      </div>
+    </div>
+
+    <div class="newtab-page" style="top:76px;bottom:0">
+      <div class="nt-inner">
+
+        <div class="nt-hero">
+          <div class="wp-mark-sm">W</div>
+          <h2>Start a new <b>WordPress Playground</b></h2>
+          <div class="nt-search">
+            <i class="lucide lucide-search"></i>
+            <span class="ph">Search 43 blueprints, paste a PR or repo URL…</span>
+            <kbd>⌘K</kbd>
+          </div>
+        </div>
+
+        <div class="nt-section">
+          <div class="sec-head"><h3>Start fresh</h3></div>
+          <div class="sources-grid">
+            <div class="source-card vanilla"><div class="icn"><i class="lucide lucide-circle"></i></div><div class="ttl">Vanilla WordPress</div><div class="desc">Latest WP 6.7 · PHP 8.3</div></div>
+            <div class="source-card wppr"><div class="icn"><i class="lucide lucide-git-pull-request"></i></div><div class="ttl">WordPress PR</div><div class="desc">Boot from a core PR number</div></div>
+            <div class="source-card gbpr"><div class="icn"><i class="lucide lucide-git-pull-request"></i></div><div class="ttl">Gutenberg PR</div><div class="desc">Boot from a Gutenberg PR</div></div>
+            <div class="source-card github"><div class="icn"><i class="lucide lucide-github"></i></div><div class="ttl">From GitHub</div><div class="desc">Theme or plugin from a repo</div></div>
+            <div class="source-card bp-url"><div class="icn"><i class="lucide lucide-link-2"></i></div><div class="ttl">Blueprint URL</div><div class="desc">Paste any blueprint JSON</div></div>
+            <div class="source-card zip"><div class="icn"><i class="lucide lucide-upload"></i></div><div class="ttl">Import .zip</div><div class="desc">Restore an exported playground</div></div>
+          </div>
+        </div>
+
+        <div class="nt-section">
+          <div class="sec-head">
+            <h3>Your Playgrounds</h3>
+            <span class="view-all">Manage all <i class="lucide lucide-chevron-right"></i></span>
+          </div>
+          <div class="yp-grid">
+            <div class="yp-card coffee"><div class="thumb"></div><div class="body"><div class="nm"><span class="dot"></span> Coffee Shop</div><div class="meta">WP 6.7 · PHP 8.3 · 14 MB · 3d ago</div></div></div>
+            <div class="yp-card gallery"><div class="thumb"></div><div class="body"><div class="nm"><span class="dot"></span> Art Gallery</div><div class="meta">WP 6.7 · PHP 8.2 · 8 MB · 1w ago</div></div></div>
+            <div class="yp-card woo"><div class="thumb"></div><div class="body"><div class="nm"><span class="dot"></span> Stylish Press · Woo</div><div class="meta">WP 6.7 · PHP 8.3 · 22 MB · 2w ago</div></div></div>
+            <div class="yp-card gh"><div class="thumb"></div><div class="body"><div class="nm"><span class="dot" style="background:var(--text-dim)"></span> twentytwentyfive-fork</div><div class="meta">From github.com/me/… · 4 MB · 1mo</div></div></div>
+          </div>
+        </div>
+
+        <div class="nt-section">
+          <div class="sec-head">
+            <h3>Blueprint gallery · 43 ready-to-boot sites</h3>
+            <span class="view-all">View all 43 <i class="lucide lucide-chevron-right"></i></span>
+          </div>
+          <div class="bp-bar">
+            <div class="bp-filter active">All <span style="opacity:.65">43</span></div>
+            <div class="bp-filter">Featured 5</div>
+            <div class="bp-filter">Website</div>
+            <div class="bp-filter">Personal</div>
+            <div class="bp-filter">Content</div>
+            <div class="bp-filter">Themes</div>
+            <div class="bp-filter">Gutenberg</div>
+            <div class="bp-filter">Experiments</div>
+            <div class="bp-filter">WooCommerce</div>
+            <div class="bp-filter">News</div>
+            <div class="bp-search"><i class="lucide lucide-search"></i> Search 43 blueprints…</div>
+          </div>
+          <div class="bp-grid">
+            <div class="bp-card"><div class="t">Art Gallery <span class="badge">Featured</span></div><div class="d">An art gallery created with the Vueo theme.</div><div class="tags"><span class="tag">Website</span><span class="tag">Personal</span></div></div>
+            <div class="bp-card"><div class="t">Coffee Shop <span class="badge">Featured</span></div><div class="d">Stylish WooCommerce coffee shop storefront with custom theme.</div><div class="tags"><span class="tag">WooCommerce</span><span class="tag">Store</span></div></div>
+            <div class="bp-card"><div class="t">Feed Reader · Friends <span class="badge">Featured</span></div><div class="d">Read feeds (incl. ActivityPub) via the Friends plugin.</div><div class="tags"><span class="tag">rss</span><span class="tag">social</span></div></div>
+            <div class="bp-card"><div class="t">Gaming News <span class="badge">Featured</span></div><div class="d">Gaming news site created with the Spiel theme.</div><div class="tags"><span class="tag">Website</span><span class="tag">News</span></div></div>
+            <div class="bp-card"><div class="t">Non-profit Org <span class="badge">Featured</span></div><div class="d">Non-profit site created with the Koinonia theme.</div><div class="tags"><span class="tag">Website</span></div></div>
+            <div class="bp-card"><div class="t">Personal Blog</div><div class="d">A personal blog created with the Substrata theme.</div><div class="tags"><span class="tag">Blog</span><span class="tag">Personal</span></div></div>
+            <div class="bp-card"><div class="t">Personal Resume</div><div class="d">A resume site created with the Readymade theme.</div><div class="tags"><span class="tag">Personal</span></div></div>
+            <div class="bp-card"><div class="t">Photography Portfolio</div><div class="d">A photography portfolio with the Grammer theme.</div><div class="tags"><span class="tag">Personal</span></div></div>
+            <div class="bp-card"><div class="t">Skincare Blog</div><div class="d">A skincare blog created with the Piel theme.</div><div class="tags"><span class="tag">Blog</span></div></div>
+            <div class="bp-card"><div class="t">University Website</div><div class="d">University site with the Kentwood theme.</div><div class="tags"><span class="tag">Education</span></div></div>
+            <div class="bp-card"><div class="t">Create Block Theme</div><div class="d">Install Create Block Theme and start editing right away.</div><div class="tags"><span class="tag">Editor</span></div></div>
+            <div class="bp-card"><div class="t">Custom Post Type: Books</div><div class="d">Add a custom post type to playground.</div><div class="tags"><span class="tag">CPT</span></div></div>
+            <div class="bp-card"><div class="t">Twenty Twenty-Five demo</div><div class="d">Demo content for the default theme.</div><div class="tags"><span class="tag">Themes</span></div></div>
+            <div class="bp-card"><div class="t">Dataview Experiments</div><div class="d">Enable multiple Gutenberg dataview experiments.</div><div class="tags"><span class="tag">Gutenberg</span></div></div>
+            <div class="bp-card"><div class="t">Fancy Dashboard Widget</div><div class="d">Stats about users, posts, comments.</div><div class="tags"><span class="tag">Admin</span></div></div>
+            <div class="bp-card"><div class="t">Japanese language pack</div><div class="d">Install and activate the latest Japanese translation.</div><div class="tags"><span class="tag">core</span></div></div>
+            <div class="bp-card"><div class="t">Latest Gutenberg plugin</div><div class="d">A preview of the latest Gutenberg plugin.</div><div class="tags"><span class="tag">plugins</span></div></div>
+            <div class="bp-card"><div class="t">WooCommerce Setup</div><div class="d">Sample products, shipping, payment method.</div><div class="tags"><span class="tag">WooCommerce</span></div></div>
+            <div class="bp-card"><div class="t">My WordPress</div><div class="d">Welcome experience for persistent instances.</div><div class="tags"><span class="tag">Onboarding</span></div></div>
+            <div class="bp-card"><div class="t">Pretty permalinks</div><div class="d">Set the permalink structure to pretty permalinks.</div><div class="tags"><span class="tag">Settings</span></div></div>
+            <div class="bp-card"><div class="t">WPGraphQL IDE</div><div class="d">Loads WordPress with WPGraphQL active.</div><div class="tags"><span class="tag">API</span></div></div>
+            <div class="bp-card"><div class="t">Theme Tester</div><div class="d">Add content and plugins to explore a theme.</div><div class="tags"><span class="tag">Themes</span></div></div>
+            <div class="bp-card"><div class="t">Weather Shortcode</div><div class="d">Connect weather API and show data as a shortcode.</div><div class="tags"><span class="tag">plugin</span></div></div>
+            <div class="bp-card"><div class="t">WordPress Beta</div><div class="d">Test the latest WP Beta/RC with theme test data.</div><div class="tags"><span class="tag">Testing</span></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="annot arr arr-up" style="top:50px;left:1110px">"New tab" is itself a tab — same primitive as every saved site</div>
+    <div class="annot arr arr-up" style="top:90px;left:530px">URL bar becomes a global search · accepts <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px">gh:</code> <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px">pr:</code> <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px">url:</code> schemes</div>
+    <div class="annot arr arr-up" style="top:720px;left:560px">Full 43-blueprint gallery embeds in the New Tab page — no separate drawer</div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SCENE 4: BOOTING + UNSAVED→SAVED transition + Blueprint dock -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 4 · <b>Booting a new tab</b> — tab spinner + boot screen in the iframe + the Save transition (Unsaved → Saving → Saved) shown on the address pill across 3 sub-frames.</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+
+    <div class="tabstrip">
+      <div class="tabs">
+        <div class="tab"><span class="fav wp">W</span><span class="ttl">Vanilla WP 6.7</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav coffee">☕</span><span class="ttl">Coffee Shop</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav gallery">A</span><span class="ttl">Art Gallery</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab active booting">
+          <span class="fav booting"><i class="lucide lucide-loader-2"></i></span>
+          <span class="ttl">Booting Coffee Shop…</span>
+          <span class="close"><i class="lucide lucide-x"></i></span>
+          <span class="booting-bar"><i></i></span>
+        </div>
+      </div>
+      <div class="newtab"><i class="lucide lucide-plus"></i></div>
+      <div class="winctl">
+        <div class="w"><i class="lucide lucide-minus"></i></div>
+        <div class="w"><i class="lucide lucide-square"></i></div>
+        <div class="w close"><i class="lucide lucide-x"></i></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="iconbtn disabled"><i class="lucide lucide-rotate-cw"></i></div>
+      <div class="addr">
+        <span class="scheme booting"><i class="lucide lucide-loader-2" style="animation:spin 1.2s linear infinite"></i> Booting</span>
+        <span class="urlpath"><span class="host">coffee-shop.playground/</span></span>
+        <span class="star"><i class="lucide lucide-star"></i></span>
+      </div>
+      <div class="tools-r">
+        <div class="iconbtn"><i class="lucide lucide-maximize"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-panel-bottom"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+      </div>
+    </div>
+
+    <div class="stage dock-collapsed">
+      <div class="iframe">
+        <div class="boot">
+          <div class="wp-mark">W</div>
+          <div class="title">Booting Coffee Shop blueprint</div>
+          <div class="progress"><i></i></div>
+          <div class="step">step <b>7/12</b> · installing <b>woocommerce@9.4.0</b></div>
+          <div class="logline">
+            ✓ writeFile <span>wp-config-extra.php</span> · 0 ms<br>
+            ✓ installPlugin <span>woocommerce.zip</span> (4.2 MB) · 1.2 s<br>
+            ✓ installTheme <span>stylish-press</span> · 320 ms<br>
+            <span style="color:#fde68a">⟳ importContent <span>sample-products.wxr</span> (180 items)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dock-handle">
+        <div class="grip"><i></i><i></i><i></i></div>
+        <div class="status-pip"><span class="d warn"></span> Booting · step 7/12</div>
+        <div class="spacer"></div>
+        <div class="open-cta"><b>Site Manager</b> · Settings · Files · Blueprint · Database · Logs <kbd>⌘J</kbd></div>
+      </div>
+    </div>
+
+    <!-- save state transition mini-strip overlaid bottom-left -->
+    <div style="position:absolute;left:24px;bottom:64px;display:flex;gap:14px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);z-index:50">
+      <div style="padding:8px 10px;background:rgba(15,23,42,.95);border:1px solid var(--line-strong);border-radius:8px;display:flex;flex-direction:column;gap:5px">
+        <div style="color:var(--text-mute);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase">save state · transitions</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="scheme unsaved"><i class="lucide lucide-circle-alert"></i> Unsaved</span>
+          <i class="lucide lucide-arrow-right" style="font-size:11px"></i>
+          <span class="scheme booting"><i class="lucide lucide-loader-2"></i> Saving…</span>
+          <i class="lucide lucide-arrow-right" style="font-size:11px"></i>
+          <span class="scheme saved"><i class="lucide lucide-check"></i> Saved</span>
+        </div>
+        <div style="color:var(--text-dim)">click Unsaved → name prompt → persists to OPFS → tab gains favicon</div>
+      </div>
+    </div>
+
+    <div class="annot arr arr-up" style="top:50px;left:790px">tab itself shows the boot — favicon spins, progress strip below</div>
+    <div class="annot arr arr-up" style="top:90px;left:478px">save-state pill mirrors the boot — same primitive, three states</div>
+  </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- SCENE 5: BLUEPRINT TAB IN DOCK (with file tree) + Vanilla WP iframe -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 5 · <b>Blueprint editor in the dock</b> — files tree + JSON, on the Vanilla WP tab. Shows Files-tab parity (tree column shared).</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+
+    <div class="tabstrip">
+      <div class="tabs">
+        <div class="tab active"><span class="fav wp">W</span><span class="ttl">Vanilla WP 6.7</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav coffee">☕</span><span class="ttl">Coffee Shop</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav gallery">A</span><span class="ttl">Art Gallery</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav woo">W</span><span class="ttl">Stylish Press · Woo</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav unsaved">?</span><span class="ttl">Unsaved Playground</span><span class="unsaved-dot"></span><span class="close"><i class="lucide lucide-x"></i></span></div>
+      </div>
+      <div class="newtab"><i class="lucide lucide-plus"></i></div>
+      <div class="winctl">
+        <div class="w"><i class="lucide lucide-minus"></i></div>
+        <div class="w"><i class="lucide lucide-square"></i></div>
+        <div class="w close"><i class="lucide lucide-x"></i></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="iconbtn"><i class="lucide lucide-rotate-cw"></i></div>
+      <div class="addr">
+        <span class="scheme saved"><i class="lucide lucide-check"></i> Saved</span>
+        <span class="urlpath"><span class="host">vanilla.playground/</span>wp-admin/</span>
+        <span class="star"><i class="lucide lucide-star"></i></span>
+      </div>
+      <div class="tools-r">
+        <div class="iconbtn"><i class="lucide lucide-maximize"></i></div>
+        <div class="iconbtn active"><i class="lucide lucide-panel-bottom"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+      </div>
+    </div>
+
+    <div class="stage dock-open">
+      <div class="iframe">
+        <div class="wp-site wp-gb">
+          <div class="admin">
+            <span class="l">WP</span><span class="sep">›</span><span>Vanilla WP 6.7</span><span class="sep">›</span><span>Posts</span><span class="sep">›</span><span>Add New</span>
+            <span style="margin-left:auto;opacity:.7">Save draft</span><span style="opacity:.7">Preview</span><span style="background:#2271b1;color:#fff;padding:5px 12px;border-radius:3px">Publish</span>
+          </div>
+          <div class="edit">
+            <div class="left">
+              <div class="ic"><i class="lucide lucide-plus"></i></div>
+              <div class="ic active"><i class="lucide lucide-pencil"></i></div>
+              <div class="ic"><i class="lucide lucide-undo"></i></div>
+              <div class="ic"><i class="lucide lucide-list"></i></div>
+            </div>
+            <div class="center">
+              <div class="block h">Hello from Playground</div>
+              <div class="block selected">This post is being authored inside a disposable WordPress running entirely in your browser. Refreshing this page would lose it — unless you save the playground first.</div>
+              <div class="block" style="font-size:14px;color:#646970;font-style:italic;border-left:3px solid #2271b1;padding-left:16px;margin-top:24px">"The chrome around the iframe is the surface being redesigned." — design brief</div>
+              <div class="block">Type / to add a block.</div>
+            </div>
+            <div class="right">
+              <div class="tab"><div class="t active">Post</div><div class="t">Block</div></div>
+              <div class="row"><span>Status</span><span>Draft</span></div>
+              <div class="row"><span>Visibility</span><span>Public</span></div>
+              <div class="row"><span>Publish</span><span>Immediately</span></div>
+              <div class="row"><span>URL</span><span>/hello-playground/</span></div>
+              <div class="row"><span>Author</span><span>admin</span></div>
+              <div class="row"><span>Template</span><span>Single Posts</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="dock-tabs">
+          <div class="dt"><i class="lucide lucide-sliders-horizontal"></i> Settings</div>
+          <div class="dt"><i class="lucide lucide-folder-tree"></i> Files</div>
+          <div class="dt active"><i class="lucide lucide-braces"></i> Blueprint</div>
+          <div class="dt"><i class="lucide lucide-database"></i> Database <span class="ct" style="color:#fde68a;background:rgba(245,158,11,.16)">early</span></div>
+          <div class="dt"><i class="lucide lucide-terminal"></i> Logs <span class="ct">12</span></div>
+          <div class="grow"></div>
+          <div class="dt-icon"><i class="lucide lucide-git-pull-request-arrow"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-download"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-panel-right"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-x"></i></div>
+        </div>
+        <div class="pane">
+          <div class="blueprint-pane">
+            <div class="tree">
+              <div class="row" style="padding-top:6px;color:var(--text-dim);font-size:10px;letter-spacing:.1em;text-transform:uppercase">Bundle</div>
+              <div class="row active"><i class="lucide lucide-braces"></i> blueprint.json</div>
+              <div class="row"><i class="lucide lucide-file-code"></i> mu-plugin.php</div>
+              <div class="row"><i class="lucide lucide-file-text"></i> content.xml</div>
+              <div class="row" style="padding-top:14px;color:var(--text-dim);font-size:10px;letter-spacing:.1em;text-transform:uppercase">/wordpress</div>
+              <div class="row"><i class="lucide lucide-folder"></i> wp-admin</div>
+              <div class="row"><i class="lucide lucide-folder"></i> wp-content</div>
+              <div class="row" style="padding-left:24px"><i class="lucide lucide-folder"></i> plugins</div>
+              <div class="row" style="padding-left:24px"><i class="lucide lucide-folder"></i> themes</div>
+              <div class="row" style="padding-left:24px"><i class="lucide lucide-folder"></i> uploads</div>
+              <div class="row"><i class="lucide lucide-folder"></i> wp-includes</div>
+              <div class="row"><i class="lucide lucide-file-code"></i> wp-config.php</div>
+            </div>
+            <div class="editor">
+              <div class="bar">
+                <span class="btn primary"><i class="lucide lucide-play"></i> Run Blueprint</span>
+                <span class="btn"><i class="lucide lucide-link"></i> Copy link</span>
+                <span class="btn"><i class="lucide lucide-package"></i> Download bundle</span>
+                <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim)">blueprint.json · 412 B · saved</span>
+              </div>
+              <div class="code">
+                <div class="ln"><span class="n">1</span><span>{</span></div>
+                <div class="ln"><span class="n">2</span><span>&nbsp;&nbsp;<span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,</span></div>
+                <div class="ln"><span class="n">3</span><span>&nbsp;&nbsp;<span class="k">"preferredVersions"</span>: { <span class="k">"php"</span>: <span class="s">"8.3"</span>, <span class="k">"wp"</span>: <span class="s">"6.7"</span> },</span></div>
+                <div class="ln"><span class="n">4</span><span>&nbsp;&nbsp;<span class="k">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],</span></div>
+                <div class="ln"><span class="n">5</span><span>&nbsp;&nbsp;<span class="k">"login"</span>: <span class="b">true</span>,</span></div>
+                <div class="ln"><span class="n">6</span><span>&nbsp;&nbsp;<span class="k">"steps"</span>: [</span></div>
+                <div class="ln"><span class="n">7</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"defineWpConfigConsts"</span>, <span class="k">"consts"</span>: { <span class="k">"WP_DEBUG"</span>: <span class="b">true</span> } },</span></div>
+                <div class="ln"><span class="n">8</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"installPlugin"</span>,</span></div>
+                <div class="ln"><span class="n">9</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"pluginData"</span>: { <span class="k">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> } },</span></div>
+                <div class="ln"><span class="n">10</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"installTheme"</span>,</span></div>
+                <div class="ln"><span class="n">11</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"themeData"</span>: { <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"https://github.com/wp/stylish-press/archive/main.zip"</span> } },</span></div>
+                <div class="ln"><span class="n">12</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"runPHP"</span>, <span class="k">"code"</span>: <span class="s">"&lt;?php include 'wordpress/wp-load.php'; wp_insert_post([…]);"</span> },</span></div>
+                <div class="ln"><span class="n">13</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"importWxr"</span>, <span class="k">"file"</span>: <span class="s">"content.xml"</span> },</span></div>
+                <div class="ln"><span class="n">14</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="k">"options"</span>: { <span class="k">"blogname"</span>: <span class="s">"Stylish Press"</span>, <span class="k">"blogdescription"</span>: <span class="s">"Coffee, slowly."</span> } },</span></div>
+                <div class="ln"><span class="n">15</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"activateTheme"</span>, <span class="k">"themeFolderName"</span>: <span class="s">"stylish-press"</span> },</span></div>
+                <div class="ln"><span class="n">16</span><span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"step"</span>: <span class="s">"updateUserMeta"</span>, <span class="k">"meta"</span>: { <span class="k">"first_name"</span>: <span class="s">"Demo"</span> }, <span class="k">"userId"</span>: <span class="num">1</span> }</span></div>
+                <div class="ln"><span class="n">17</span><span>&nbsp;&nbsp;]</span></div>
+                <div class="ln"><span class="n">18</span><span>}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annot arr arr-up" style="top:580px;left:670px">Blueprint tab = JSON editor + the shared file tree (Files-tab parity)</div>
+  </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- SCENE 6: DATABASE TAB + SETTINGS preview + Apply-Reset confirm sheet -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 6 · <b>Database tab open</b>, with the destructive <b>Apply + Reset</b> confirm sheet floating — typed-phrase guard, not just a red banner.</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+
+    <div class="tabstrip">
+      <div class="tabs">
+        <div class="tab"><span class="fav wp">W</span><span class="ttl">Vanilla WP 6.7</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav coffee">☕</span><span class="ttl">Coffee Shop</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab active"><span class="fav gallery">A</span><span class="ttl">Art Gallery</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+        <div class="tab"><span class="fav woo">W</span><span class="ttl">Stylish Press · Woo</span><span class="close"><i class="lucide lucide-x"></i></span></div>
+      </div>
+      <div class="newtab"><i class="lucide lucide-plus"></i></div>
+      <div class="winctl">
+        <div class="w"><i class="lucide lucide-minus"></i></div>
+        <div class="w"><i class="lucide lucide-square"></i></div>
+        <div class="w close"><i class="lucide lucide-x"></i></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="iconbtn"><i class="lucide lucide-rotate-cw"></i></div>
+      <div class="addr">
+        <span class="scheme saved"><i class="lucide lucide-check"></i> Saved</span>
+        <span class="urlpath"><span class="host">art-gallery.playground/</span></span>
+        <span class="star"><i class="lucide lucide-star"></i></span>
+      </div>
+      <div class="tools-r">
+        <div class="iconbtn"><i class="lucide lucide-maximize"></i></div>
+        <div class="iconbtn active"><i class="lucide lucide-panel-bottom"></i></div>
+        <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+      </div>
+    </div>
+
+    <div class="stage dock-open">
+      <div class="iframe" style="background:#1a103a">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Georgia,serif;font-size:64px;letter-spacing:-.02em;background:linear-gradient(135deg,#1a103a,#7c3aed)">
+          <div style="text-align:center">
+            <div style="font-size:28px;letter-spacing:.4em;font-family:Inter,sans-serif;font-weight:300;opacity:.8;margin-bottom:18px">VUEO · GALLERY</div>
+            <div style="font-style:italic;color:#fff">Contemporary works,<br>quietly hung.</div>
+            <div style="font-size:14px;letter-spacing:.3em;font-family:Inter,sans-serif;font-weight:500;opacity:.7;margin-top:32px">SPRING 2026 · NOW SHOWING</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="dock-tabs">
+          <div class="dt"><i class="lucide lucide-sliders-horizontal"></i> Settings</div>
+          <div class="dt"><i class="lucide lucide-folder-tree"></i> Files</div>
+          <div class="dt"><i class="lucide lucide-braces"></i> Blueprint</div>
+          <div class="dt active"><i class="lucide lucide-database"></i> Database <span class="ct" style="color:#fde68a;background:rgba(245,158,11,.16)">early</span></div>
+          <div class="dt"><i class="lucide lucide-terminal"></i> Logs <span class="ct">3</span></div>
+          <div class="grow"></div>
+          <div class="dt-icon"><i class="lucide lucide-git-pull-request-arrow"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-download"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-panel-right"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-x"></i></div>
+        </div>
+        <div class="pane">
+          <div class="db-pane">
+            <div class="notice"><i class="lucide lucide-info"></i> Database management is an <b style="color:#fff;font-weight:600">early-access</b> feature. SQLite is emulating MySQL — some queries behave differently. <span class="lnk">Issue tracker ↗</span></div>
+            <div class="row2">
+              <div class="tables">
+                <div class="t" style="padding-top:8px;color:var(--text-dim);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase">wp_</div>
+                <div class="t"><i class="lucide lucide-table"></i> options <span class="c">142</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> users <span class="c">3</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> usermeta <span class="c">12</span></div>
+                <div class="t active"><i class="lucide lucide-table"></i> posts <span class="c">28</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> postmeta <span class="c">86</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> comments <span class="c">0</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> terms <span class="c">14</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> term_taxonomy <span class="c">14</span></div>
+                <div class="t"><i class="lucide lucide-table"></i> term_relationships <span class="c">22</span></div>
+              </div>
+              <div class="query">
+                <div class="bar">
+                  <span>SELECT * FROM <span style="color:#fbbf24">wp_posts</span> WHERE post_status = <span style="color:#86efac">'publish'</span> LIMIT 50;</span>
+                  <span class="run"><i class="lucide lucide-play" style="font-size:10px"></i> Run</span>
+                </div>
+                <div class="table">
+                  <table>
+                    <thead><tr><th>ID</th><th>post_title</th><th>post_status</th><th>post_type</th><th>post_date</th><th>post_author</th></tr></thead>
+                    <tbody>
+                      <tr><td class="id">1</td><td class="str">'Hello World!'</td><td class="str">'publish'</td><td class="str">'post'</td><td>2026-05-21 09:12:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">3</td><td class="str">'Sunset Series — Painting 04'</td><td class="str">'publish'</td><td class="str">'artwork'</td><td>2026-05-20 16:44:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">5</td><td class="str">'Quiet Composition no.12'</td><td class="str">'publish'</td><td class="str">'artwork'</td><td>2026-05-19 11:30:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">7</td><td class="str">'Reflections in indigo'</td><td class="str">'publish'</td><td class="str">'artwork'</td><td>2026-05-18 14:05:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">9</td><td class="str">'About the Studio'</td><td class="str">'publish'</td><td class="str">'page'</td><td>2026-05-15 09:00:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">11</td><td class="str">'Spring 2026 Exhibition'</td><td class="str">'publish'</td><td class="str">'page'</td><td>2026-05-12 10:00:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">13</td><td class="str">'A note on materials'</td><td class="str">'publish'</td><td class="str">'post'</td><td>2026-05-10 17:22:00</td><td class="id">1</td></tr>
+                      <tr><td class="id">17</td><td class="str">'Studio visit, October'</td><td class="str">'publish'</td><td class="str">'post'</td><td>2026-05-08 12:10:00</td><td class="id">1</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Apply + Reset confirm sheet -->
+    <div class="confirm">
+      <div class="sheet">
+        <div class="ic"><i class="lucide lucide-triangle-alert"></i></div>
+        <h3>Apply settings and reset playground?</h3>
+        <p>This will switch <b>Art Gallery</b> to <b>PHP 8.4</b> and <b>WP 6.8-beta</b>. Resetting will <b style="color:#fca5a5">erase the SQLite database, uploads, and any unsaved file edits</b> for this playground only. Other tabs are unaffected.</p>
+        <div class="typed">
+          <span>Type</span> <b>reset art-gallery</b> <span>to confirm</span>
+          <input value="reset art-gallery" />
+          <i class="lucide lucide-check" style="color:var(--good)"></i>
+        </div>
+        <div class="btns">
+          <div class="btn cancel">Cancel</div>
+          <div class="btn danger">Apply &amp; Reset</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="annot arr arr-up" style="top:580px;left:730px">Database tab — table list + query result, with the early-access notice</div>
+    <div class="annot arr arr-up" style="top:330px;left:830px">Destructive Apply+Reset → modal sheet · typed-phrase guard</div>
+  </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- SCENE 6b: SETTINGS + FILES panes (composite — tab parity) -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 6b · <b>Settings &amp; Files panes</b> — the other two Site-Manager surfaces, shown as cropped dock previews. Settings holds <em>all</em> WP/PHP/language/network/multisite knobs (folded in from the old popover &amp; info notice).</div>
+    <div class="r">1440 × 420 each</div>
+  </div>
+
+  <!-- Settings preview -->
+  <div style="display:flex;gap:24px;margin-bottom:24px">
+    <div style="width:710px">
+      <div style="background:var(--bg-dock);border:1px solid var(--line);border-radius:10px;overflow:hidden;height:420px;display:flex;flex-direction:column">
+        <div class="dock-tabs" style="border-radius:10px 10px 0 0">
+          <div class="dt active"><i class="lucide lucide-sliders-horizontal"></i> Settings</div>
+          <div class="dt"><i class="lucide lucide-folder-tree"></i> Files</div>
+          <div class="dt"><i class="lucide lucide-braces"></i> Blueprint</div>
+          <div class="dt"><i class="lucide lucide-database"></i> Database</div>
+          <div class="dt"><i class="lucide lucide-terminal"></i> Logs</div>
+          <div class="grow"></div>
+          <div class="dt-icon" title="Export to GitHub PR"><i class="lucide lucide-git-pull-request-arrow"></i></div>
+          <div class="dt-icon" title="Download .zip"><i class="lucide lucide-download"></i></div>
+        </div>
+        <div class="pane">
+          <div class="settings-pane">
+            <div class="col">
+              <h4>Runtime</h4>
+              <div class="field"><label>WordPress version</label><div class="val">6.7 (current) <i class="lucide lucide-chevron-down"></i></div></div>
+              <div class="field"><label>PHP version</label><div class="val">8.3 <i class="lucide lucide-chevron-down"></i></div></div>
+              <div class="field"><label>Language</label><div class="val">English (US) <i class="lucide lucide-chevron-down"></i></div></div>
+              <div class="field"><label>Storage</label><div class="val">Browser OPFS · 14 MB used <i class="lucide lucide-chevron-down"></i></div></div>
+            </div>
+            <div class="col">
+              <h4>Features</h4>
+              <div class="toggle on"><span>Network access (CORS proxy)</span><span class="sw"></span></div>
+              <div class="toggle on"><span>Multisite</span><span class="sw"></span></div>
+              <div class="toggle"><span>Persistent logs</span><span class="sw"></span></div>
+              <div class="toggle"><span>WP_DEBUG mode</span><span class="sw"></span></div>
+              <div class="toggle on"><span>Login as administrator</span><span class="sw"></span></div>
+              <div class="danger">
+                <div class="t"><i class="lucide lucide-triangle-alert"></i> Apply &amp; Reset</div>
+                <p>Re-boots the playground with new settings — erases SQLite, uploads, and any unsaved file edits for this tab. Other tabs unaffected.</p>
+                <span class="btn"><i class="lucide lucide-refresh-cw" style="font-size:11px"></i> Apply &amp; Reset… </span>
+              </div>
+            </div>
+            <div class="col">
+              <h4>Identity</h4>
+              <div class="field"><label>Playground name</label><div class="val" style="color:#fff">Coffee Shop</div></div>
+              <div class="field"><label>Saved to browser</label><div class="val"><span class="scheme saved" style="height:18px;padding:0 8px;font-size:10px"><i class="lucide lucide-check"></i> Saved</span></div></div>
+              <div class="field"><label>Open in iframe</label>
+                <div style="display:flex;gap:6px">
+                  <span class="btn" style="padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid var(--line-dock);border-radius:5px;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:5px"><i class="lucide lucide-shield" style="font-size:11px"></i> WP Admin</span>
+                  <span class="btn" style="padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid var(--line-dock);border-radius:5px;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:5px"><i class="lucide lucide-home" style="font-size:11px"></i> Homepage</span>
+                </div>
+              </div>
+              <h4 style="margin-top:18px">Notice</h4>
+              <div style="font-size:11px;color:var(--text-mute);line-height:1.55;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:5px;padding:9px 11px">
+                <i class="lucide lucide-check" style="color:#86efac;margin-right:4px"></i> Saved to browser storage on May 18. Refreshing this tab will not lose your work.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="device-cap" style="margin-top:8px">Dock · Settings tab — quick-settings popover &amp; info-notice are folded in here (one door)</div>
+    </div>
+
+    <!-- Files preview -->
+    <div style="width:710px">
+      <div style="background:var(--bg-dock);border:1px solid var(--line);border-radius:10px;overflow:hidden;height:420px;display:flex;flex-direction:column">
+        <div class="dock-tabs" style="border-radius:10px 10px 0 0">
+          <div class="dt"><i class="lucide lucide-sliders-horizontal"></i> Settings</div>
+          <div class="dt active"><i class="lucide lucide-folder-tree"></i> Files</div>
+          <div class="dt"><i class="lucide lucide-braces"></i> Blueprint</div>
+          <div class="dt"><i class="lucide lucide-database"></i> Database</div>
+          <div class="dt"><i class="lucide lucide-terminal"></i> Logs</div>
+          <div class="grow"></div>
+          <div class="dt-icon"><i class="lucide lucide-git-pull-request-arrow"></i></div>
+          <div class="dt-icon"><i class="lucide lucide-download"></i></div>
+        </div>
+        <div class="pane">
+          <div class="files-pane">
+            <div class="tree">
+              <div class="row dir"><i class="lucide lucide-chevron-down"></i><i class="lucide lucide-folder-open"></i> wordpress</div>
+              <div class="row dir indent-1"><i class="lucide lucide-chevron-right"></i><i class="lucide lucide-folder"></i> wp-admin</div>
+              <div class="row dir indent-1"><i class="lucide lucide-chevron-down"></i><i class="lucide lucide-folder-open"></i> wp-content</div>
+              <div class="row dir indent-2"><i class="lucide lucide-chevron-down"></i><i class="lucide lucide-folder-open"></i> plugins</div>
+              <div class="row dir indent-3"><i class="lucide lucide-chevron-right"></i><i class="lucide lucide-folder"></i> woocommerce</div>
+              <div class="row dir indent-3"><i class="lucide lucide-chevron-right"></i><i class="lucide lucide-folder"></i> akismet</div>
+              <div class="row dir indent-2"><i class="lucide lucide-chevron-down"></i><i class="lucide lucide-folder-open"></i> themes</div>
+              <div class="row dir indent-3"><i class="lucide lucide-chevron-right"></i><i class="lucide lucide-folder"></i> stylish-press</div>
+              <div class="row dir indent-2"><i class="lucide lucide-chevron-right"></i><i class="lucide lucide-folder"></i> uploads</div>
+              <div class="row indent-2"><i class="lucide lucide-file-code"></i> mu-plugin.php</div>
+              <div class="row dir indent-1"><i class="lucide lucide-chevron-right"></i><i class="lucide lucide-folder"></i> wp-includes</div>
+              <div class="row indent-1 php active"><i class="lucide lucide-file-code"></i> wp-config.php</div>
+              <div class="row indent-1"><i class="lucide lucide-file-code"></i> index.php</div>
+              <div class="row indent-1"><i class="lucide lucide-file-text"></i> .htaccess</div>
+            </div>
+            <div class="editor">
+              <div class="bar">
+                <span>wp-config.php · 4 unsaved edits</span>
+                <span class="new">
+                  <span class="b"><i class="lucide lucide-file-plus" style="font-size:10px"></i> New File</span>
+                  <span class="b"><i class="lucide lucide-folder-plus" style="font-size:10px"></i> New Folder</span>
+                </span>
+              </div>
+              <div class="code">
+                <div class="ln"><span class="n">1</span><span><span class="c">&lt;?php</span></span></div>
+                <div class="ln"><span class="n">2</span><span><span class="c">/** Playground-generated wp-config.php */</span></span></div>
+                <div class="ln"><span class="n">3</span><span></span></div>
+                <div class="ln"><span class="n">4</span><span><span class="k">define</span>(<span class="s">'DB_NAME'</span>, <span class="s">'wordpress'</span>);</span></div>
+                <div class="ln"><span class="n">5</span><span><span class="k">define</span>(<span class="s">'DB_USER'</span>, <span class="s">'root'</span>);</span></div>
+                <div class="ln"><span class="n">6</span><span><span class="k">define</span>(<span class="s">'DB_PASSWORD'</span>, <span class="s">''</span>);</span></div>
+                <div class="ln"><span class="n">7</span><span><span class="k">define</span>(<span class="s">'DB_HOST'</span>, <span class="s">'localhost'</span>);</span></div>
+                <div class="ln"><span class="n">8</span><span></span></div>
+                <div class="ln h"><span class="n">9</span><span><span class="k">define</span>(<span class="s">'WP_DEBUG'</span>, <span class="v">true</span>);</span></div>
+                <div class="ln"><span class="n">10</span><span><span class="k">define</span>(<span class="s">'WP_DEBUG_LOG'</span>, <span class="v">true</span>);</span></div>
+                <div class="ln"><span class="n">11</span><span><span class="k">define</span>(<span class="s">'SCRIPT_DEBUG'</span>, <span class="v">true</span>);</span></div>
+                <div class="ln"><span class="n">12</span><span></span></div>
+                <div class="ln"><span class="n">13</span><span><span class="c">/* SQLite is emulating MySQL via the sqlite-database-integration plugin */</span></span></div>
+                <div class="ln"><span class="n">14</span><span><span class="k">define</span>(<span class="s">'USE_SQLITE'</span>, <span class="v">true</span>);</span></div>
+                <div class="ln"><span class="n">15</span><span></span></div>
+                <div class="ln"><span class="n">16</span><span><span class="v">$table_prefix</span> = <span class="s">'wp_'</span>;</span></div>
+                <div class="ln"><span class="n">17</span><span></span></div>
+                <div class="ln"><span class="n">18</span><span><span class="k">if</span> (!<span class="f">defined</span>(<span class="s">'ABSPATH'</span>)) {</span></div>
+                <div class="ln"><span class="n">19</span><span>&nbsp;&nbsp;<span class="k">define</span>(<span class="s">'ABSPATH'</span>, <span class="f">__DIR__</span> . <span class="s">'/'</span>);</span></div>
+                <div class="ln"><span class="n">20</span><span>}</span></div>
+                <div class="ln"><span class="n">21</span><span><span class="k">require_once</span> <span class="f">ABSPATH</span> . <span class="s">'wp-settings.php'</span>;</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="device-cap" style="margin-top:8px">Dock · Files tab — full tree + code editor · New File / New Folder buttons</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- SCENE 7: FULLSCREEN (chrome hidden) -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 7 · <b>Fullscreen iframe</b> — chrome dissolves. <kbd style="font-family:'JetBrains Mono',monospace;font-size:10.5px;background:rgba(255,255,255,.06);border:1px solid var(--line-strong);padding:1px 5px;border-radius:3px;color:var(--text)">Esc</kbd> to exit. One floating hint band.</div>
+    <div class="r">1440 × 900</div>
+  </div>
+  <div class="pg">
+    <div class="stage" style="top:0;bottom:0">
+      <div class="iframe">
+        <div class="wp-site wp-coffee">
+          <div class="nav">
+            <div class="brand">PERCOLATE</div>
+            <span class="nav-a">Shop</span><span class="nav-a">Brew Guides</span><span class="nav-a">Subscriptions</span><span class="nav-a">About</span><span class="nav-a">Journal</span>
+            <span class="cart">Cart · 2</span>
+          </div>
+          <div class="hero">
+            <div>
+              <h1>Cold brew, <em>slow</em><br>extracted.</h1>
+              <p>Hand-poured beans from single-origin farms, cold-steeped for 18 hours so the chocolate notes come forward without the bitterness.</p>
+              <a class="cta">Shop the season <i class="lucide lucide-arrow-right" style="font-size:14px"></i></a>
+            </div>
+            <div class="hero-img">☕</div>
+          </div>
+          <div class="grid">
+            <div class="prod"><div class="pic">🫘</div><h3>Ethiopia Yirgacheffe</h3><div class="row"><span>250g · whole bean</span><span class="price">$18</span></div></div>
+            <div class="prod"><div class="pic">🍫</div><h3>Brazilian Cerrado</h3><div class="row"><span>250g · whole bean</span><span class="price">$16</span></div></div>
+            <div class="prod"><div class="pic">🌅</div><h3>Colombian Huila</h3><div class="row"><span>250g · whole bean</span><span class="price">$17</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fs-hint">
+      <i class="lucide lucide-maximize"></i> Fullscreen · iframe takes the whole frame · <kbd>Esc</kbd> to exit · <kbd>⌘J</kbd> to peek dock
+    </div>
+    <div class="toast"><i class="lucide lucide-check"></i> Saved “Coffee Shop” to browser storage</div>
+  </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- MOBILE -->
+<!-- ================================================================ -->
+<div class="scene">
+  <div class="scene-label">
+    <div class="l">State 8 · <b>Mobile</b> — same primitives, narrower. Tabs scroll horizontally · address row collapses · dock becomes a bottom sheet with the 5 sub-tabs along its top edge.</div>
+    <div class="r">390 × 844 (x3)</div>
+  </div>
+  <div class="device-row">
+
+    <!-- MOBILE 1: working session, dock collapsed to icon row -->
+    <div>
+      <div class="pg mobile">
+        <div class="mobile-tabstrip">
+          <div class="mobile-tab"><span class="fav wp"></span> Vanilla <span class="x">×</span></div>
+          <div class="mobile-tab active"><span class="fav coffee"></span> Coffee Shop <span class="x">×</span></div>
+          <div class="mobile-tab"><span class="fav gallery"></span> Art Gallery <span class="x">×</span></div>
+          <div class="mobile-tab"><span class="fav unsaved"></span> Unsaved <span class="x">×</span></div>
+          <div class="mobile-newtab"><i class="lucide lucide-plus"></i></div>
+        </div>
+        <div class="mobile-toolbar">
+          <div class="iconbtn"><i class="lucide lucide-rotate-cw"></i></div>
+          <div class="addr">
+            <span class="scheme saved"><i class="lucide lucide-check"></i> Saved</span>
+            <span class="urlpath" style="font-size:11px"><span class="host">coffee-shop/</span>shop/</span>
+          </div>
+          <div class="iconbtn"><i class="lucide lucide-maximize"></i></div>
+          <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+        </div>
+        <div class="mobile-stage">
+          <div class="wp-site wp-coffee">
+            <div class="nav">
+              <div class="brand">PERCOLATE</div>
+              <span class="cart" style="margin-left:auto">Cart · 2</span>
+            </div>
+            <div class="hero">
+              <div>
+                <h1>Cold brew,<br><em>slow</em> extracted.</h1>
+                <p>Single-origin beans, 18-hour steep.</p>
+                <a class="cta">Shop the season</a>
+              </div>
+            </div>
+            <div class="grid">
+              <div class="prod"><div class="pic">🫘</div><h3>Ethiopia Yirgacheffe</h3><div class="row"><span>250g</span><span class="price">$18</span></div></div>
+              <div class="prod"><div class="pic">🍫</div><h3>Brazilian Cerrado</h3><div class="row"><span>250g</span><span class="price">$16</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="mobile-dock-tab">
+          <div class="mdt"><i class="lucide lucide-sliders-horizontal"></i> Settings</div>
+          <div class="mdt"><i class="lucide lucide-folder-tree"></i> Files</div>
+          <div class="mdt active"><i class="lucide lucide-panel-bottom"></i> Dock</div>
+          <div class="mdt"><i class="lucide lucide-terminal"></i> Logs</div>
+          <div class="mdt"><i class="lucide lucide-more-horizontal"></i> More</div>
+        </div>
+      </div>
+      <div class="device-cap">Working session · dock as bottom tabbar</div>
+    </div>
+
+    <!-- MOBILE 2: new tab page (launcher) -->
+    <div>
+      <div class="pg mobile">
+        <div class="mobile-tabstrip">
+          <div class="mobile-tab"><span class="fav coffee"></span> Coffee Shop <span class="x">×</span></div>
+          <div class="mobile-tab"><span class="fav gallery"></span> Art Gallery <span class="x">×</span></div>
+          <div class="mobile-tab active"><span class="fav" style="background:transparent;border:1px dashed rgba(255,255,255,.32)"></span> New tab <span class="x">×</span></div>
+          <div class="mobile-newtab"><i class="lucide lucide-plus"></i></div>
+        </div>
+        <div class="mobile-toolbar" style="background:#0f1218">
+          <div class="addr" style="background:rgba(255,255,255,.04);border-color:var(--line)">
+            <span style="padding:0 8px;color:var(--text-dim);font-size:11px"><i class="lucide lucide-sparkles" style="font-size:11px;color:#a8c5ff"></i> Search · paste PR / URL</span>
+          </div>
+          <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+        </div>
+        <div class="mobile-stage" style="background:linear-gradient(180deg,#0f1218,#0a0c10);color:var(--text);overflow:auto">
+          <div style="padding:18px 14px 30px">
+            <div style="text-align:center;padding:14px 0 18px">
+              <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#3858e9,#2271b1);display:flex;align-items:center;justify-content:center;color:#fff;font-family:Georgia,serif;font-size:22px;margin:0 auto 10px">W</div>
+              <div style="font-size:15px;font-weight:550;color:var(--text)">Start a new Playground</div>
+            </div>
+
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin-bottom:8px;font-weight:600">Start fresh</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px">
+              <div class="source-card vanilla" style="padding:9px 10px;min-height:0;flex-direction:row;align-items:center;gap:8px"><div class="icn" style="width:22px;height:22px;font-size:12px;border-radius:5px"><i class="lucide lucide-circle"></i></div><div class="ttl" style="font-size:11px">Vanilla WP</div></div>
+              <div class="source-card wppr" style="padding:9px 10px;min-height:0;flex-direction:row;align-items:center;gap:8px"><div class="icn" style="width:22px;height:22px;font-size:12px;border-radius:5px"><i class="lucide lucide-git-pull-request"></i></div><div class="ttl" style="font-size:11px">WordPress PR</div></div>
+              <div class="source-card gbpr" style="padding:9px 10px;min-height:0;flex-direction:row;align-items:center;gap:8px"><div class="icn" style="width:22px;height:22px;font-size:12px;border-radius:5px"><i class="lucide lucide-git-pull-request"></i></div><div class="ttl" style="font-size:11px">Gutenberg PR</div></div>
+              <div class="source-card github" style="padding:9px 10px;min-height:0;flex-direction:row;align-items:center;gap:8px"><div class="icn" style="width:22px;height:22px;font-size:12px;border-radius:5px"><i class="lucide lucide-github"></i></div><div class="ttl" style="font-size:11px">From GitHub</div></div>
+              <div class="source-card bp-url" style="padding:9px 10px;min-height:0;flex-direction:row;align-items:center;gap:8px"><div class="icn" style="width:22px;height:22px;font-size:12px;border-radius:5px"><i class="lucide lucide-link-2"></i></div><div class="ttl" style="font-size:11px">Blueprint URL</div></div>
+              <div class="source-card zip" style="padding:9px 10px;min-height:0;flex-direction:row;align-items:center;gap:8px"><div class="icn" style="width:22px;height:22px;font-size:12px;border-radius:5px"><i class="lucide lucide-upload"></i></div><div class="ttl" style="font-size:11px">Import .zip</div></div>
+            </div>
+
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin-bottom:8px;font-weight:600">Your playgrounds · 4</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px">
+              <div class="yp-card coffee" style="border-radius:8px"><div class="thumb" style="aspect-ratio:16/10"></div><div class="body" style="padding:7px 9px"><div class="nm" style="font-size:11px"><span class="dot"></span> Coffee Shop</div><div class="meta" style="font-size:9.5px">WP6.7 · 3d</div></div></div>
+              <div class="yp-card gallery" style="border-radius:8px"><div class="thumb" style="aspect-ratio:16/10"></div><div class="body" style="padding:7px 9px"><div class="nm" style="font-size:11px"><span class="dot"></span> Art Gallery</div><div class="meta" style="font-size:9.5px">WP6.7 · 1w</div></div></div>
+            </div>
+
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin-bottom:8px;font-weight:600">Featured blueprints</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div class="bp-card" style="padding:8px 10px;min-height:0"><div class="t" style="font-size:11px">Art Gallery <span class="badge">Featured</span></div><div class="d" style="font-size:10px">Created with the Vueo theme.</div></div>
+              <div class="bp-card" style="padding:8px 10px;min-height:0"><div class="t" style="font-size:11px">Coffee Shop <span class="badge">Featured</span></div><div class="d" style="font-size:10px">WooCommerce storefront.</div></div>
+              <div class="bp-card" style="padding:8px 10px;min-height:0"><div class="t" style="font-size:11px">Feed Reader <span class="badge">Featured</span></div><div class="d" style="font-size:10px">Friends plugin · ActivityPub.</div></div>
+              <div class="bp-card" style="padding:8px 10px;min-height:0"><div class="t" style="font-size:11px">Gaming News <span class="badge">Featured</span></div><div class="d" style="font-size:10px">Spiel theme.</div></div>
+            </div>
+            <div style="text-align:center;margin-top:14px;font-size:11.5px;color:#a8c5ff">View all 43 blueprints →</div>
+          </div>
+        </div>
+      </div>
+      <div class="device-cap">New-tab launcher · all 6 sources</div>
+    </div>
+
+    <!-- MOBILE 3: dock open with Logs -->
+    <div>
+      <div class="pg mobile">
+        <div class="mobile-tabstrip">
+          <div class="mobile-tab active"><span class="fav woo"></span> Stylish Press <span class="x">×</span></div>
+          <div class="mobile-tab"><span class="fav coffee"></span> Coffee Shop <span class="x">×</span></div>
+          <div class="mobile-newtab"><i class="lucide lucide-plus"></i></div>
+        </div>
+        <div class="mobile-toolbar">
+          <div class="iconbtn"><i class="lucide lucide-rotate-cw"></i></div>
+          <div class="addr">
+            <span class="scheme saved"><i class="lucide lucide-check"></i> Saved</span>
+            <span class="urlpath" style="font-size:11px"><span class="host">stylish/</span>wp-admin/</span>
+          </div>
+          <div class="iconbtn"><i class="lucide lucide-more-vertical"></i></div>
+        </div>
+        <div class="mobile-stage" style="bottom:340px">
+          <div style="background:#fafbfc;height:100%;padding:14px;font-family:Inter,sans-serif;color:#3c434a;font-size:11px;overflow:hidden">
+            <div style="background:#1d2327;color:#fff;height:36px;border-radius:4px;display:flex;align-items:center;padding:0 12px;font-size:12px;margin-bottom:14px">Stylish Press · wp-admin</div>
+            <div style="background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:12px">
+              <div style="font-size:14px;color:#1d2327;margin-bottom:6px;font-weight:600">Dashboard</div>
+              <div style="color:#646970">At a glance · 28 posts · 12 pages · 0 comments</div>
+            </div>
+          </div>
+        </div>
+        <div class="mobile-dock-sheet">
+          <div class="handle"><i></i></div>
+          <div class="sub-tabs">
+            <div class="st">Settings</div>
+            <div class="st">Files</div>
+            <div class="st">Blueprint</div>
+            <div class="st">Database</div>
+            <div class="st active">Logs · 28</div>
+          </div>
+          <div style="flex:1;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text)">
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:22</span><span class="lvl warn">warn</span><span class="msg">Undefined key <span class="num">"shipping_class"</span></span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl error">err</span><span class="msg">Image dir not writable in <span class="file">class-wc-product-import.php</span></span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl notice">note</span><span class="msg">Deprecated <span class="num">jetpack_lazy_images_is_iframe</span></span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl info">info</span><span class="msg">REST: GET <span class="file">/wp-json/wc/store/v1/cart</span> → 200</span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl warn">warn</span><span class="msg">cURL timeout · api.wordpress.org/themes/</span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl info">info</span><span class="msg">Plugin activated: <span class="file">woocommerce.php</span> v9.4.0</span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl info">info</span><span class="msg">Theme switched: <span class="file">storefront → stylish-press</span></span></div>
+            <div class="log-row" style="grid-template-columns:48px 60px 1fr;padding:3px 10px;font-size:10px"><span class="t" style="font-size:9.5px">14:21</span><span class="lvl info">info</span><span class="msg">Boot complete · 6.7s</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="device-cap">Dock open · drag down to dismiss</div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- AFFORDANCE LEGEND -->
+<!-- ================================================================ -->
+<div class="scene" style="margin-bottom:32px">
+  <div class="scene-label">
+    <div class="l">Affordance budget · <b>idle, working session</b></div>
+    <div class="r">target ≤ 8 · counted 8</div>
+  </div>
+  <div style="max-width:1440px;background:#0f1218;border:1px solid var(--line);border-radius:10px;padding:22px 26px;color:var(--text);font-size:13px;line-height:1.7">
+    <ol style="margin:0;padding-left:20px;columns:2;column-gap:36px">
+      <li><b>Tab strip</b> — N tabs (saved playgrounds), one is active. One nav region, single primitive.</li>
+      <li><b>+ New tab</b> — opens the launcher.</li>
+      <li><b>Refresh</b> — left of address bar.</li>
+      <li><b>Address bar</b> — type a path to navigate the active tab.</li>
+      <li><b>Save-state pill</b> (in the address bar) — Unsaved / Saving / Saved. Click when Unsaved → save flow.</li>
+      <li><b>Fullscreen</b> — hides chrome, iframe takes 100% (Esc to exit).</li>
+      <li><b>Dock toggle</b> — opens the Site-Manager devtools panel below.</li>
+      <li><b>More menu</b> — kebab. Holds Sign-in/Docs/About/etc.</li>
+    </ol>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);color:var(--text-mute);font-size:12px">
+      Removed from "always visible": quick-settings popover (folded into dock Settings), Saved-Playgrounds dropdown (tabs <em>are</em> the saved list), Site-Manager open/close button (replaced by dock toggle — single secondary surface), inline info-notice Save button (the address-bar pill is the one Save door).
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
