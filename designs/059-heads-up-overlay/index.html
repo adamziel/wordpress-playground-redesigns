@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>WordPress Playground — Heads-Up Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  :root{
+    --bg:#0a0d12;
+    --bg-2:#0f141b;
+    --surface:rgba(15,20,27,0.78);
+    --surface-2:rgba(22,28,38,0.88);
+    --surface-3:rgba(30,38,52,0.96);
+    --line:rgba(255,255,255,0.08);
+    --line-2:rgba(255,255,255,0.14);
+    --text:#e8ecf3;
+    --text-2:#a4adbd;
+    --text-3:#6c7689;
+    --accent:#3858e9;        /* WP blue */
+    --accent-2:#5b78ff;
+    --accent-soft:rgba(56,88,233,0.18);
+    --warn:#f5a524;
+    --warn-soft:rgba(245,165,36,0.14);
+    --danger:#ef4444;
+    --ok:#22c55e;
+    --radius:14px;
+    --radius-sm:10px;
+    --radius-xs:8px;
+    --shadow-1:0 12px 32px -8px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.4);
+    --shadow-2:0 30px 80px -20px rgba(0,0,0,0.75), 0 6px 16px rgba(0,0,0,0.5);
+    --blur:saturate(160%) blur(22px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#000;color:var(--text);font-family:'Inter',system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-0.005em}
+  body{min-height:100vh}
+  .mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace}
+  /* page scroll between scenes */
+  .scene{position:relative;width:100%;height:100vh;min-height:760px;overflow:hidden;background:#000}
+  .scene + .scene{margin-top:48px}
+  .scene-label{position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:50;
+    font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.75);
+    background:rgba(0,0,0,0.55);backdrop-filter:var(--blur);padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.1)}
+  .scene-caption{position:absolute;top:18px;right:18px;z-index:50;font-size:11px;color:rgba(255,255,255,0.6);
+    background:rgba(0,0,0,0.45);padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.08)}
+
+  /* ============ IFRAME LAYER ============ */
+  .iframe-stage{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:stretch;background:#0b0d12}
+  .iframe-stage::before{
+    content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(900px 600px at 75% 20%, rgba(56,88,233,0.10), transparent 60%),
+      radial-gradient(700px 500px at 10% 80%, rgba(91,120,255,0.07), transparent 60%);
+    pointer-events:none;
+  }
+  .wp-iframe{position:relative;flex:1;background:#fff;color:#1f2937;overflow:hidden;display:flex;flex-direction:column}
+  /* a fake WP page */
+  .fake-wp{position:relative;flex:1;display:grid;grid-template-rows:auto 1fr;background:linear-gradient(180deg,#fefefe,#f5f5f7)}
+  .fake-wp-bar{height:32px;background:#1d2327;color:#d7dade;display:flex;align-items:center;gap:14px;padding:0 18px;font-size:12px}
+  .fake-wp-bar .dot{width:7px;height:7px;border-radius:50%;background:#a7aaad}
+  .fake-wp-bar a{color:#d7dade;text-decoration:none;opacity:0.9}
+  .fake-wp-body{padding:64px 8% 80px;display:grid;grid-template-columns:1.2fr 1fr;gap:64px;align-content:start;color:#1f2937}
+  .fake-wp h1{font-family:'Inter',sans-serif;font-size:54px;line-height:1.04;letter-spacing:-0.02em;margin:0 0 18px;color:#0b0d12;font-weight:700}
+  .fake-wp p{font-size:17px;line-height:1.6;color:#3a3a3a;margin:0 0 18px;max-width:54ch}
+  .fake-wp .pill{display:inline-flex;align-items:center;gap:8px;background:#eef2ff;color:#3858e9;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;margin-bottom:18px}
+  .fake-wp .cta{display:inline-flex;align-items:center;gap:8px;background:#3858e9;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px}
+  .fake-wp-art{position:relative;border-radius:18px;background:
+      conic-gradient(from 220deg at 70% 30%, #c3d1ff 0deg, #e8eeff 90deg, #ffd0a8 180deg, #ffe0c4 270deg, #c3d1ff 360deg);
+      min-height:340px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(56,88,233,0.35)}
+  .fake-wp-art::after{content:"";position:absolute;inset:0;background:
+      radial-gradient(circle at 30% 70%, rgba(255,255,255,0.45), transparent 55%),
+      radial-gradient(circle at 80% 20%, rgba(11,13,18,0.12), transparent 50%);
+  }
+  .fake-wp-art .glyph{position:absolute;left:32px;bottom:28px;font-family:'Inter';font-weight:700;font-size:36px;color:#0b0d12;letter-spacing:-0.02em}
+  .fake-wp-art .glyph small{display:block;font-size:13px;font-weight:500;color:#3a3a3a;margin-top:6px}
+  .fake-wp-foot{position:absolute;left:0;right:0;bottom:0;height:60px;background:#0b0d12;color:#a4adbd;font-size:12px;display:flex;align-items:center;justify-content:space-between;padding:0 8%}
+  .fake-wp-foot strong{color:#fff}
+
+  /* Loading overlay scene */
+  .booting .fake-wp{filter:blur(8px) brightness(0.8);pointer-events:none}
+  .booting .iframe-stage::after{
+    content:"";position:absolute;inset:0;background:rgba(0,0,0,0.35);backdrop-filter:blur(6px) saturate(120%);
+  }
+  .boot-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;
+    width:min(440px,86vw);background:var(--surface);border:1px solid var(--line-2);border-radius:18px;
+    backdrop-filter:var(--blur);padding:22px 22px 18px;color:var(--text);box-shadow:var(--shadow-2)}
+  .boot-card h3{margin:0 0 4px;font-size:15px;font-weight:600}
+  .boot-card p{margin:0;color:var(--text-2);font-size:13px}
+  .boot-row{display:flex;align-items:center;gap:12px;margin:14px 0 12px}
+  .boot-spin{width:28px;height:28px;border-radius:50%;border:2.5px solid rgba(91,120,255,0.25);border-top-color:var(--accent-2);animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .boot-bar{height:4px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-top:10px}
+  .boot-bar > i{display:block;height:100%;width:62%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px;animation:shimmer 1.4s ease-in-out infinite alternate}
+  @keyframes shimmer{from{transform:translateX(-15%)}to{transform:translateX(0)}}
+  .boot-steps{margin-top:14px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-2)}
+  .boot-steps .step{display:flex;align-items:center;gap:8px}
+  .boot-steps .ok{color:var(--ok)}
+  .boot-steps .now{color:var(--text)}
+
+  /* ============ HEADS-UP OVERLAY ============ */
+  /* Top bar */
+  .top-hud{position:absolute;left:0;right:0;top:0;z-index:25;display:flex;justify-content:center;pointer-events:none}
+  .top-hud-inner{
+    margin-top:14px;
+    pointer-events:auto;
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface-2);
+    border:1px solid var(--line-2);
+    backdrop-filter:var(--blur);
+    border-radius:14px;
+    padding:8px 10px;
+    box-shadow:var(--shadow-1);
+    max-width:calc(100% - 28px);
+  }
+  .hud-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;transition:background 0.12s, border-color 0.12s}
+  .hud-btn:hover{background:rgba(255,255,255,0.06);border-color:var(--line-2)}
+  .hud-btn .lucide{width:16px;height:16px}
+  .hud-btn.active{background:var(--accent-soft);border-color:rgba(91,120,255,0.4);color:#cfd8ff}
+  .url-bar{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:6px 10px;min-width:280px}
+  .url-bar .lucide{width:14px;height:14px;color:var(--text-3)}
+  .url-bar input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font-size:13px;font-family:'JetBrains Mono',ui-monospace,monospace}
+  .url-bar .go{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:600;cursor:pointer}
+  .pg-name{display:flex;align-items:center;gap:8px;padding:4px 10px;color:var(--text-2);font-size:13px;border-left:1px solid var(--line);margin-left:2px}
+  .pg-name .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+  .pg-name.saved .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,0.18)}
+  .pg-name b{color:var(--text);font-weight:600}
+  .save-btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;border:0;border-radius:9px;padding:7px 11px;font-weight:600;font-size:12.5px;cursor:pointer}
+  .save-btn .lucide{width:14px;height:14px}
+
+  /* Bottom dock */
+  .bot-hud{position:absolute;left:0;right:0;bottom:0;z-index:25;display:flex;justify-content:center;pointer-events:none}
+  .bot-hud-inner{
+    pointer-events:auto;margin-bottom:18px;
+    display:flex;align-items:center;gap:14px;
+    background:var(--surface-2);
+    border:1px solid var(--line-2);
+    backdrop-filter:var(--blur);
+    border-radius:16px;
+    padding:12px 14px;
+    box-shadow:var(--shadow-2);
+    max-width:calc(100% - 28px);
+  }
+  .dock-group{display:flex;align-items:center;gap:6px}
+  .dock-sep{width:1px;height:24px;background:var(--line)}
+  .scrubber{display:flex;align-items:center;gap:10px;min-width:260px}
+  .scrubber-track{position:relative;flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:999px;overflow:hidden}
+  .scrubber-track > .fill{position:absolute;left:0;top:0;bottom:0;width:68%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px}
+  .scrubber-track > .marker{position:absolute;top:-3px;width:12px;height:12px;background:#fff;border:2px solid var(--accent-2);border-radius:50%;transform:translateX(-50%);box-shadow:0 4px 10px rgba(56,88,233,0.4)}
+  .scrubber-track > .tick{position:absolute;top:-2px;width:2px;height:10px;background:rgba(255,255,255,0.25);border-radius:1px;transform:translateX(-50%)}
+  .scrubber .time{font-family:'JetBrains Mono';font-size:11px;color:var(--text-3);min-width:48px;text-align:center}
+  .dock-state{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--text-2)}
+  .dock-state b{color:var(--text);font-weight:600}
+
+  /* Edge handles (when fully hidden) */
+  .edge-handle{position:absolute;z-index:24;background:rgba(15,20,27,0.7);border:1px solid var(--line-2);backdrop-filter:var(--blur);color:var(--text-2);font-size:11px;display:flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;box-shadow:var(--shadow-1)}
+  .edge-handle .lucide{width:12px;height:12px}
+  .edge-left{top:50%;left:14px;transform:translateY(-50%) rotate(0)}
+  .edge-right{top:50%;right:14px;transform:translateY(-50%)}
+  .hint-pulse{
+    position:absolute;z-index:23;left:0;top:0;bottom:0;width:6px;
+    background:linear-gradient(180deg, transparent, rgba(91,120,255,0.35), transparent);
+    animation:pulseGlow 2.4s ease-in-out infinite;
+    pointer-events:none;
+  }
+  @keyframes pulseGlow{0%,100%{opacity:0.3}50%{opacity:0.95}}
+
+  /* "Unsaved" pill (persistent) */
+  .unsaved-pill{
+    position:absolute;z-index:24;left:50%;transform:translateX(-50%);
+    bottom:90px;
+    display:inline-flex;align-items:center;gap:10px;
+    background:var(--warn-soft);
+    border:1px solid rgba(245,165,36,0.45);
+    color:#fde7b3;
+    padding:7px 12px;border-radius:999px;font-size:12px;
+    backdrop-filter:var(--blur);
+    box-shadow:var(--shadow-1);
+  }
+  .unsaved-pill button{background:#f5a524;color:#1c1300;border:0;border-radius:999px;font-size:11.5px;font-weight:700;padding:4px 10px;cursor:pointer}
+  .unsaved-pill .lucide{width:13px;height:13px;color:#f5a524}
+
+  /* ============ LEFT PANEL: LAUNCHER ============ */
+  .panel{position:absolute;z-index:30;top:14px;bottom:14px;background:var(--surface);border:1px solid var(--line-2);backdrop-filter:var(--blur);border-radius:18px;box-shadow:var(--shadow-2);display:flex;flex-direction:column;color:var(--text);overflow:hidden}
+  .panel.left{left:14px;width:min(520px,42vw)}
+  .panel.right{right:14px;width:min(540px,44vw)}
+  .panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .panel-title{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+  .panel-title .ico{width:26px;height:26px;border-radius:8px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:#a8b8ff}
+  .panel-title .ico .lucide{width:14px;height:14px}
+  .panel-close{background:transparent;border:1px solid var(--line);color:var(--text-2);border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .panel-close .lucide{width:12px;height:12px}
+  .panel-body{flex:1;overflow:auto;padding:14px 16px 20px}
+  .section{margin-top:6px}
+  .section + .section{margin-top:18px}
+  .section h4{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin:0 0 10px;font-weight:600}
+  .grid-new{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .new-card{display:flex;flex-direction:column;gap:6px;padding:12px;background:rgba(255,255,255,0.025);border:1px solid var(--line);border-radius:12px;cursor:pointer;transition:border-color 0.12s, background 0.12s}
+  .new-card:hover{border-color:var(--line-2);background:rgba(255,255,255,0.05)}
+  .new-card .row{display:flex;align-items:center;gap:8px}
+  .new-card .ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+  .new-card .ico.b1{background:linear-gradient(135deg,#3858e9,#5b78ff)}
+  .new-card .ico.b2{background:linear-gradient(135deg,#9b59f7,#6c8cff)}
+  .new-card .ico.b3{background:linear-gradient(135deg,#22c55e,#16a34a)}
+  .new-card .ico.b4{background:linear-gradient(135deg,#0f172a,#374151);border:1px solid rgba(255,255,255,0.18)}
+  .new-card .ico.b5{background:linear-gradient(135deg,#f59e0b,#f97316)}
+  .new-card .ico.b6{background:linear-gradient(135deg,#06b6d4,#3858e9)}
+  .new-card .ico .lucide{width:14px;height:14px}
+  .new-card .title{font-size:13px;font-weight:600}
+  .new-card .sub{font-size:11.5px;color:var(--text-3);line-height:1.4}
+
+  /* Featured blueprints horizontal */
+  .featured{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .bp-tile{position:relative;aspect-ratio:1/1.08;border-radius:12px;overflow:hidden;cursor:pointer;border:1px solid var(--line);background:#0c1118;transition:transform 0.15s, border-color 0.15s}
+  .bp-tile:hover{transform:translateY(-2px);border-color:var(--line-2)}
+  .bp-tile .thumb{position:absolute;inset:0}
+  .bp-tile .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%, rgba(0,0,0,0.75))}
+  .bp-tile .label{position:absolute;left:8px;right:8px;bottom:6px;font-size:11px;font-weight:600;color:#fff;line-height:1.2;z-index:2}
+  .bp-tile .tag{position:absolute;left:8px;top:8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#fff;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.18);padding:3px 6px;border-radius:999px;z-index:2}
+  .view-all{display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--text-2);text-decoration:none;border:1px dashed var(--line-2);border-radius:12px;aspect-ratio:1/1.08;gap:6px;font-weight:600}
+  .view-all .lucide{width:13px;height:13px}
+
+  /* Your playgrounds */
+  .yp-list{display:flex;flex-direction:column;gap:6px}
+  .yp{display:flex;align-items:center;gap:12px;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:background 0.12s}
+  .yp:hover{background:rgba(255,255,255,0.05)}
+  .yp .ava{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#3858e9,#5b78ff);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px}
+  .yp .ava.alt{background:linear-gradient(135deg,#f97316,#f59e0b)}
+  .yp .ava.alt2{background:linear-gradient(135deg,#22c55e,#16a34a)}
+  .yp .meta{flex:1;min-width:0}
+  .yp .meta .title{font-size:13px;font-weight:600;display:block}
+  .yp .meta .sub{font-size:11.5px;color:var(--text-3)}
+  .yp .badge{font-size:10px;font-weight:600;color:var(--text-2);background:rgba(255,255,255,0.04);border:1px solid var(--line);padding:3px 7px;border-radius:999px}
+
+  /* ============ FULL BLUEPRINT GALLERY ============ */
+  .gallery-wrap{position:absolute;inset:14px;z-index:30;background:var(--surface);border:1px solid var(--line-2);backdrop-filter:var(--blur);border-radius:18px;box-shadow:var(--shadow-2);display:flex;flex-direction:column;overflow:hidden}
+  .gallery-top{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1;max-width:380px}
+  .search input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font-size:13px}
+  .search .lucide{width:14px;height:14px;color:var(--text-3)}
+  .filters{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:11.5px;color:var(--text-2);background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:999px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+  .chip.on{background:var(--accent-soft);border-color:rgba(91,120,255,0.4);color:#cfd8ff}
+  .gallery-body{flex:1;overflow:auto;padding:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-content:start}
+  .gcard{background:rgba(255,255,255,0.025);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:transform 0.15s, border-color 0.15s}
+  .gcard:hover{transform:translateY(-2px);border-color:var(--line-2)}
+  .gcard .thumb{aspect-ratio:16/10;position:relative;overflow:hidden}
+  .gcard .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%, rgba(0,0,0,0.5))}
+  .gcard .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px}
+  .gcard .title{font-size:13px;font-weight:600;line-height:1.3}
+  .gcard .desc{font-size:11.5px;color:var(--text-3);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .gcard .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+  .gcard .tag{font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-2);background:rgba(255,255,255,0.04);border:1px solid var(--line);padding:2px 6px;border-radius:6px;font-weight:600}
+
+  /* Thumb art variations (gradient placeholders) */
+  .art-1{background:conic-gradient(from 200deg at 30% 30%, #f6d365, #fda085, #f6d365)}
+  .art-2{background:linear-gradient(135deg,#6a4f3b,#c89271,#3e2a20)}
+  .art-3{background:linear-gradient(135deg,#1d4ed8,#06b6d4,#7c3aed)}
+  .art-4{background:linear-gradient(135deg,#dc2626,#7c2d12,#451a03)}
+  .art-5{background:linear-gradient(135deg,#16a34a,#bef264,#fef3c7)}
+  .art-6{background:linear-gradient(135deg,#0f172a,#475569,#e2e8f0)}
+  .art-7{background:linear-gradient(135deg,#0ea5e9,#6366f1,#a855f7)}
+  .art-8{background:linear-gradient(135deg,#1e293b,#0f172a,#334155)}
+  .art-9{background:linear-gradient(135deg,#fb7185,#fdba74,#fde68a)}
+  .art-10{background:linear-gradient(135deg,#1e3a8a,#2563eb,#bfdbfe)}
+  .art-11{background:linear-gradient(135deg,#312e81,#6d28d9,#a78bfa)}
+  .art-12{background:linear-gradient(135deg,#064e3b,#10b981,#a7f3d0)}
+  .art-13{background:linear-gradient(135deg,#7c2d12,#ea580c,#fed7aa)}
+  .art-14{background:linear-gradient(135deg,#000,#1f2937,#9ca3af)}
+  .art-15{background:linear-gradient(135deg,#7e1d1d,#ef4444,#fecaca)}
+  .art-16{background:linear-gradient(135deg,#1e1b4b,#7c3aed,#c4b5fd)}
+  .art-17{background:linear-gradient(135deg,#082f49,#0ea5e9,#7dd3fc)}
+  .art-18{background:linear-gradient(135deg,#365314,#65a30d,#d9f99d)}
+  .art-19{background:linear-gradient(135deg,#4a044e,#a21caf,#f0abfc)}
+  .art-20{background:linear-gradient(135deg,#0c4a6e,#0891b2,#67e8f9)}
+  .art-21{background:linear-gradient(135deg,#451a03,#a16207,#fde047)}
+  .art-22{background:linear-gradient(135deg,#7f1d1d,#b91c1c,#fca5a5)}
+
+  /* ============ RIGHT PANEL: SITE MANAGER ============ */
+  .sm-header{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .sm-title{display:flex;align-items:center;gap:10px}
+  .sm-title input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font-size:15px;font-weight:600}
+  .sm-title .lucide{width:14px;height:14px;color:var(--text-3)}
+  .sm-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .sm-btn{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text-2);background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer}
+  .sm-btn:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+  .sm-btn .lucide{width:13px;height:13px}
+  .sm-btn.primary{background:var(--accent);border-color:transparent;color:#fff}
+  .sm-more{margin-left:auto;position:relative}
+  .sm-tabs{display:flex;gap:0;padding:0 16px;border-bottom:1px solid var(--line)}
+  .sm-tab{padding:10px 12px;font-size:12.5px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:6px}
+  .sm-tab .lucide{width:13px;height:13px}
+  .sm-tab.on{color:var(--text);border-bottom-color:var(--accent-2)}
+  .sm-content{flex:1;overflow:auto;padding:16px}
+  /* settings */
+  .setting-row{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;padding:11px 0;border-bottom:1px dashed var(--line);align-items:center}
+  .setting-row:last-of-type{border-bottom:0}
+  .setting-row label{font-size:12.5px;color:var(--text-2)}
+  .setting-row .val{display:flex;align-items:center;gap:8px;font-size:13px}
+  .sel{background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%}
+  .switch{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+  .switch .track{width:32px;height:18px;border-radius:999px;background:rgba(255,255,255,0.1);border:1px solid var(--line);transition:background 0.15s;position:relative}
+  .switch .track::after{content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left 0.15s}
+  .switch.on .track{background:var(--accent)}
+  .switch.on .track::after{left:16px}
+  .info-notice{display:flex;gap:10px;padding:11px 12px;background:var(--warn-soft);border:1px solid rgba(245,165,36,0.35);color:#fde7b3;border-radius:10px;font-size:12.5px;margin-bottom:14px;align-items:flex-start}
+  .info-notice .lucide{width:14px;height:14px;color:#f5a524;flex-shrink:0;margin-top:2px}
+  .info-notice button{margin-top:8px;background:#f5a524;color:#1c1300;border:0;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+  .apply-row{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px}
+  .apply-row .warn{font-size:11.5px;color:#fecaca;display:flex;align-items:center;gap:8px}
+  .apply-row .warn .lucide{width:13px;height:13px}
+  .apply-row .row{display:flex;gap:6px}
+  .apply-row button{font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:8px;cursor:pointer;border:0}
+  .apply-row .reset{background:transparent;color:var(--text-2);border:1px solid var(--line)}
+  .apply-row .apply{background:var(--danger);color:#fff}
+
+  /* file browser & code editor */
+  .fb-grid{display:grid;grid-template-columns:200px 1fr;gap:0;height:100%}
+  .fb-tree{border-right:1px solid var(--line);padding:6px;font-size:12.5px;overflow:auto}
+  .fb-tree .node{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer;color:var(--text-2)}
+  .fb-tree .node:hover{background:rgba(255,255,255,0.05)}
+  .fb-tree .node.on{background:var(--accent-soft);color:#cfd8ff}
+  .fb-tree .node .lucide{width:13px;height:13px}
+  .fb-tree .node.dir{font-weight:600;color:var(--text)}
+  .fb-tree .node.indent{padding-left:24px}
+  .fb-tree .node.indent2{padding-left:36px}
+  .fb-actions{display:flex;gap:6px;margin-top:8px;padding:0 4px}
+  .fb-actions .sm-btn{flex:1;justify-content:center}
+  .fb-edit{display:flex;flex-direction:column;min-height:0}
+  .fb-tabs{display:flex;border-bottom:1px solid var(--line);padding:0 8px}
+  .fb-tabs .tab{font-size:12px;color:var(--text-2);padding:8px 12px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-bottom:2px solid transparent}
+  .fb-tabs .tab.on{color:var(--text);border-bottom-color:var(--accent-2)}
+  .code{flex:1;overflow:auto;padding:14px 16px;font-family:'JetBrains Mono';font-size:12px;color:#cdd5e0;background:rgba(0,0,0,0.18);line-height:1.7}
+  .code .gut{color:var(--text-3);margin-right:14px;user-select:none;display:inline-block;min-width:24px;text-align:right}
+  .code .k{color:#c084fc}
+  .code .s{color:#fbbf24}
+  .code .c{color:var(--text-3);font-style:italic}
+  .code .v{color:#7dd3fc}
+  .code .n{color:#fb7185}
+  .code .p{color:#e2e8f0}
+
+  /* blueprint editor */
+  .bp-grid{display:grid;grid-template-columns:200px 1fr;gap:0;height:100%}
+  .bp-actions{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}
+  .bp-actions .sm-btn.primary{margin-left:auto}
+
+  /* database */
+  .db-toolbar{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .db-table{width:100%;border-collapse:collapse;font-size:12px}
+  .db-table th, .db-table td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  .db-table th{color:var(--text-3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.02)}
+  .db-table td{color:var(--text-2);font-family:'JetBrains Mono'}
+  .db-table tr:hover{background:rgba(255,255,255,0.03)}
+
+  /* logs */
+  .logs-toolbar{display:flex;align-items:center;gap:8px;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+  .log-line{display:grid;grid-template-columns:84px 70px 1fr;gap:10px;padding:5px 8px;font-family:'JetBrains Mono';font-size:11.5px;border-radius:6px;align-items:start;line-height:1.55}
+  .log-line:hover{background:rgba(255,255,255,0.03)}
+  .log-time{color:var(--text-3)}
+  .log-lvl{font-weight:700;font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:5px;text-align:center;height:fit-content;letter-spacing:0.05em}
+  .log-lvl.info{background:rgba(56,88,233,0.18);color:#a8b8ff}
+  .log-lvl.warn{background:var(--warn-soft);color:#fcd34d}
+  .log-lvl.err{background:rgba(239,68,68,0.18);color:#fca5a5}
+  .log-lvl.ok{background:rgba(34,197,94,0.18);color:#86efac}
+  .log-msg{color:var(--text)}
+  .log-msg .dim{color:var(--text-3)}
+
+  /* additional actions menu */
+  .menu{position:absolute;top:42px;right:0;background:var(--surface-3);border:1px solid var(--line-2);border-radius:12px;backdrop-filter:var(--blur);box-shadow:var(--shadow-2);padding:6px;min-width:280px;z-index:40}
+  .menu .item{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--text)}
+  .menu .item:hover{background:rgba(255,255,255,0.06)}
+  .menu .item .lucide{width:14px;height:14px;color:var(--text-2);margin-top:2px;flex-shrink:0}
+  .menu .item .t{font-size:12.5px;font-weight:600;display:block}
+  .menu .item .d{font-size:11px;color:var(--text-3);line-height:1.4;display:block;margin-top:2px}
+  .menu .sep{height:1px;background:var(--line);margin:4px 6px}
+
+  /* settings popover (from top bar) */
+  .settings-pop{position:absolute;top:60px;right:50%;transform:translateX(220px);background:var(--surface-3);border:1px solid var(--line-2);border-radius:14px;backdrop-filter:var(--blur);box-shadow:var(--shadow-2);width:340px;padding:14px;z-index:40}
+  .settings-pop h5{margin:0 0 10px;font-size:12px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.1em;font-weight:600}
+
+  /* Toast */
+  .toast-wrap{position:absolute;left:16px;bottom:90px;z-index:35;display:flex;flex-direction:column;gap:8px;max-width:340px}
+  .toast{display:flex;gap:10px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:12px;padding:11px 13px;backdrop-filter:var(--blur);box-shadow:var(--shadow-1);align-items:flex-start}
+  .toast .lucide{width:15px;height:15px;flex-shrink:0;margin-top:1px}
+  .toast.ok .lucide{color:var(--ok)}
+  .toast.info .lucide{color:var(--accent-2)}
+  .toast .body{font-size:12.5px;line-height:1.4}
+  .toast .body b{display:block;color:var(--text);font-weight:600;margin-bottom:1px}
+  .toast .body span{color:var(--text-3);font-size:11.5px}
+
+  /* keyboard hint */
+  .kbd{font-family:'JetBrains Mono';font-size:10.5px;color:var(--text-3);background:rgba(255,255,255,0.06);border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+
+  /* gallery thumb labels */
+  .gcard .thumb .ovlay{position:absolute;left:8px;bottom:8px;font-size:11px;color:#fff;z-index:2;font-weight:600}
+
+  /* edge-swipe explainer (first scene) */
+  .first-tour{position:absolute;inset:0;pointer-events:none;z-index:5}
+  .first-tour .corner{position:absolute;background:rgba(15,20,27,0.7);border:1px dashed rgba(91,120,255,0.45);backdrop-filter:var(--blur);color:var(--text-2);font-size:11px;border-radius:10px;padding:8px 10px;line-height:1.4;max-width:200px}
+  .first-tour .corner b{color:var(--text);display:block;margin-bottom:2px}
+
+  /* mobile */
+  .mobile-frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:390px;height:780px;background:#000;border-radius:48px;border:8px solid #1a1c20;box-shadow:0 30px 80px -10px rgba(0,0,0,0.7);overflow:hidden}
+  .mobile-frame::after{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:120px;height:30px;background:#000;border-radius:18px;z-index:60}
+  .m-stage{position:absolute;inset:0;background:#fff;color:#111;overflow:hidden}
+  .m-stage .fake-wp-body{padding:80px 24px 90px;grid-template-columns:1fr;gap:24px}
+  .m-stage .fake-wp h1{font-size:30px}
+  .m-stage .fake-wp p{font-size:14px}
+  .m-stage .fake-wp-art{min-height:160px}
+  .m-stage .fake-wp-art .glyph{font-size:20px}
+  .m-stage .fake-wp-foot{padding:0 24px;font-size:10px;height:48px}
+  .m-top{position:absolute;left:8px;right:8px;top:54px;display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line-2);backdrop-filter:var(--blur);border-radius:12px;padding:8px 10px;z-index:30;box-shadow:var(--shadow-1)}
+  .m-top .url{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;font-family:'JetBrains Mono';color:var(--text)}
+  .m-bottom{position:absolute;left:8px;right:8px;bottom:18px;display:flex;align-items:center;justify-content:space-around;background:var(--surface-2);border:1px solid var(--line-2);backdrop-filter:var(--blur);border-radius:14px;padding:10px;z-index:30;box-shadow:var(--shadow-1)}
+  .m-bottom .item{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-2);font-size:10px}
+  .m-bottom .item.on{color:var(--text)}
+  .m-bottom .item .lucide{width:18px;height:18px}
+  .m-fab{position:absolute;right:16px;bottom:92px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(56,88,233,0.45);z-index:30}
+  .m-fab .lucide{width:22px;height:22px}
+  .m-launcher{position:absolute;left:8px;right:8px;bottom:88px;top:120px;background:var(--surface);border:1px solid var(--line-2);backdrop-filter:var(--blur);border-radius:18px;padding:14px;overflow:auto;z-index:35;display:none}
+  .m-launcher.on{display:block}
+  .m-hint{position:absolute;left:0;top:50%;transform:translateY(-50%);width:4px;height:60px;background:linear-gradient(180deg,transparent,rgba(91,120,255,0.6),transparent);border-radius:0 4px 4px 0;animation:pulseGlow 2s ease-in-out infinite}
+
+  /* misc */
+  .row{display:flex}
+  .gap-6{gap:6px}
+  .gap-8{gap:8px}
+  .gap-10{gap:10px}
+  .gap-12{gap:12px}
+  .between{justify-content:space-between}
+  .center{align-items:center}
+  .small{font-size:11.5px;color:var(--text-3)}
+
+  /* Right panel slim variant for some scenes (DB / Logs) */
+  .sm-empty{padding:30px;text-align:center;color:var(--text-3);font-size:13px}
+
+  /* responsive */
+  @media (max-width: 980px){
+    .panel.left{width:min(92vw,460px)}
+    .panel.right{width:min(94vw,520px)}
+    .gallery-body{grid-template-columns:repeat(2,1fr)}
+    .featured{grid-template-columns:repeat(3,1fr)}
+    .fake-wp-body{grid-template-columns:1fr;padding:48px 6%}
+    .fake-wp h1{font-size:36px}
+    .fake-wp-art{min-height:200px}
+  }
+</style>
+</head>
+<body>
+
+<!-- =================== SCENE 1: WORKING SESSION (HUD VISIBLE) =================== -->
+<section class="scene" id="s1">
+  <div class="scene-label">Scene 1 — Working session · HUD revealed on hover</div>
+  <div class="scene-caption">1440 × 900 · Desktop</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar">
+          <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">My Coffee Shop</b></span>
+          <a href="#">Dashboard</a><a href="#">Posts</a><a href="#">Products</a><a href="#">Appearance</a><a href="#">Plugins</a><a href="#">Users</a>
+          <span style="margin-left:auto;opacity:0.7">Howdy, admin</span>
+        </div>
+        <div class="fake-wp-body">
+          <div>
+            <span class="pill"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v6"/><path d="M5 8h14l-2 12H7L5 8z"/></svg> WooCommerce Storefront</span>
+            <h1>Slow-brewed mornings, sourced ethically.</h1>
+            <p>We roast small batches of single-origin beans in Brooklyn. Drop by the café on Bedford, or order a bag of our seasonal Ethiopia Yirgacheffe — shipped weekly.</p>
+            <a class="cta" href="#">Shop the seasonal menu →</a>
+          </div>
+          <div class="fake-wp-art">
+            <div class="glyph">☕ Bedford Roastery
+              <small>Est. 2018 · Brooklyn, NY</small>
+            </div>
+          </div>
+        </div>
+        <div class="fake-wp-foot">
+          <span>© 2026 Bedford Roastery · Built with WordPress</span>
+          <span><strong>Cart (2)</strong> · $24.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top HUD -->
+  <div class="top-hud">
+    <div class="top-hud-inner">
+      <button class="hud-btn" title="Refresh"><i data-lucide="rotate-cw"></i></button>
+      <div class="url-bar">
+        <i data-lucide="link"></i>
+        <input value="/wp-admin/edit.php?post_type=product" />
+        <button class="go">Go</button>
+      </div>
+      <div class="pg-name saved">
+        <span class="dot"></span>
+        <b>Coffee Shop</b>
+        <span class="small">· auto-saved 12s ago</span>
+      </div>
+      <span class="dock-sep"></span>
+      <button class="hud-btn" title="Saved Playgrounds &amp; Launcher (← edge or ⌘←)"><i data-lucide="layout-grid"></i></button>
+      <button class="hud-btn" title="Site Manager (→ edge or ⌘→)"><i data-lucide="panel-right-open"></i></button>
+      <button class="hud-btn active" title="Quick settings"><i data-lucide="sliders-horizontal"></i></button>
+    </div>
+  </div>
+
+  <!-- Settings popover -->
+  <div class="settings-pop">
+    <h5>Quick settings</h5>
+    <div class="setting-row"><label>WordPress</label><div class="val"><select class="sel"><option>6.7.1 (stable)</option><option>6.8 beta</option><option>nightly</option></select></div></div>
+    <div class="setting-row"><label>PHP</label><div class="val"><select class="sel"><option>8.3</option><option>8.2</option><option>8.1</option><option>7.4</option></select></div></div>
+    <div class="setting-row"><label>Language</label><div class="val"><select class="sel"><option>English (US)</option><option>日本語</option><option>Español</option></select></div></div>
+    <div class="setting-row"><label>Network</label><div class="val"><span class="switch on"><span class="track"></span><span class="small">Allow outbound</span></span></div></div>
+    <div class="setting-row"><label>Multisite</label><div class="val"><span class="switch"><span class="track"></span><span class="small">Off</span></span></div></div>
+    <div class="apply-row">
+      <div class="warn"><i data-lucide="triangle-alert"></i> Apply resets the site.</div>
+      <div class="row"><button class="reset">Reset</button><button class="apply">Apply &amp; Reset</button></div>
+    </div>
+  </div>
+
+  <!-- Bottom dock -->
+  <div class="bot-hud">
+    <div class="bot-hud-inner">
+      <div class="dock-group">
+        <button class="hud-btn" title="Refresh iframe"><i data-lucide="rotate-cw"></i></button>
+        <button class="hud-btn" title="WP Admin"><i data-lucide="layout-dashboard"></i></button>
+        <button class="hud-btn" title="Homepage"><i data-lucide="home"></i></button>
+      </div>
+      <span class="dock-sep"></span>
+      <div class="scrubber" title="State scrubber — rewind through this session">
+        <i data-lucide="rewind" style="width:14px;height:14px;color:var(--text-3)"></i>
+        <div class="scrubber-track">
+          <span class="fill"></span>
+          <span class="tick" style="left:18%"></span>
+          <span class="tick" style="left:38%"></span>
+          <span class="tick" style="left:58%"></span>
+          <span class="tick" style="left:80%"></span>
+          <span class="marker" style="left:68%"></span>
+        </div>
+        <span class="time">14:23 / 21:08</span>
+      </div>
+      <span class="dock-sep"></span>
+      <div class="dock-group">
+        <button class="save-btn"><i data-lucide="bookmark"></i> Saved</button>
+        <button class="hud-btn" title="More actions"><i data-lucide="more-horizontal"></i></button>
+      </div>
+      <span class="dock-sep"></span>
+      <div class="dock-state">
+        <i data-lucide="cpu" style="width:13px;height:13px;color:var(--text-3)"></i>
+        <span><b>PHP 8.3</b> · <b>WP 6.7.1</b> · 132 MB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-wrap">
+    <div class="toast ok">
+      <i data-lucide="check-circle-2"></i>
+      <div class="body"><b>WooCommerce installed</b><span>Sample products imported · 12 items</span></div>
+    </div>
+    <div class="toast info">
+      <i data-lucide="keyboard"></i>
+      <div class="body"><b>Tip</b><span>Press <span class="kbd">⌘ ←</span> for launcher, <span class="kbd">⌘ →</span> for site manager, <span class="kbd">⌘ K</span> for command bar.</span></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- =================== SCENE 2: BOOTING / FIRST-TOUCH WITH EDGE HINTS =================== -->
+<section class="scene booting" id="s2">
+  <div class="scene-label">Scene 2 — First boot · Edge hints + loader overlay</div>
+  <div class="scene-caption">No chrome yet · iframe is loading</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar">
+          <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">WordPress Playground</b></span>
+          <a href="#">Hello</a>
+          <span style="margin-left:auto;opacity:0.7">Howdy</span>
+        </div>
+        <div class="fake-wp-body">
+          <div>
+            <span class="pill">Booting WordPress 6.7.1</span>
+            <h1>Hello from WordPress Playground!</h1>
+            <p>A full WordPress instance running in your browser. PHP via WASM, MySQL via SQLite. Nothing leaves your machine unless you say so.</p>
+          </div>
+          <div class="fake-wp-art" style="background:linear-gradient(135deg,#1e3a8a,#3858e9,#a5b4fc)"><div class="glyph">▸ Loading WordPress<small>WASM · SQLite · OPFS</small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edge glow + handles -->
+  <span class="hint-pulse"></span>
+  <span class="hint-pulse" style="left:auto;right:0;background:linear-gradient(180deg, transparent, rgba(91,120,255,0.35), transparent)"></span>
+
+  <div class="edge-handle edge-left"><i data-lucide="chevron-right"></i> Launcher</div>
+  <div class="edge-handle edge-right">Site Manager <i data-lucide="chevron-left"></i></div>
+
+  <!-- Boot card -->
+  <div class="boot-card">
+    <div class="boot-row">
+      <div class="boot-spin"></div>
+      <div style="flex:1">
+        <h3>Booting your Playground</h3>
+        <p>Vanilla WordPress · PHP 8.3 · WP 6.7.1</p>
+      </div>
+    </div>
+    <div class="boot-bar"><i></i></div>
+    <div class="boot-steps">
+      <div class="step ok"><i data-lucide="check" style="width:13px;height:13px"></i> Mounted OPFS filesystem</div>
+      <div class="step ok"><i data-lucide="check" style="width:13px;height:13px"></i> Started PHP-WASM (37 MB)</div>
+      <div class="step now"><i data-lucide="loader-2" style="width:13px;height:13px"></i> Importing WordPress core (62 of 108 files)</div>
+      <div class="step"><i data-lucide="circle" style="width:13px;height:13px"></i> Bootstrapping SQLite database</div>
+      <div class="step"><i data-lucide="circle" style="width:13px;height:13px"></i> Activating welcome theme</div>
+    </div>
+  </div>
+
+  <!-- First-tour explainers -->
+  <div class="first-tour">
+    <div class="corner" style="left:24px;top:80px"><b>Top edge</b>URL bar, name, save, and main toggles slide in.</div>
+    <div class="corner" style="left:24px;bottom:80px"><b>Bottom edge</b>Refresh, state scrubber, additional actions.</div>
+    <div class="corner" style="right:24px;top:80px"><b>Right edge</b>Site Manager — settings, files, blueprint, DB, logs.</div>
+    <div class="corner" style="right:24px;bottom:80px"><b>Left edge</b>Launcher — new playgrounds, 43 blueprints, your saves.</div>
+  </div>
+
+  <!-- Unsaved pill persistent -->
+  <div class="unsaved-pill">
+    <i data-lucide="info"></i>
+    <span>This is an <b>Unsaved Playground</b>. Refresh will wipe it.</span>
+    <button>Save site locally</button>
+  </div>
+</section>
+
+
+<!-- =================== SCENE 3: LAUNCHER PANEL (LEFT EDGE) =================== -->
+<section class="scene" id="s3">
+  <div class="scene-label">Scene 3 — Launcher (left-edge swipe)</div>
+  <div class="scene-caption">Saved Playgrounds + New + Blueprints (5 featured)</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar"><span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">My Coffee Shop</b></span><a href="#">Dashboard</a><a href="#">Products</a><a href="#">Appearance</a></div>
+        <div class="fake-wp-body">
+          <div><span class="pill">Storefront</span><h1>Slow-brewed mornings.</h1><p>Single origins, roasted weekly in Brooklyn.</p></div>
+          <div class="fake-wp-art"><div class="glyph">☕<small>Bedford Roastery</small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top HUD (slim because launcher is open) -->
+  <div class="top-hud">
+    <div class="top-hud-inner">
+      <button class="hud-btn active"><i data-lucide="layout-grid"></i></button>
+      <div class="url-bar"><i data-lucide="link"></i><input value="/" /></div>
+      <div class="pg-name saved"><span class="dot"></span><b>Coffee Shop</b></div>
+    </div>
+  </div>
+
+  <!-- LEFT panel: launcher -->
+  <aside class="panel left">
+    <div class="panel-header">
+      <div class="panel-title"><span class="ico"><i data-lucide="rocket"></i></span> Launcher</div>
+      <button class="panel-close"><i data-lucide="x"></i> Close <span class="kbd">esc</span></button>
+    </div>
+    <div class="panel-body">
+      <div class="section">
+        <h4>Start a new Playground</h4>
+        <div class="grid-new">
+          <div class="new-card">
+            <div class="row"><span class="ico b1"><i data-lucide="wordpress" ></i><i data-lucide="globe"></i></span><span class="title">Vanilla WordPress</span></div>
+            <span class="sub">Latest stable · empty install · 2s boot</span>
+          </div>
+          <div class="new-card">
+            <div class="row"><span class="ico b2"><i data-lucide="git-pull-request"></i></span><span class="title">WordPress PR</span></div>
+            <span class="sub">Boot from a WP core pull request number or URL.</span>
+          </div>
+          <div class="new-card">
+            <div class="row"><span class="ico b3"><i data-lucide="blocks"></i></span><span class="title">Gutenberg PR</span></div>
+            <span class="sub">Try a Gutenberg PR before it lands in core.</span>
+          </div>
+          <div class="new-card">
+            <div class="row"><span class="ico b4"><i data-lucide="github"></i></span><span class="title">From GitHub</span></div>
+            <span class="sub">Theme or plugin from any public repo + branch.</span>
+          </div>
+          <div class="new-card">
+            <div class="row"><span class="ico b5"><i data-lucide="link-2"></i></span><span class="title">Blueprint URL</span></div>
+            <span class="sub">Paste any blueprint <span class="mono">.json</span> URL to boot it.</span>
+          </div>
+          <div class="new-card">
+            <div class="row"><span class="ico b6"><i data-lucide="upload"></i></span><span class="title">Import .zip</span></div>
+            <span class="sub">Re-mount a previously exported playground.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h4>Start from a Blueprint · <span style="color:var(--text-2);font-weight:500;text-transform:none;letter-spacing:0">5 featured</span></h4>
+        <div class="featured">
+          <div class="bp-tile"><div class="thumb art-1"></div><span class="tag">Featured</span><span class="label">Art Gallery</span></div>
+          <div class="bp-tile"><div class="thumb art-2"></div><span class="tag">Woo</span><span class="label">Coffee Shop</span></div>
+          <div class="bp-tile"><div class="thumb art-3"></div><span class="tag">Social</span><span class="label">Feed Reader</span></div>
+          <div class="bp-tile"><div class="thumb art-4"></div><span class="tag">News</span><span class="label">Gaming News</span></div>
+          <div class="bp-tile"><div class="thumb art-5"></div><span class="tag">Org</span><span class="label">Non-profit</span></div>
+        </div>
+        <a class="view-all" style="margin-top:8px;display:flex" href="#s4"><i data-lucide="layout-grid"></i> View all 43 blueprints →</a>
+      </div>
+
+      <div class="section">
+        <h4>Your Playgrounds · <span style="color:var(--text-2);font-weight:500;text-transform:none;letter-spacing:0">3 saved</span></h4>
+        <div class="yp-list">
+          <div class="yp">
+            <div class="ava">CS</div>
+            <div class="meta"><span class="title">Coffee Shop</span><span class="sub">WP 6.7.1 · PHP 8.3 · last opened 2 min ago · 24 MB</span></div>
+            <span class="badge">Active</span>
+          </div>
+          <div class="yp">
+            <div class="ava alt">GN</div>
+            <div class="meta"><span class="title">Gaming News (Spiel)</span><span class="sub">WP 6.8b · PHP 8.2 · saved yesterday · 18 MB</span></div>
+            <span class="badge">Saved</span>
+          </div>
+          <div class="yp">
+            <div class="ava alt2">PR</div>
+            <div class="meta"><span class="title">WP PR #6021 — Block bindings UI</span><span class="sub">WP nightly · PHP 8.3 · saved 3 days ago · 31 MB</span></div>
+            <span class="badge">PR</span>
+          </div>
+          <div class="yp" style="opacity:0.7">
+            <div class="ava" style="background:rgba(255,255,255,0.06);color:var(--text-3)">+</div>
+            <div class="meta"><span class="title" style="color:var(--text-2)">Unsaved Playground</span><span class="sub">Not yet saved to browser storage</span></div>
+            <span class="badge" style="background:var(--warn-soft);color:#fde7b3;border-color:rgba(245,165,36,0.35)">Save</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right edge handle stays peeking -->
+  <div class="edge-handle edge-right">Site Manager <i data-lucide="chevron-left"></i></div>
+</section>
+
+
+<!-- =================== SCENE 4: FULL BLUEPRINT GALLERY =================== -->
+<section class="scene" id="s4">
+  <div class="scene-label">Scene 4 — Blueprint gallery · 43 blueprints, search + filters</div>
+  <div class="scene-caption">Opens over the iframe, dim background</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp" style="filter:blur(4px) brightness(0.7)">
+        <div class="fake-wp-bar"><span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">Coffee Shop</b></span><a href="#">Dashboard</a></div>
+        <div class="fake-wp-body"><div><h1>Slow-brewed mornings.</h1></div><div class="fake-wp-art"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gallery-wrap">
+    <div class="gallery-top">
+      <div class="panel-title"><span class="ico"><i data-lucide="layout-grid"></i></span> All blueprints</div>
+      <div class="search"><i data-lucide="search"></i><input placeholder="Search 43 blueprints by name, tag, or technology" value=""/></div>
+      <div class="filters">
+        <span class="chip on">All · 43</span>
+        <span class="chip">Featured · 5</span>
+        <span class="chip">Website · 9</span>
+        <span class="chip">Personal · 5</span>
+        <span class="chip">Content · 6</span>
+        <span class="chip">Themes · 7</span>
+        <span class="chip">Gutenberg · 4</span>
+        <span class="chip">Experiments · 3</span>
+        <span class="chip">WooCommerce · 4</span>
+        <span class="chip">News · 3</span>
+      </div>
+      <button class="panel-close" style="margin-left:auto"><i data-lucide="x"></i> Close <span class="kbd">esc</span></button>
+    </div>
+    <div class="gallery-body">
+      <div class="gcard"><div class="thumb art-1"><span class="ovlay">Art Gallery</span></div><div class="body"><span class="desc">An art gallery created with the Vueo theme.</span><div class="tags"><span class="tag">Website</span><span class="tag">Personal</span></div></div></div>
+      <div class="gcard"><div class="thumb art-2"><span class="ovlay">Coffee Shop</span></div><div class="body"><span class="desc">A stylish WooCommerce coffee shop storefront with custom theme, products, and content.</span><div class="tags"><span class="tag">WooCommerce</span><span class="tag">Store</span></div></div></div>
+      <div class="gcard"><div class="thumb art-3"><span class="ovlay">Feed Reader · Friends Plugin</span></div><div class="body"><span class="desc">Read feeds (incl. ActivityPub) in Playground via the Friends plugin.</span><div class="tags"><span class="tag">RSS</span><span class="tag">Social</span></div></div></div>
+      <div class="gcard"><div class="thumb art-4"><span class="ovlay">Gaming News</span></div><div class="body"><span class="desc">A gaming news site created with the Spiel theme.</span><div class="tags"><span class="tag">Website</span><span class="tag">News</span></div></div></div>
+      <div class="gcard"><div class="thumb art-5"><span class="ovlay">Non-profit Organization</span></div><div class="body"><span class="desc">A non-profit organization site created with the Koinonia theme.</span><div class="tags"><span class="tag">Website</span><span class="tag">Org</span></div></div></div>
+      <div class="gcard"><div class="thumb art-6"><span class="ovlay">Personal Blog</span></div><div class="body"><span class="desc">A personal blog site created with the Substrata theme.</span><div class="tags"><span class="tag">Blog</span><span class="tag">Personal</span></div></div></div>
+      <div class="gcard"><div class="thumb art-7"><span class="ovlay">Personal Resume</span></div><div class="body"><span class="desc">A resume site created with the Readymade theme.</span><div class="tags"><span class="tag">Personal</span></div></div></div>
+      <div class="gcard"><div class="thumb art-8"><span class="ovlay">Photography Portfolio</span></div><div class="body"><span class="desc">A photography portfolio created with the Grammer theme.</span><div class="tags"><span class="tag">Photography</span></div></div></div>
+      <div class="gcard"><div class="thumb art-9"><span class="ovlay">Skincare Blog</span></div><div class="body"><span class="desc">A skincare blog created with the Piel theme.</span><div class="tags"><span class="tag">Blog</span><span class="tag">News</span></div></div></div>
+      <div class="gcard"><div class="thumb art-10"><span class="ovlay">University Website</span></div><div class="body"><span class="desc">A university website created with the Kentwood theme.</span><div class="tags"><span class="tag">Education</span></div></div></div>
+      <div class="gcard"><div class="thumb art-11"><span class="ovlay">Create Block Theme</span></div><div class="body"><span class="desc">Install Create Block Theme and start editing right away.</span><div class="tags"><span class="tag">Editor</span><span class="tag">Theme</span></div></div></div>
+      <div class="gcard"><div class="thumb art-12"><span class="ovlay">Custom Post Type: Books</span></div><div class="body"><span class="desc">Add a custom post type to playground.</span><div class="tags"><span class="tag">Content</span><span class="tag">CPT</span></div></div></div>
+      <div class="gcard"><div class="thumb art-13"><span class="ovlay">Twenty Twenty-Five Demo</span></div><div class="body"><span class="desc">Demo content for the Twenty-Twenty-Five default theme.</span><div class="tags"><span class="tag">Themes</span></div></div></div>
+      <div class="gcard"><div class="thumb art-14"><span class="ovlay">Latest Gutenberg plugin</span></div><div class="body"><span class="desc">A preview of the latest Gutenberg plugin.</span><div class="tags"><span class="tag">Gutenberg</span></div></div></div>
+      <div class="gcard"><div class="thumb art-15"><span class="ovlay">WordPress Beta / RC</span></div><div class="body"><span class="desc">Test the latest WordPress Beta/RC with theme test data and debugging plugins.</span><div class="tags"><span class="tag">Testing</span></div></div></div>
+      <div class="gcard"><div class="thumb art-16"><span class="ovlay">Grid Variations Experiment</span></div><div class="body"><span class="desc">Toggle a Gutenberg Experiments feature on.</span><div class="tags"><span class="tag">Experiments</span></div></div></div>
+      <div class="gcard"><div class="thumb art-17"><span class="ovlay">WPGraphQL IDE</span></div><div class="body"><span class="desc">Loads WordPress with WPGraphQL active and the WPGraphQL IDE page.</span><div class="tags"><span class="tag">API</span></div></div></div>
+      <div class="gcard"><div class="thumb art-18"><span class="ovlay">Theme Tester</span></div><div class="body"><span class="desc">Add content and plugins to explore a theme.</span><div class="tags"><span class="tag">Themes</span></div></div></div>
+      <div class="gcard"><div class="thumb art-19"><span class="ovlay">Stylish Press</span></div><div class="body"><span class="desc">A Woo store with custom theme, content, products.</span><div class="tags"><span class="tag">WooCommerce</span></div></div></div>
+      <div class="gcard"><div class="thumb art-20"><span class="ovlay">Showcase plugin</span></div><div class="body"><span class="desc">Showcase a custom plugin with media and content imported as WXR.</span><div class="tags"><span class="tag">Plugin</span></div></div></div>
+      <div class="gcard"><div class="thumb art-21"><span class="ovlay">Weather Shortcode Plugin</span></div><div class="body"><span class="desc">Connect weather API and show data as a shortcode.</span><div class="tags"><span class="tag">Plugin</span></div></div></div>
+      <div class="gcard"><div class="thumb art-22"><span class="ovlay">WooCommerce Product Feed</span></div><div class="body"><span class="desc">Create a WooCommerce product and export an XML/CSV product feed.</span><div class="tags"><span class="tag">WooCommerce</span></div></div></div>
+      <div class="gcard"><div class="thumb art-3"><span class="ovlay">My WordPress (Welcome)</span></div><div class="body"><span class="desc">A welcome experience for persistent WordPress Playground instances.</span><div class="tags"><span class="tag">Onboarding</span></div></div></div>
+      <div class="gcard"><div class="thumb art-7"><span class="ovlay">Pretty permalinks</span></div><div class="body"><span class="desc">Set the permalink structure to pretty permalinks.</span><div class="tags"><span class="tag">Settings</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- =================== SCENE 5: SITE MANAGER · SETTINGS TAB (RIGHT EDGE) =================== -->
+<section class="scene" id="s5">
+  <div class="scene-label">Scene 5 — Site Manager · Settings tab (right-edge swipe)</div>
+  <div class="scene-caption">Quick settings popover and SM Settings tab share state</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar"><span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">Coffee Shop</b></span><a href="#">Dashboard</a><a href="#">Products</a></div>
+        <div class="fake-wp-body"><div><span class="pill">Storefront</span><h1>Slow-brewed mornings.</h1><p>Single origins, roasted weekly in Brooklyn.</p></div><div class="fake-wp-art"><div class="glyph">☕<small>Bedford</small></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top HUD -->
+  <div class="top-hud">
+    <div class="top-hud-inner">
+      <button class="hud-btn"><i data-lucide="rotate-cw"></i></button>
+      <div class="url-bar"><i data-lucide="link"></i><input value="/" /></div>
+      <div class="pg-name saved"><span class="dot"></span><b>Coffee Shop</b></div>
+      <span class="dock-sep"></span>
+      <button class="hud-btn"><i data-lucide="layout-grid"></i></button>
+      <button class="hud-btn active"><i data-lucide="panel-right-open"></i></button>
+    </div>
+  </div>
+
+  <!-- RIGHT panel: site manager -->
+  <aside class="panel right">
+    <div class="sm-header">
+      <div class="sm-title">
+        <i data-lucide="folder-cog"></i>
+        <input value="Coffee Shop" />
+        <button class="sm-btn"><i data-lucide="check"></i> Rename</button>
+      </div>
+      <div class="sm-actions">
+        <button class="sm-btn"><i data-lucide="layout-dashboard"></i> WP Admin</button>
+        <button class="sm-btn"><i data-lucide="home"></i> Homepage</button>
+        <div class="sm-more">
+          <button class="sm-btn"><i data-lucide="more-horizontal"></i> Additional actions</button>
+          <!-- menu open -->
+          <div class="menu">
+            <div class="item">
+              <i data-lucide="git-pull-request-arrow"></i>
+              <div><span class="t">Export to GitHub PR</span><span class="d">Send the WordPress theme, plugin, or wp-content directory to a GitHub repository as a Pull Request.</span></div>
+            </div>
+            <div class="sep"></div>
+            <div class="item">
+              <i data-lucide="download"></i>
+              <div><span class="t">Download .zip</span><span class="d">Save the current playground as a portable .zip you can import later.</span></div>
+            </div>
+            <div class="sep"></div>
+            <div class="item">
+              <i data-lucide="copy"></i>
+              <div><span class="t">Copy share link</span><span class="d">A URL that boots this exact configuration for anyone.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sm-tabs">
+      <span class="sm-tab on"><i data-lucide="sliders-horizontal"></i> Settings</span>
+      <span class="sm-tab"><i data-lucide="folder-tree"></i> Files</span>
+      <span class="sm-tab"><i data-lucide="braces"></i> Blueprint</span>
+      <span class="sm-tab"><i data-lucide="database"></i> Database</span>
+      <span class="sm-tab"><i data-lucide="terminal"></i> Logs</span>
+    </div>
+    <div class="sm-content">
+      <div class="info-notice">
+        <i data-lucide="info"></i>
+        <div>
+          <b style="color:#fff">This is an Unsaved Playground.</b> Your changes will be lost on page refresh unless you save the site to local browser storage.
+          <div><button>Save site locally</button></div>
+        </div>
+      </div>
+
+      <div class="setting-row"><label>WordPress version</label><div class="val"><select class="sel"><option>6.7.1 — stable</option><option>6.8 beta</option><option>nightly</option><option>6.6.2</option></select></div></div>
+      <div class="setting-row"><label>PHP version</label><div class="val"><select class="sel"><option>8.3</option><option>8.2</option><option>8.1</option><option>7.4</option></select></div></div>
+      <div class="setting-row"><label>Language</label><div class="val"><select class="sel"><option>English (en_US)</option><option>日本語 (ja)</option><option>Español (es_ES)</option><option>Français (fr_FR)</option></select></div></div>
+      <div class="setting-row"><label>Network access</label><div class="val"><span class="switch on"><span class="track"></span></span><span class="small">Allow PHP to fetch external URLs</span></div></div>
+      <div class="setting-row"><label>Multisite</label><div class="val"><span class="switch"><span class="track"></span></span><span class="small">Off · enable WordPress Multisite</span></div></div>
+      <div class="setting-row"><label>Storage</label><div class="val"><span class="small">OPFS · 24.3 MB used · <a style="color:var(--accent-2)">manage</a></span></div></div>
+
+      <div class="apply-row">
+        <div class="warn"><i data-lucide="triangle-alert"></i> Applying settings resets the Playground. Save your work first.</div>
+        <div class="row"><button class="reset">Reset</button><button class="apply">Apply &amp; Reset</button></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Left edge handle peeking -->
+  <div class="edge-handle edge-left"><i data-lucide="chevron-right"></i> Launcher</div>
+</section>
+
+
+<!-- =================== SCENE 6: SITE MANAGER · FILES + EDITOR =================== -->
+<section class="scene" id="s6">
+  <div class="scene-label">Scene 6 — Site Manager · Files tab · in-place editor</div>
+  <div class="scene-caption">File browser of /wordpress with new file/folder controls</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar"><span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">Coffee Shop</b></span><a href="#">Dashboard</a></div>
+        <div class="fake-wp-body"><div><h1>Slow-brewed mornings.</h1></div><div class="fake-wp-art"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="top-hud">
+    <div class="top-hud-inner">
+      <button class="hud-btn"><i data-lucide="rotate-cw"></i></button>
+      <div class="url-bar"><i data-lucide="link"></i><input value="/wp-content/themes/coffee/style.css" /></div>
+      <div class="pg-name saved"><span class="dot"></span><b>Coffee Shop</b></div>
+      <span class="dock-sep"></span>
+      <button class="hud-btn active"><i data-lucide="panel-right-open"></i></button>
+    </div>
+  </div>
+
+  <aside class="panel right" style="width:min(640px,52vw)">
+    <div class="sm-header">
+      <div class="sm-title"><i data-lucide="folder-cog"></i><input value="Coffee Shop" /></div>
+      <div class="sm-actions">
+        <button class="sm-btn"><i data-lucide="layout-dashboard"></i> WP Admin</button>
+        <button class="sm-btn"><i data-lucide="home"></i> Homepage</button>
+        <button class="sm-btn"><i data-lucide="more-horizontal"></i> Additional actions</button>
+      </div>
+    </div>
+    <div class="sm-tabs">
+      <span class="sm-tab"><i data-lucide="sliders-horizontal"></i> Settings</span>
+      <span class="sm-tab on"><i data-lucide="folder-tree"></i> Files</span>
+      <span class="sm-tab"><i data-lucide="braces"></i> Blueprint</span>
+      <span class="sm-tab"><i data-lucide="database"></i> Database</span>
+      <span class="sm-tab"><i data-lucide="terminal"></i> Logs</span>
+    </div>
+    <div class="sm-content" style="padding:0;height:100%">
+      <div class="fb-grid">
+        <div class="fb-tree">
+          <div class="node dir"><i data-lucide="folder-open"></i> wordpress</div>
+          <div class="node indent dir"><i data-lucide="folder"></i> wp-admin</div>
+          <div class="node indent dir"><i data-lucide="folder-open"></i> wp-content</div>
+          <div class="node indent2 dir"><i data-lucide="folder"></i> plugins</div>
+          <div class="node indent2 dir"><i data-lucide="folder-open"></i> themes</div>
+          <div class="node indent2 dir" style="padding-left:48px"><i data-lucide="folder-open"></i> coffee</div>
+          <div class="node on" style="padding-left:60px"><i data-lucide="file-code-2"></i> style.css</div>
+          <div class="node" style="padding-left:60px"><i data-lucide="file-code-2"></i> functions.php</div>
+          <div class="node" style="padding-left:60px"><i data-lucide="file"></i> theme.json</div>
+          <div class="node indent2 dir"><i data-lucide="folder"></i> uploads</div>
+          <div class="node indent2 dir"><i data-lucide="folder"></i> mu-plugins</div>
+          <div class="node indent dir"><i data-lucide="folder"></i> wp-includes</div>
+          <div class="node indent"><i data-lucide="file-code-2"></i> wp-config.php</div>
+          <div class="node indent"><i data-lucide="file"></i> index.php</div>
+          <div class="fb-actions">
+            <button class="sm-btn"><i data-lucide="file-plus"></i> New file</button>
+            <button class="sm-btn"><i data-lucide="folder-plus"></i> New folder</button>
+          </div>
+        </div>
+        <div class="fb-edit">
+          <div class="fb-tabs">
+            <span class="tab on"><i data-lucide="file-code-2"></i> style.css <i data-lucide="x" style="width:11px;height:11px;opacity:0.6"></i></span>
+            <span class="tab"><i data-lucide="file-code-2"></i> functions.php <i data-lucide="x" style="width:11px;height:11px;opacity:0.6"></i></span>
+            <span class="tab" style="color:var(--warn);opacity:0.9"><i data-lucide="dot"></i> unsaved</span>
+          </div>
+          <div class="code">
+<span class="gut">1</span><span class="c">/*</span><br>
+<span class="gut">2</span><span class="c"> Theme Name: Bedford Roastery</span><br>
+<span class="gut">3</span><span class="c"> Description: A coffee shop storefront for WooCommerce.</span><br>
+<span class="gut">4</span><span class="c"> Version: 1.4.2</span><br>
+<span class="gut">5</span><span class="c"> Author: Bedford Studio</span><br>
+<span class="gut">6</span><span class="c">*/</span><br>
+<span class="gut">7</span><br>
+<span class="gut">8</span><span class="k">:root</span> {<br>
+<span class="gut">9</span>&nbsp;&nbsp;<span class="v">--brand-roast</span>: <span class="n">#6a4f3b</span>;<br>
+<span class="gut">10</span>&nbsp;&nbsp;<span class="v">--brand-crema</span>: <span class="n">#c89271</span>;<br>
+<span class="gut">11</span>&nbsp;&nbsp;<span class="v">--font-body</span>: <span class="s">"Söhne", system-ui, sans-serif</span>;<br>
+<span class="gut">12</span>}<br>
+<span class="gut">13</span><br>
+<span class="gut">14</span><span class="k">body</span> {<br>
+<span class="gut">15</span>&nbsp;&nbsp;<span class="v">background</span>: <span class="n">#fffaf3</span>;<br>
+<span class="gut">16</span>&nbsp;&nbsp;<span class="v">color</span>: <span class="v">var</span>(--brand-roast);<br>
+<span class="gut">17</span>&nbsp;&nbsp;<span class="v">font-family</span>: <span class="v">var</span>(--font-body);<br>
+<span class="gut">18</span>}<br>
+<span class="gut">19</span><br>
+<span class="gut">20</span><span class="k">.product-grid</span> {<br>
+<span class="gut">21</span>&nbsp;&nbsp;<span class="v">display</span>: <span class="p">grid</span>;<br>
+<span class="gut">22</span>&nbsp;&nbsp;<span class="v">grid-template-columns</span>: <span class="p">repeat</span>(<span class="n">3</span>, <span class="n">1fr</span>);<br>
+<span class="gut">23</span>&nbsp;&nbsp;<span class="v">gap</span>: <span class="n">24px</span>;<br>
+<span class="gut">24</span>}<br>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="edge-handle edge-left"><i data-lucide="chevron-right"></i> Launcher</div>
+</section>
+
+
+<!-- =================== SCENE 7: BLUEPRINT EDITOR =================== -->
+<section class="scene" id="s7">
+  <div class="scene-label">Scene 7 — Site Manager · Blueprint editor</div>
+  <div class="scene-caption">JSON editor + file tree + Run / Copy link / Download</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar"><b style="color:#fff">Coffee Shop</b></div>
+        <div class="fake-wp-body"><div><h1>Slow-brewed.</h1></div><div class="fake-wp-art"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="top-hud"><div class="top-hud-inner">
+    <button class="hud-btn"><i data-lucide="rotate-cw"></i></button>
+    <div class="url-bar"><i data-lucide="link"></i><input value="/" /></div>
+    <div class="pg-name saved"><span class="dot"></span><b>Coffee Shop</b></div>
+    <span class="dock-sep"></span>
+    <button class="hud-btn active"><i data-lucide="panel-right-open"></i></button>
+  </div></div>
+
+  <aside class="panel right" style="width:min(680px,55vw)">
+    <div class="sm-header">
+      <div class="sm-title"><i data-lucide="folder-cog"></i><input value="Coffee Shop" /></div>
+      <div class="sm-actions">
+        <button class="sm-btn"><i data-lucide="layout-dashboard"></i> WP Admin</button>
+        <button class="sm-btn"><i data-lucide="home"></i> Homepage</button>
+        <button class="sm-btn"><i data-lucide="more-horizontal"></i></button>
+      </div>
+    </div>
+    <div class="sm-tabs">
+      <span class="sm-tab"><i data-lucide="sliders-horizontal"></i> Settings</span>
+      <span class="sm-tab"><i data-lucide="folder-tree"></i> Files</span>
+      <span class="sm-tab on"><i data-lucide="braces"></i> Blueprint</span>
+      <span class="sm-tab"><i data-lucide="database"></i> Database</span>
+      <span class="sm-tab"><i data-lucide="terminal"></i> Logs</span>
+    </div>
+    <div class="bp-actions">
+      <button class="sm-btn"><i data-lucide="link"></i> Copy link</button>
+      <button class="sm-btn"><i data-lucide="package"></i> Download bundle</button>
+      <button class="sm-btn primary"><i data-lucide="play"></i> Run Blueprint</button>
+    </div>
+    <div class="sm-content" style="padding:0;height:100%">
+      <div class="bp-grid">
+        <div class="fb-tree">
+          <div class="node dir"><i data-lucide="folder-open"></i> blueprint/</div>
+          <div class="node indent on"><i data-lucide="braces"></i> blueprint.json</div>
+          <div class="node indent"><i data-lucide="file-code-2"></i> setup-products.php</div>
+          <div class="node indent"><i data-lucide="file"></i> sample-data.xml</div>
+          <div class="node indent"><i data-lucide="image"></i> media.zip</div>
+          <div class="fb-actions">
+            <button class="sm-btn"><i data-lucide="file-plus"></i> New file</button>
+            <button class="sm-btn"><i data-lucide="folder-plus"></i> Folder</button>
+          </div>
+        </div>
+        <div class="fb-edit">
+          <div class="fb-tabs">
+            <span class="tab on"><i data-lucide="braces"></i> blueprint.json</span>
+          </div>
+          <div class="code">
+<span class="gut">1</span>{<br>
+<span class="gut">2</span>&nbsp;&nbsp;<span class="s">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,<br>
+<span class="gut">3</span>&nbsp;&nbsp;<span class="s">"meta"</span>: {<br>
+<span class="gut">4</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"title"</span>: <span class="s">"Coffee Shop"</span>,<br>
+<span class="gut">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"description"</span>: <span class="s">"WooCommerce coffee shop storefront."</span>,<br>
+<span class="gut">6</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"categories"</span>: [<span class="s">"WooCommerce"</span>, <span class="s">"Store"</span>]<br>
+<span class="gut">7</span>&nbsp;&nbsp;},<br>
+<span class="gut">8</span>&nbsp;&nbsp;<span class="s">"preferredVersions"</span>: { <span class="s">"php"</span>: <span class="s">"8.3"</span>, <span class="s">"wp"</span>: <span class="s">"6.7"</span> },<br>
+<span class="gut">9</span>&nbsp;&nbsp;<span class="s">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],<br>
+<span class="gut">10</span>&nbsp;&nbsp;<span class="s">"features"</span>: { <span class="s">"networking"</span>: <span class="k">true</span> },<br>
+<span class="gut">11</span>&nbsp;&nbsp;<span class="s">"steps"</span>: [<br>
+<span class="gut">12</span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="s">"step"</span>: <span class="s">"login"</span>, <span class="s">"username"</span>: <span class="s">"admin"</span> },<br>
+<span class="gut">13</span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="s">"step"</span>: <span class="s">"installPlugin"</span>,<br>
+<span class="gut">14</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"pluginZipFile"</span>: { <span class="s">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="s">"slug"</span>: <span class="s">"woocommerce"</span> } },<br>
+<span class="gut">15</span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="s">"step"</span>: <span class="s">"installTheme"</span>,<br>
+<span class="gut">16</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"themeZipFile"</span>: { <span class="s">"resource"</span>: <span class="s">"url"</span>, <span class="s">"url"</span>: <span class="s">"./bedford-theme.zip"</span> } },<br>
+<span class="gut">17</span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="s">"step"</span>: <span class="s">"runPHP"</span>, <span class="s">"code"</span>: <span class="s">"&lt;?php require './setup-products.php';"</span> },<br>
+<span class="gut">18</span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="s">"step"</span>: <span class="s">"importWxr"</span>,<br>
+<span class="gut">19</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"file"</span>: { <span class="s">"resource"</span>: <span class="s">"url"</span>, <span class="s">"url"</span>: <span class="s">"./sample-data.xml"</span> } },<br>
+<span class="gut">20</span>&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="s">"step"</span>: <span class="s">"setSiteOptions"</span>,<br>
+<span class="gut">21</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"options"</span>: { <span class="s">"blogname"</span>: <span class="s">"Bedford Roastery"</span>, <span class="s">"permalink_structure"</span>: <span class="s">"/%postname%/"</span> } }<br>
+<span class="gut">22</span>&nbsp;&nbsp;]<br>
+<span class="gut">23</span>}<br>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="edge-handle edge-left"><i data-lucide="chevron-right"></i> Launcher</div>
+</section>
+
+
+<!-- =================== SCENE 8: DATABASE + LOGS (TWO PANELS SHARING TAB BAR) =================== -->
+<section class="scene" id="s8">
+  <div class="scene-label">Scene 8 — Site Manager · Database &amp; Logs</div>
+  <div class="scene-caption">DB browser early-access + filtered log stream</div>
+
+  <div class="iframe-stage">
+    <div class="wp-iframe">
+      <div class="fake-wp">
+        <div class="fake-wp-bar"><b style="color:#fff">Coffee Shop</b></div>
+        <div class="fake-wp-body"><div><h1>Slow-brewed.</h1></div><div class="fake-wp-art"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="top-hud"><div class="top-hud-inner">
+    <button class="hud-btn"><i data-lucide="rotate-cw"></i></button>
+    <div class="url-bar"><i data-lucide="link"></i><input value="/wp-admin/edit.php" /></div>
+    <div class="pg-name saved"><span class="dot"></span><b>Coffee Shop</b></div>
+    <span class="dock-sep"></span>
+    <button class="hud-btn active"><i data-lucide="panel-right-open"></i></button>
+  </div></div>
+
+  <aside class="panel right" style="width:min(720px,58vw)">
+    <div class="sm-header">
+      <div class="sm-title"><i data-lucide="folder-cog"></i><input value="Coffee Shop" /></div>
+      <div class="sm-actions">
+        <button class="sm-btn"><i data-lucide="layout-dashboard"></i> WP Admin</button>
+        <button class="sm-btn"><i data-lucide="home"></i> Homepage</button>
+      </div>
+    </div>
+    <div class="sm-tabs">
+      <span class="sm-tab"><i data-lucide="sliders-horizontal"></i> Settings</span>
+      <span class="sm-tab"><i data-lucide="folder-tree"></i> Files</span>
+      <span class="sm-tab"><i data-lucide="braces"></i> Blueprint</span>
+      <span class="sm-tab on"><i data-lucide="database"></i> Database</span>
+      <span class="sm-tab"><i data-lucide="terminal"></i> Logs</span>
+    </div>
+    <div class="sm-content">
+      <div class="info-notice" style="background:rgba(56,88,233,0.12);border-color:rgba(91,120,255,0.35);color:#cfd8ff">
+        <i data-lucide="flask-conical" style="color:#a8b8ff"></i>
+        <div><b style="color:#fff">Early access</b> · Database management is an early-access feature. Report issues on the <a style="color:#a8b8ff">GitHub issue tracker</a>.</div>
+      </div>
+
+      <div class="db-toolbar">
+        <div class="search" style="max-width:240px"><i data-lucide="search"></i><input placeholder="Filter rows..." /></div>
+        <select class="sel" style="max-width:200px"><option>wp_posts</option><option>wp_postmeta</option><option>wp_options</option><option>wp_users</option><option>wp_woocommerce_products</option></select>
+        <button class="sm-btn"><i data-lucide="terminal-square"></i> SQL</button>
+        <button class="sm-btn primary" style="margin-left:auto"><i data-lucide="plus"></i> New row</button>
+      </div>
+
+      <table class="db-table">
+        <thead><tr><th>ID</th><th>post_title</th><th>post_type</th><th>post_status</th><th>post_date</th></tr></thead>
+        <tbody>
+          <tr><td>2</td><td>Ethiopia Yirgacheffe</td><td>product</td><td>publish</td><td>2026-05-12</td></tr>
+          <tr><td>3</td><td>Colombia Huila</td><td>product</td><td>publish</td><td>2026-05-12</td></tr>
+          <tr><td>4</td><td>Kenya AA</td><td>product</td><td>publish</td><td>2026-05-12</td></tr>
+          <tr><td>5</td><td>Brazil Cerrado</td><td>product</td><td>draft</td><td>2026-05-13</td></tr>
+          <tr><td>6</td><td>Sumatra Mandheling</td><td>product</td><td>publish</td><td>2026-05-13</td></tr>
+          <tr><td>11</td><td>About the Roastery</td><td>page</td><td>publish</td><td>2026-05-10</td></tr>
+          <tr><td>14</td><td>Visit Our Café</td><td>page</td><td>publish</td><td>2026-05-10</td></tr>
+        </tbody>
+      </table>
+
+      <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:14px">
+        <div class="logs-toolbar">
+          <div class="search" style="max-width:280px"><i data-lucide="search"></i><input placeholder="Search PHP error log..." /></div>
+          <span class="chip on">All</span>
+          <span class="chip">Errors</span>
+          <span class="chip">Warnings</span>
+          <span class="chip">Notices</span>
+          <button class="sm-btn" style="margin-left:auto"><i data-lucide="trash-2"></i> Clear</button>
+        </div>
+        <div class="log-line"><span class="log-time">14:23:01</span><span class="log-lvl ok">OK</span><span class="log-msg">Blueprint step <span class="dim">setSiteOptions</span> completed in 42ms</span></div>
+        <div class="log-line"><span class="log-time">14:23:00</span><span class="log-lvl info">INFO</span><span class="log-msg">Activated theme <span class="dim">bedford</span> · WooCommerce: 6 products imported</span></div>
+        <div class="log-line"><span class="log-time">14:22:58</span><span class="log-lvl warn">WARN</span><span class="log-msg">PHP Deprecated: <span class="dim">strpos(): Passing null to parameter #1 ($haystack) is deprecated in /wp-content/plugins/sample-plugin/init.php on line 22</span></span></div>
+        <div class="log-line"><span class="log-time">14:22:57</span><span class="log-lvl info">INFO</span><span class="log-msg">Running <span class="dim">runPHP</span> step from blueprint.json (line 17)</span></div>
+        <div class="log-line"><span class="log-time">14:22:55</span><span class="log-lvl err">ERR</span><span class="log-msg">PHP Fatal: <span class="dim">Uncaught Error: Class "Bedford\\MissingHelper" not found in setup-products.php:14</span></span></div>
+        <div class="log-line"><span class="log-time">14:22:54</span><span class="log-lvl info">INFO</span><span class="log-msg">installPlugin step: <span class="dim">woocommerce</span> from wordpress.org/plugins</span></div>
+        <div class="log-line"><span class="log-time">14:22:52</span><span class="log-lvl ok">OK</span><span class="log-msg">login step: signed in as <span class="dim">admin</span></span></div>
+      </div>
+    </div>
+  </aside>
+  <div class="edge-handle edge-left"><i data-lucide="chevron-right"></i> Launcher</div>
+</section>
+
+
+<!-- =================== SCENE 9: MOBILE 390 ============================== -->
+<section class="scene" id="s9" style="background:radial-gradient(800px 500px at 50% 50%, #1a1f2b, #000)">
+  <div class="scene-label">Scene 9 — Mobile · 390 × 844</div>
+  <div class="scene-caption">Bottom tab bar replaces edge gestures · FAB launches blueprints</div>
+
+  <div class="mobile-frame">
+    <div class="m-stage">
+      <!-- Mobile WP content -->
+      <div class="fake-wp" style="height:100%">
+        <div class="fake-wp-bar" style="font-size:11px;padding:0 14px;height:28px">
+          <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span><b style="color:#fff;font-weight:600">Coffee Shop</b></span>
+          <span style="margin-left:auto;opacity:0.7">admin</span>
+        </div>
+        <div class="fake-wp-body">
+          <div>
+            <span class="pill">Storefront</span>
+            <h1>Slow-brewed mornings.</h1>
+            <p>Single origins, roasted weekly in Brooklyn.</p>
+            <a class="cta" href="#">Shop →</a>
+          </div>
+          <div class="fake-wp-art"><div class="glyph">☕<small>Bedford Roastery</small></div></div>
+        </div>
+        <div class="fake-wp-foot">© 2026 Bedford</div>
+      </div>
+
+      <!-- Top HUD (mobile) -->
+      <div class="m-top">
+        <button class="hud-btn"><i data-lucide="rotate-cw"></i></button>
+        <div class="url"> /wp-admin </div>
+        <button class="hud-btn"><i data-lucide="sliders-horizontal"></i></button>
+      </div>
+
+      <!-- left edge hint -->
+      <div class="m-hint"></div>
+
+      <!-- Bottom tab bar -->
+      <div class="m-bottom">
+        <div class="item on"><i data-lucide="globe"></i><span>Site</span></div>
+        <div class="item"><i data-lucide="layout-grid"></i><span>Launcher</span></div>
+        <div class="item"><i data-lucide="folder-cog"></i><span>Manage</span></div>
+        <div class="item"><i data-lucide="bookmark"></i><span>Save</span></div>
+      </div>
+
+      <!-- FAB -->
+      <div class="m-fab" title="Quick: blueprints"><i data-lucide="sparkles"></i></div>
+    </div>
+  </div>
+
+  <!-- second mobile frame: launcher state -->
+  <div class="mobile-frame" style="left:calc(50% + 230px)">
+    <div class="m-stage">
+      <div class="fake-wp" style="height:100%;filter:brightness(0.6) blur(3px)">
+        <div class="fake-wp-bar" style="font-size:11px;padding:0 14px;height:28px"><b style="color:#fff;font-weight:600">Coffee Shop</b></div>
+        <div class="fake-wp-body"><div><h1>Slow-brewed.</h1></div><div class="fake-wp-art"></div></div>
+      </div>
+      <div class="m-top">
+        <button class="hud-btn active"><i data-lucide="layout-grid"></i></button>
+        <div class="url" style="font-size:11px">Launcher · 3 saved · 43 blueprints</div>
+        <button class="hud-btn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="m-launcher on">
+        <h4 style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin:0 0 8px;font-weight:600">Start new</h4>
+        <div class="grid-new" style="grid-template-columns:repeat(2,1fr);gap:6px">
+          <div class="new-card" style="padding:9px"><div class="row"><span class="ico b1"><i data-lucide="globe"></i></span><span class="title" style="font-size:12px">Vanilla</span></div></div>
+          <div class="new-card" style="padding:9px"><div class="row"><span class="ico b2"><i data-lucide="git-pull-request"></i></span><span class="title" style="font-size:12px">WP PR</span></div></div>
+          <div class="new-card" style="padding:9px"><div class="row"><span class="ico b3"><i data-lucide="blocks"></i></span><span class="title" style="font-size:12px">GB PR</span></div></div>
+          <div class="new-card" style="padding:9px"><div class="row"><span class="ico b4"><i data-lucide="github"></i></span><span class="title" style="font-size:12px">GitHub</span></div></div>
+          <div class="new-card" style="padding:9px"><div class="row"><span class="ico b5"><i data-lucide="link-2"></i></span><span class="title" style="font-size:12px">URL</span></div></div>
+          <div class="new-card" style="padding:9px"><div class="row"><span class="ico b6"><i data-lucide="upload"></i></span><span class="title" style="font-size:12px">.zip</span></div></div>
+        </div>
+
+        <h4 style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin:14px 0 8px;font-weight:600">Featured</h4>
+        <div class="featured" style="grid-template-columns:repeat(3,1fr);gap:6px">
+          <div class="bp-tile"><div class="thumb art-1"></div><span class="label">Art Gallery</span></div>
+          <div class="bp-tile"><div class="thumb art-2"></div><span class="label">Coffee Shop</span></div>
+          <div class="bp-tile"><div class="thumb art-3"></div><span class="label">Feed Reader</span></div>
+          <div class="bp-tile"><div class="thumb art-4"></div><span class="label">Gaming News</span></div>
+          <div class="bp-tile"><div class="thumb art-5"></div><span class="label">Non-profit</span></div>
+          <div class="view-all" style="font-size:10px">+38 more</div>
+        </div>
+
+        <h4 style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin:14px 0 8px;font-weight:600">Your sites</h4>
+        <div class="yp-list">
+          <div class="yp" style="padding:8px"><div class="ava" style="width:28px;height:28px">CS</div><div class="meta"><span class="title" style="font-size:12px">Coffee Shop</span><span class="sub" style="font-size:10px">2m ago</span></div></div>
+          <div class="yp" style="padding:8px"><div class="ava alt" style="width:28px;height:28px">GN</div><div class="meta"><span class="title" style="font-size:12px">Gaming News</span><span class="sub" style="font-size:10px">yesterday</span></div></div>
+          <div class="yp" style="padding:8px"><div class="ava alt2" style="width:28px;height:28px">PR</div><div class="meta"><span class="title" style="font-size:12px">WP PR #6021</span><span class="sub" style="font-size:10px">3d ago</span></div></div>
+        </div>
+      </div>
+      <div class="m-bottom">
+        <div class="item"><i data-lucide="globe"></i><span>Site</span></div>
+        <div class="item on"><i data-lucide="layout-grid"></i><span>Launcher</span></div>
+        <div class="item"><i data-lucide="folder-cog"></i><span>Manage</span></div>
+        <div class="item"><i data-lucide="bookmark"></i><span>Save</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<script>
+  // Init Lucide icons
+  if (window.lucide) { lucide.createIcons(); }
+
+  // Smooth scroll between sections with arrow keys
+  const scenes = Array.from(document.querySelectorAll('.scene'));
+  let idx = 0;
+  function go(i){ idx = Math.max(0, Math.min(scenes.length-1, i)); scenes[idx].scrollIntoView({behavior:'smooth', block:'start'}); }
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === 'ArrowDown' || e.key === 'PageDown'){ e.preventDefault(); go(idx+1); }
+    else if (e.key === 'ArrowUp' || e.key === 'PageUp'){ e.preventDefault(); go(idx-1); }
+    else if (e.key === 'Home'){ e.preventDefault(); go(0); }
+    else if (e.key === 'End'){ e.preventDefault(); go(scenes.length-1); }
+  });
+  // Update idx when user scrolls naturally
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en => { if (en.isIntersecting && en.intersectionRatio > 0.5) {
+      idx = scenes.indexOf(en.target);
+    }});
+  }, {threshold:[0.5]});
+  scenes.forEach(s => io.observe(s));
+</script>
+</body>
+</html>
