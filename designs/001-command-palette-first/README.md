@@ -1,0 +1,14 @@
+# Command-palette-first — WordPress Playground
+
+## Thesis
+The Playground chrome collapses into a single floating pill above the iframe. Every action — refresh, navigate, save, change WP version, browse 43 blueprints, open a file, scroll logs, export to a GitHub PR, import a .zip, swap to a Gutenberg PR build — is a command in one fuzzy-searchable palette (Cmd/Ctrl+K). The UI is "Raycast for WordPress": the iframe gets the whole screen, and the palette is summoned only when you need it. Long-lived surfaces (file tree, logs, DB, blueprint editor) are *also* opened from the palette but render as right-side "panes" that you can stack and dismiss. There are no menus, no tabs, no popovers: a command is the only verb.
+
+## What I remixed / merged / removed
+- **Merged the top toolbar, Site Manager tabs, settings popover, and launcher into one palette.** "Settings > PHP 8.3" is the same kind of result as "Open file: wp-config.php" or "Blueprint: Coffee Shop". Three settings entry points become zero entry points — you just type `php`.
+- **Replaced the launcher drawer with palette categories.** Featured blueprints, "Start a new Playground" entries (Vanilla, WordPress PR, Gutenberg PR, From GitHub, Blueprint URL, Import .zip) and "Your Playgrounds" are all just command groups. Categories (Website, Personal, Content, Themes, Gutenberg, Experiments, WooCommerce, News) appear as filter chips inside the palette.
+- **Site Manager dissolves into stackable right-edge panes.** File browser, Blueprint JSON editor, Database, Logs each become an addressable pane (`>files`, `>blueprint`, `>db`, `>logs`). The pane stack stays out of your way; closing all panes returns the iframe to fullscreen.
+- **Refresh, Save, address bar, WP Admin, Homepage** are commands too — but a tiny persistent "status pill" at the top still shows the current site URL, the unsaved state, and a one-click Save when you're at risk of losing work (addressing the "lose a session on refresh" pain point).
+- **The destructive "Apply Settings & Reset Playground" gets an explicit confirm step** rendered inside the palette as a dedicated red command.
+
+## Trade-offs
+Discoverability is the obvious risk: a new visitor who has never used a command palette will see only an iframe and a pill. The fix here is a first-run hint ("Press / or Cmd+K to do anything") plus visible quick-pills for the three most common verbs (Save, Blueprints, Settings) under the URL chip. Power users get a fast, keyboard-only Playground; casual users still have a tiny visible toolbar. The second trade-off is that long-form authoring (editing a blueprint JSON, browsing many files) lives in a side pane, not a full screen, so very deep file work is slightly more cramped than today's tabbed Site Manager. On mobile, the palette becomes a bottom sheet and panes stack as full-screen views; the pill collapses into a single FAB.
