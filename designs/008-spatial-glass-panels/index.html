@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Playground — Spatial Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+/* ---------- Tokens ---------- */
+:root{
+  --bg-0:#05060a;
+  --bg-1:#0b0d18;
+  --ink:#f6f7fb;
+  --ink-2:rgba(246,247,251,.78);
+  --ink-3:rgba(246,247,251,.55);
+  --ink-4:rgba(246,247,251,.32);
+  --stroke:rgba(255,255,255,.14);
+  --stroke-strong:rgba(255,255,255,.26);
+  --tint:#5b8cff;
+  --tint-2:#a37bff;
+  --tint-warm:#ff9f7a;
+  --good:#7ee2a8;
+  --warn:#ffd16a;
+  --bad:#ff7a8a;
+  --r-lg:28px;
+  --r-md:18px;
+  --r-sm:12px;
+  --r-xs:8px;
+  --shadow:0 30px 80px -20px rgba(0,0,0,.55), 0 8px 24px -8px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-feature-settings:"ss01","cv11";-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea{font-family:inherit;color:inherit}
+
+/* ---------- Backdrop scene ---------- */
+.scene{
+  position:fixed;inset:0;overflow:hidden;
+  background:
+    radial-gradient(1100px 700px at 18% 12%, rgba(91,140,255,.25), transparent 60%),
+    radial-gradient(900px 600px at 88% 92%, rgba(163,123,255,.22), transparent 60%),
+    radial-gradient(600px 500px at 65% 25%, rgba(255,159,122,.12), transparent 60%),
+    linear-gradient(180deg,#070818 0%, #0a0c1c 50%, #060713 100%);
+}
+.scene::before,.scene::after{
+  content:"";position:absolute;border-radius:50%;filter:blur(80px);opacity:.55;
+}
+.scene::before{
+  width:760px;height:760px;left:-160px;top:-180px;
+  background:radial-gradient(circle, #2b3aef 0%, transparent 70%);
+}
+.scene::after{
+  width:680px;height:680px;right:-140px;bottom:-200px;
+  background:radial-gradient(circle, #b06bff 0%, transparent 70%);
+}
+.stars{
+  position:absolute;inset:0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.5px 1.5px at 35% 70%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1px 1px at 88% 18%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.2px 1.2px at 22% 88%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 55% 12%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1px 1px at 5%  60%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 92% 75%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 48% 48%, rgba(255,255,255,.35), transparent);
+  opacity:.6;
+}
+
+/* ---------- Glass primitive ---------- */
+.glass{
+  position:relative;
+  background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
+  backdrop-filter: blur(34px) saturate(160%);
+  -webkit-backdrop-filter: blur(34px) saturate(160%);
+  border:1px solid var(--stroke);
+  border-radius:var(--r-lg);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.glass::after{ /* faint highlight */
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(120% 60% at 30% 0%, rgba(255,255,255,.10), transparent 55%);
+  mix-blend-mode:overlay;
+}
+
+/* ---------- Stage / Perspective ---------- */
+.stage{
+  position:absolute;inset:0;
+  perspective:1800px;
+  perspective-origin:50% 45%;
+  transform-style:preserve-3d;
+}
+.layer{position:absolute;transform-style:preserve-3d;will-change:transform;transition:transform .6s cubic-bezier(.2,.7,.2,1), opacity .35s;}
+
+/* ---------- WindowBar capsule on top of iframe panel ---------- */
+.windowbar{
+  position:absolute; left:50%; top:-26px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:6px;
+  padding:8px 10px; border-radius:999px;
+  background:linear-gradient(180deg, rgba(20,22,40,.74), rgba(15,17,32,.68));
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border:1px solid var(--stroke);
+  box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18);
+  z-index:5;
+}
+.wb-btn{
+  width:34px;height:34px;border-radius:999px;display:grid;place-items:center;
+  color:var(--ink-2);transition:all .15s;
+}
+.wb-btn:hover{background:rgba(255,255,255,.10);color:var(--ink)}
+.wb-btn.active{background:rgba(91,140,255,.22);color:#cfdcff}
+.wb-sep{width:1px;height:18px;background:var(--stroke);margin:0 4px}
+.wb-addr{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 12px;border-radius:999px;
+  background:rgba(0,0,0,.32); border:1px solid var(--stroke);
+  min-width:300px;
+}
+.wb-addr input{
+  background:transparent;border:0;outline:0;color:var(--ink);width:100%;
+  font:500 13px/1 'Inter',sans-serif; letter-spacing:.01em;
+}
+.wb-addr .lock{color:var(--good)}
+.wb-name{
+  display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;
+  font:600 12.5px/1 'Inter';letter-spacing:.01em;color:var(--ink-2);
+  background:rgba(255,255,255,.05);border:1px solid var(--stroke);
+}
+.wb-name .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn)}
+.wb-name.saved .dot{background:var(--good);box-shadow:0 0 8px var(--good)}
+.wb-save{
+  padding:7px 14px;border-radius:999px;
+  background:linear-gradient(180deg,#7ea3ff,#5b8cff);color:#0a0f24;font:700 12px/1 'Inter';letter-spacing:.02em;
+  box-shadow:0 6px 14px rgba(91,140,255,.45), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.wb-save:hover{filter:brightness(1.06)}
+
+/* ---------- Main viewport (iframe slab) ---------- */
+.iframe-slab{
+  width:min(960px, 64vw); height:min(620px, 70vh);
+  left:50%; top:50%;
+  transform:translate(-50%,-50%) translateZ(0);
+  border-radius:var(--r-lg);
+  overflow:visible;
+}
+.iframe-slab .glass{height:100%;width:100%;border-radius:var(--r-lg);overflow:hidden}
+.viewport{
+  position:absolute; inset:0; border-radius:inherit; overflow:hidden;
+}
+.wp-mock{
+  position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,#fafaf8 0%, #f3f1ec 100%);
+  color:#1c1c1e;
+  display:flex;flex-direction:column;
+}
+.wp-bar{
+  height:38px;display:flex;align-items:center;gap:10px;padding:0 16px;
+  background:#1d2327;color:#fff;font:500 12px 'Inter';
+}
+.wp-bar .b{width:9px;height:9px;border-radius:50%;background:#3c434a}
+.wp-bar .links{display:flex;gap:14px;margin-left:auto;color:#c3c4c7}
+.wp-hero{
+  flex:1;padding:46px 56px;
+  display:grid;grid-template-columns:1.3fr 1fr;gap:36px;align-items:center;
+  background:
+    radial-gradient(700px 360px at 80% 30%, rgba(91,140,255,.15), transparent 60%);
+}
+.wp-hero h1{font:700 44px/1.05 'Inter';letter-spacing:-.02em;margin:0 0 14px 0}
+.wp-hero p{margin:0;color:#3c434a;font:400 15px/1.55 'Inter';max-width:38ch}
+.wp-hero .cta{margin-top:22px;display:flex;gap:10px}
+.wp-hero .cta .pb{
+  padding:10px 16px;border-radius:8px;background:#2271b1;color:#fff;font:600 13px 'Inter'
+}
+.wp-hero .cta .sb{padding:10px 16px;border-radius:8px;background:#fff;color:#1d2327;border:1px solid #c3c4c7;font:600 13px 'Inter'}
+.wp-art{
+  aspect-ratio:1/1; border-radius:18px;
+  background:
+    conic-gradient(from 220deg at 60% 40%, #5b8cff, #a37bff, #ff9f7a, #5b8cff);
+  position:relative; overflow:hidden; box-shadow:0 16px 40px rgba(20,22,40,.18);
+}
+.wp-art::after{content:"";position:absolute;inset:6%;border-radius:14px;background:rgba(255,255,255,.85);
+  background-image:
+    linear-gradient(180deg, transparent 0 60%, rgba(255,255,255,.0) 100%),
+    repeating-linear-gradient(180deg, #1d2327 0 1px, transparent 1px 14px);
+  mix-blend-mode:luminosity; opacity:.18;
+}
+.wp-foot{
+  height:30px;background:#fff;border-top:1px solid #e0e0e0;color:#646970;font:500 11px 'Inter';
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* Loading state overlay (in initial booting demo) */
+.wp-loading{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  background:radial-gradient(600px 380px at 50% 45%, rgba(91,140,255,.16), transparent 70%), #0c0f1f;
+  color:var(--ink-2);
+}
+.wp-loading.on{display:flex}
+.spinner{
+  width:34px;height:34px;border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(91,140,255,.0) 0deg, rgba(91,140,255,1) 320deg, rgba(91,140,255,0) 360deg);
+  -webkit-mask:radial-gradient(circle 10px at center, transparent 9.5px, #000 10px);
+          mask:radial-gradient(circle 10px at center, transparent 9.5px, #000 10px);
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- Ornament (vertical icon rail attached to iframe panel) ---------- */
+.ornament{
+  position:absolute;right:-58px;top:50%;transform:translate(0,-50%) translateZ(10px);
+  display:flex;flex-direction:column;gap:8px;padding:8px 7px;border-radius:999px;
+  background:linear-gradient(180deg, rgba(20,22,40,.75), rgba(12,14,28,.7));
+  border:1px solid var(--stroke);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  box-shadow:0 18px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.18);
+  z-index:4;
+}
+.orn-btn{
+  width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:var(--ink-2);
+  transition:all .18s;position:relative;
+}
+.orn-btn:hover{background:rgba(255,255,255,.08);color:var(--ink)}
+.orn-btn.on{background:rgba(91,140,255,.28);color:#dfe7ff;box-shadow:inset 0 0 0 1px rgba(91,140,255,.55)}
+.orn-btn .tip{
+  position:absolute;left:calc(100% + 12px);top:50%;transform:translateY(-50%);
+  white-space:nowrap;background:rgba(8,9,18,.92);border:1px solid var(--stroke);
+  padding:6px 10px;border-radius:8px;font:500 11.5px 'Inter';color:var(--ink-2);
+  opacity:0;pointer-events:none;transition:opacity .15s;
+}
+.orn-btn:hover .tip{opacity:1}
+.orn-divider{height:1px;background:var(--stroke);margin:4px 6px}
+
+/* ---------- Floating side slabs ---------- */
+.slab{
+  border-radius:var(--r-lg); padding:18px;
+}
+
+/* Settings slab — front-right */
+.slab-settings{
+  width:340px; right:6vw; top:14vh;
+  transform:translateZ(80px) rotateY(-9deg) rotateX(3deg);
+}
+
+/* Saved playgrounds + Quick-start — left back */
+.slab-launcher{
+  width:380px; left:5vw; top:9vh;
+  transform:translateZ(40px) rotateY(11deg) rotateX(2deg);
+}
+
+/* Constellation: blueprint browser — far back behind iframe */
+.slab-blueprints{
+  width:780px; left:50%; top:6vh;
+  transform:translateX(-50%) translateZ(-180px) rotateX(8deg);
+  opacity:.0; pointer-events:none; transition:opacity .4s, transform .5s;
+}
+.slab-blueprints.on{
+  opacity:1; transform:translateX(-50%) translateZ(140px) rotateX(0deg);
+  pointer-events:auto;
+}
+.slab-blueprints.on ~ .iframe-slab{transform:translate(-50%,-50%) translateZ(-140px) scale(.9);opacity:.45}
+
+/* Logs strip — below iframe, low */
+.slab-logs{
+  width:min(960px,64vw); left:50%; top:calc(50% + min(310px, 36vh) + 24px);
+  transform:translate(-50%,0) translateZ(20px) rotateX(-3deg);
+  padding:12px 14px;
+}
+
+/* Site manager slab — right side, behind settings */
+.slab-sitemgr{
+  width:420px; right:3vw; top:30vh;
+  transform:translateZ(20px) rotateY(-12deg);
+  opacity:0; pointer-events:none; transition:opacity .35s, transform .5s;
+}
+.slab-sitemgr.on{
+  opacity:1; transform:translateZ(120px) rotateY(-7deg); pointer-events:auto;
+}
+
+/* ---------- Slab headers ---------- */
+.slab h3{margin:0 0 10px 0;font:600 13px 'Inter';letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.slab h4{margin:0 0 8px 0;font:600 14px 'Inter';color:var(--ink)}
+
+/* ---------- Settings rows ---------- */
+.set-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 4px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.set-row:last-child{border-bottom:0}
+.set-row .lbl{font:500 13px 'Inter';color:var(--ink-2);display:flex;align-items:center;gap:9px}
+.set-row .lbl i{color:var(--ink-3)}
+.pill-sel{
+  padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);
+  border:1px solid var(--stroke);font:600 12px 'Inter';color:var(--ink);display:flex;align-items:center;gap:6px;
+}
+.tog{
+  width:36px;height:20px;border-radius:999px;background:rgba(255,255,255,.10);position:relative;
+  border:1px solid var(--stroke);
+}
+.tog::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.2s}
+.tog.on{background:linear-gradient(180deg,#7ea3ff,#5b8cff);border-color:transparent}
+.tog.on::after{left:18px}
+.apply{
+  width:100%;margin-top:14px;padding:11px 14px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,122,138,.95),rgba(220,80,98,.95));
+  color:#fff;font:700 13px 'Inter';letter-spacing:.01em;
+  box-shadow:0 10px 24px rgba(255,90,110,.35),inset 0 1px 0 rgba(255,255,255,.3);
+}
+.apply-note{margin-top:10px;font:500 11.5px/1.45 'Inter';color:var(--ink-3)}
+
+/* ---------- Launcher slab body ---------- */
+.qs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.qs{
+  display:flex;align-items:center;gap:9px;padding:10px;border-radius:14px;
+  background:rgba(255,255,255,.045);border:1px solid var(--stroke);
+  font:600 12px 'Inter';color:var(--ink-2);text-align:left;transition:.15s;
+}
+.qs:hover{background:rgba(255,255,255,.10);color:var(--ink);transform:translateY(-1px)}
+.qs i{color:var(--tint)}
+.qs.alt i{color:var(--tint-2)}
+.qs.warm i{color:var(--tint-warm)}
+
+.your-pg .pg{
+  display:flex;align-items:center;gap:11px;padding:9px;border-radius:12px;transition:.15s;
+}
+.your-pg .pg:hover{background:rgba(255,255,255,.06)}
+.your-pg .pg .ic{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 34px;
+  background:linear-gradient(135deg,rgba(91,140,255,.35),rgba(163,123,255,.35));
+  border:1px solid var(--stroke);color:#fff;
+}
+.your-pg .pg .meta{flex:1;min-width:0}
+.your-pg .pg .meta .t{font:600 13px 'Inter';color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.your-pg .pg .meta .s{font:500 11.5px 'Inter';color:var(--ink-3)}
+.your-pg .pg .badge{font:600 10.5px 'Inter';padding:3px 7px;border-radius:999px;background:rgba(126,226,168,.18);color:#b6f0d0;border:1px solid rgba(126,226,168,.35)}
+
+.featured-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 4px;
+}
+.feat{
+  border-radius:12px;overflow:hidden;border:1px solid var(--stroke);
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  aspect-ratio:1.4/1;position:relative;cursor:pointer;
+}
+.feat .cover{position:absolute;inset:0}
+.feat .t{
+  position:absolute;left:8px;right:8px;bottom:7px;font:600 11px 'Inter';
+  color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6);line-height:1.2;
+}
+.view-all{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:9px;border-radius:10px;
+  background:rgba(255,255,255,.045);border:1px solid var(--stroke);
+  font:600 12px 'Inter';color:var(--ink-2);margin-top:6px;
+}
+.view-all:hover{background:rgba(91,140,255,.18);color:#dbe5ff;border-color:rgba(91,140,255,.4)}
+
+/* ---------- Blueprint constellation ---------- */
+.bp-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.bp-search{
+  flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;
+  background:rgba(0,0,0,.30);border:1px solid var(--stroke);border-radius:999px;
+}
+.bp-search input{background:transparent;border:0;outline:0;color:var(--ink);width:100%;font:500 13px 'Inter'}
+.bp-close{
+  width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--stroke);
+  display:grid;place-items:center;color:var(--ink-2)
+}
+.bp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.bp-tab{
+  padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--stroke);
+  font:600 12px 'Inter';color:var(--ink-2);transition:.15s;
+}
+.bp-tab:hover{background:rgba(255,255,255,.10);color:var(--ink)}
+.bp-tab.on{background:linear-gradient(180deg,#7ea3ff,#5b8cff);color:#0a0f24;border-color:transparent;box-shadow:0 4px 12px rgba(91,140,255,.35)}
+
+.bp-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  max-height:430px;overflow:auto;padding-right:6px;
+}
+.bp-card{
+  border-radius:14px;padding:10px;background:rgba(255,255,255,.045);border:1px solid var(--stroke);
+  transition:.18s;cursor:pointer;display:flex;flex-direction:column;gap:7px;min-height:140px;
+}
+.bp-card:hover{background:rgba(91,140,255,.14);border-color:rgba(91,140,255,.45);transform:translateY(-2px)}
+.bp-card .thumb{height:70px;border-radius:10px;position:relative;overflow:hidden}
+.bp-card .t{font:600 12.5px 'Inter';color:var(--ink);line-height:1.25}
+.bp-card .d{font:500 11px/1.35 'Inter';color:var(--ink-3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bp-card .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto}
+.bp-card .tg{font:600 9.5px 'Inter';padding:2px 6px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--ink-3);border:1px solid var(--stroke)}
+
+/* Decorative thumbnails — generated via gradients */
+.thumb.bp1{background:conic-gradient(from 200deg at 60% 40%, #5b8cff, #a37bff, #ff9f7a, #5b8cff)}
+.thumb.bp2{background:linear-gradient(135deg,#3a1d10,#7b3d1f 60%,#d9883f)}
+.thumb.bp3{background:linear-gradient(135deg,#0d2c3a,#1f6b86 60%,#7ecde0)}
+.thumb.bp4{background:linear-gradient(135deg,#0d0d18,#3a1850 50%,#ff3a7c)}
+.thumb.bp5{background:linear-gradient(135deg,#0e2a14,#1a5e30 60%,#9fde7a)}
+.thumb.bp6{background:linear-gradient(135deg,#181a25,#3a3d56 60%,#cdd2f1)}
+.thumb.bp7{background:linear-gradient(135deg,#221c11,#5f4b21 60%,#e7c474)}
+.thumb.bp8{background:linear-gradient(135deg,#0c0c12,#3b3b48 50%,#d8d8e2)}
+.thumb.bp9{background:linear-gradient(135deg,#2a1419,#7b3046 60%,#f29ab1)}
+.thumb.bp10{background:linear-gradient(135deg,#10172a,#284276 60%,#88a8ec)}
+.thumb.bp11{background:linear-gradient(135deg,#0e1f17,#1e6044 60%,#74e8b6)}
+.thumb.bp12{background:linear-gradient(135deg,#1a1a2a,#4242a5 60%,#a3a6f7)}
+.thumb.bp13{background:linear-gradient(135deg,#23170d,#7a4520 60%,#f1c08c)}
+.thumb.bp14{background:linear-gradient(135deg,#0e0e16,#222232 60%,#5e6786)}
+.thumb.bp15{background:linear-gradient(135deg,#1f1014,#7b1a2e 60%,#ff7595)}
+.thumb.bp16{background:linear-gradient(135deg,#11132a,#3550a3 60%,#7aa2ff)}
+.thumb.bp17{background:linear-gradient(135deg,#1a1325,#503680 60%,#a98fe2)}
+.thumb.bp18{background:linear-gradient(135deg,#152a25,#2d6a5d 60%,#7adfc8)}
+.thumb.bp19{background:linear-gradient(135deg,#27170e,#7e3f1f 60%,#ffae6c)}
+.thumb.bp20{background:linear-gradient(135deg,#101522,#2a3a6e 60%,#90a8e0)}
+.thumb.bp21{background:linear-gradient(135deg,#22221a,#5b5b3c 60%,#d5d57a)}
+.thumb.bp22{background:linear-gradient(135deg,#241218,#822943 60%,#ff8da7)}
+.thumb.bp23{background:linear-gradient(135deg,#0a2231,#176484 60%,#7bd0e7)}
+.thumb.bp24{background:linear-gradient(135deg,#1a1325,#4a2d80 60%,#b194f2)}
+
+/* ---------- Logs strip ---------- */
+.logs-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.logs-head .title{font:600 12px 'Inter';color:var(--ink-2);letter-spacing:.04em;text-transform:uppercase}
+.logs-head .pills{display:flex;gap:5px;margin-left:8px}
+.logs-head .pl{
+  padding:3px 8px;font:600 10.5px 'Inter';border-radius:999px;background:rgba(255,255,255,.06);
+  border:1px solid var(--stroke);color:var(--ink-3);cursor:pointer;
+}
+.logs-head .pl.on{background:rgba(91,140,255,.22);color:#dde6ff;border-color:rgba(91,140,255,.5)}
+.logs-head .search{
+  margin-left:auto;display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;
+  background:rgba(0,0,0,.25);border:1px solid var(--stroke);
+}
+.logs-head .search input{background:transparent;border:0;outline:0;color:var(--ink);font:500 11.5px 'Inter';width:140px}
+.logs-body{
+  font:500 11.5px/1.65 'JetBrains Mono',monospace;color:var(--ink-2);
+  max-height:90px;overflow:auto; padding:6px 4px;
+}
+.logs-body .ln{display:flex;gap:10px;align-items:flex-start}
+.logs-body .ln .lv{flex:0 0 54px;font:700 10px 'Inter';letter-spacing:.06em;padding:2px 6px;border-radius:6px;text-align:center;margin-top:2px}
+.lv.info{background:rgba(91,140,255,.18);color:#a8c1ff}
+.lv.warn{background:rgba(255,209,106,.18);color:#ffd99a}
+.lv.err{background:rgba(255,122,138,.18);color:#ffb0bb}
+.lv.deb{background:rgba(255,255,255,.07);color:var(--ink-3)}
+.logs-body .ln .msg{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logs-body .ln .ts{flex:0 0 78px;color:var(--ink-4);font-size:10.5px;margin-top:3px}
+
+/* ---------- Site Manager slab ---------- */
+.sm-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sm-title-edit{
+  flex:1;background:rgba(0,0,0,.25);border:1px solid var(--stroke);border-radius:10px;
+  padding:8px 12px;font:600 14px 'Inter';color:var(--ink);outline:0;
+}
+.sm-actions{display:flex;gap:6px}
+.sm-actions .b{
+  width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.06);
+  display:grid;place-items:center;border:1px solid var(--stroke);color:var(--ink-2);
+}
+.sm-actions .b:hover{background:rgba(91,140,255,.18);color:#dfe7ff}
+.sm-tabs{
+  display:flex;gap:5px;padding:4px;border-radius:14px;
+  background:rgba(0,0,0,.20);border:1px solid var(--stroke);margin-bottom:12px;
+}
+.sm-tabs .t{
+  flex:1;padding:7px 8px;border-radius:10px;font:600 11.5px 'Inter';color:var(--ink-3);
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.sm-tabs .t.on{background:rgba(255,255,255,.10);color:var(--ink);box-shadow:inset 0 0 0 1px var(--stroke)}
+
+.sm-pane{display:none}
+.sm-pane.on{display:block}
+
+/* File browser pane */
+.fb-wrap{display:grid;grid-template-columns:130px 1fr;gap:10px}
+.fb-tree{
+  font:500 11.5px/1.7 'JetBrains Mono',monospace;color:var(--ink-2);
+  background:rgba(0,0,0,.22);border-radius:10px;border:1px solid var(--stroke);
+  padding:8px;max-height:280px;overflow:auto;
+}
+.fb-tree .f{padding-left:14px;color:var(--ink-3);cursor:pointer}
+.fb-tree .f:hover{color:var(--ink)}
+.fb-tree .d{cursor:pointer}
+.fb-tree .d.open{color:var(--ink)}
+.fb-tree .a{color:#a8c1ff}
+.fb-actions{display:flex;gap:6px;margin-top:8px}
+.fb-actions .b{
+  flex:1;padding:7px;border-radius:9px;background:rgba(255,255,255,.06);
+  border:1px solid var(--stroke);font:600 11px 'Inter';color:var(--ink-2);
+}
+.fb-edit{
+  background:rgba(0,0,0,.30);border:1px solid var(--stroke);border-radius:10px;
+  padding:10px;font:500 11.5px/1.55 'JetBrains Mono';color:var(--ink-2);max-height:280px;overflow:auto;
+}
+.fb-edit .com{color:#7e879c}
+.fb-edit .kw{color:#a8c1ff}
+.fb-edit .str{color:#b6f0d0}
+.fb-edit .num{color:#ffd99a}
+
+/* Blueprint pane */
+.bp-pane{display:grid;grid-template-columns:1fr;gap:10px}
+.bp-json{
+  background:rgba(0,0,0,.30);border:1px solid var(--stroke);border-radius:10px;
+  padding:10px;font:500 11.5px/1.5 'JetBrains Mono';color:var(--ink-2);max-height:240px;overflow:auto;
+}
+.bp-pane .row{display:flex;gap:6px}
+.bp-pane .row .b{
+  flex:1;padding:8px 6px;border-radius:9px;background:rgba(255,255,255,.06);
+  border:1px solid var(--stroke);font:600 11px 'Inter';color:var(--ink-2);display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.bp-pane .row .b.primary{background:linear-gradient(180deg,#7ea3ff,#5b8cff);color:#0a0f24;border-color:transparent}
+
+/* DB / Logs panes */
+.db-notice{
+  background:rgba(255,209,106,.10);border:1px solid rgba(255,209,106,.35);
+  border-radius:10px;padding:9px 11px;font:500 11.5px/1.4 'Inter';color:#ffe0a0;margin-bottom:10px;
+}
+.db-tbl{font:500 12px 'Inter';color:var(--ink-2)}
+.db-row{display:grid;grid-template-columns:1fr 60px 90px;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.db-row.head{color:var(--ink-3);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+
+.lg-notice{
+  background:rgba(91,140,255,.10);border:1px solid rgba(91,140,255,.30);
+  border-radius:10px;padding:9px 11px;font:500 11.5px/1.4 'Inter';color:#cfdcff;margin-bottom:10px;
+}
+
+/* Save info notice (in settings pane) */
+.unsaved-notice{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+  background:rgba(255,209,106,.10);border:1px solid rgba(255,209,106,.35);color:#ffe0a0;
+  font:500 12px/1.35 'Inter';margin-bottom:12px;
+}
+.unsaved-notice .save{
+  margin-left:auto;padding:6px 11px;border-radius:8px;background:#ffd16a;color:#3a2700;font:700 11.5px 'Inter';
+}
+
+/* Additional actions menu */
+.sm-aa{position:relative}
+.sm-aa-menu{
+  position:absolute;right:0;top:42px;width:260px;
+  background:rgba(15,17,32,.95);border:1px solid var(--stroke);border-radius:14px;
+  padding:6px;backdrop-filter:blur(20px);
+  box-shadow:var(--shadow);
+  display:none;z-index:6;
+}
+.sm-aa-menu.on{display:block}
+.sm-aa-menu .it{
+  display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border-radius:10px;
+  font:500 12px/1.35 'Inter';color:var(--ink-2);cursor:pointer;
+}
+.sm-aa-menu .it:hover{background:rgba(91,140,255,.15);color:var(--ink)}
+.sm-aa-menu .it i{margin-top:1px;color:var(--tint)}
+.sm-aa-menu .sep{height:1px;background:var(--stroke);margin:4px 0}
+
+/* ---------- Toast region ---------- */
+.toasts{
+  position:absolute;left:24px;bottom:24px;display:flex;flex-direction:column;gap:8px;z-index:8;
+}
+.toast{
+  padding:10px 14px;border-radius:14px;background:rgba(15,17,32,.85);
+  border:1px solid var(--stroke);backdrop-filter:blur(16px);
+  font:500 12.5px 'Inter';color:var(--ink-2);box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:9px;min-width:240px;
+}
+.toast.ok i{color:var(--good)}
+.toast.warn i{color:var(--warn)}
+
+/* ---------- Top utility bar (mode switcher) ---------- */
+.modesw{
+  position:absolute;left:50%;top:18px;transform:translateX(-50%);
+  display:flex;gap:5px;padding:5px;border-radius:999px;
+  background:rgba(12,14,28,.65);border:1px solid var(--stroke);backdrop-filter:blur(20px);
+  z-index:9;
+}
+.modesw .m{
+  padding:7px 14px;border-radius:999px;font:600 12px 'Inter';color:var(--ink-3);transition:.18s;
+}
+.modesw .m.on{background:linear-gradient(180deg,#7ea3ff,#5b8cff);color:#0a0f24;box-shadow:0 6px 14px rgba(91,140,255,.4)}
+.modesw .m:hover:not(.on){color:var(--ink)}
+
+/* ---------- Bottom info bar ---------- */
+.botinfo{
+  position:absolute;right:24px;bottom:24px;display:flex;gap:8px;align-items:center;
+  padding:8px 12px;border-radius:999px;background:rgba(12,14,28,.65);border:1px solid var(--stroke);
+  backdrop-filter:blur(20px);font:500 11.5px 'Inter';color:var(--ink-3);z-index:8;
+}
+.botinfo .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good)}
+.botinfo span{color:var(--ink)}
+
+/* ---------- Mobile ---------- */
+.mobile-frame{display:none}
+
+@media (max-width: 900px){
+  body{overflow:auto;background:#05060a}
+  .scene{position:relative;height:auto;min-height:100vh}
+  .stage{display:none}
+  .mobile-frame{display:block;padding:14px 12px 90px}
+  .modesw{position:sticky;top:8px}
+}
+
+.mb-top{
+  display:flex;align-items:center;gap:8px;margin:42px 0 10px;
+}
+.mb-top .save{margin-left:auto;padding:7px 12px;border-radius:999px;background:linear-gradient(180deg,#7ea3ff,#5b8cff);color:#0a0f24;font:700 12px 'Inter'}
+.mb-name{flex:1;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--stroke);font:600 12.5px 'Inter';color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.mb-name .dot{width:7px;height:7px;border-radius:50%;background:var(--warn)}
+
+.mb-addr{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:14px;
+  background:rgba(255,255,255,.05);border:1px solid var(--stroke);margin-bottom:10px;
+}
+.mb-addr input{flex:1;background:transparent;border:0;outline:0;color:var(--ink);font:500 13px 'Inter'}
+
+.mb-iframe{
+  width:100%;height:55vh;border-radius:18px;overflow:hidden;border:1px solid var(--stroke);
+  background:#fff;
+}
+.mb-iframe .wp-mock{position:relative}
+.mb-iframe .wp-hero{padding:24px 18px;grid-template-columns:1fr}
+.mb-iframe .wp-hero h1{font-size:24px}
+.mb-iframe .wp-hero p{font-size:13px}
+.mb-iframe .wp-art{display:none}
+
+.mb-sheet{
+  margin-top:14px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.025));
+  border:1px solid var(--stroke);backdrop-filter:blur(20px);padding:16px;
+}
+.mb-sheet h3{margin:0 0 10px;font:700 14px 'Inter';color:var(--ink)}
+.mb-sheet .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);font:500 13px 'Inter';color:var(--ink-2)}
+.mb-tabbar{
+  position:fixed;left:10px;right:10px;bottom:10px;z-index:10;
+  display:grid;grid-template-columns:repeat(5,1fr);
+  background:rgba(12,14,28,.85);border:1px solid var(--stroke);
+  border-radius:24px;padding:6px;backdrop-filter:blur(20px);
+  box-shadow:var(--shadow);
+}
+.mb-tabbar .tb{padding:9px 4px;border-radius:18px;display:flex;flex-direction:column;align-items:center;gap:3px;font:600 10px 'Inter';color:var(--ink-3)}
+.mb-tabbar .tb.on{background:linear-gradient(180deg,rgba(91,140,255,.4),rgba(91,140,255,.18));color:#dfe7ff}
+
+/* ---------- Scrollbars ---------- */
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:999px}
+*::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.20)}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .layer{transition:none}
+  .iframe-slab,.slab-launcher,.slab-settings,.slab-sitemgr,.slab-logs,.slab-blueprints,.ornament{transform:none !important;position:relative}
+}
+
+/* tiny utility */
+.spacer{flex:1}
+.muted{color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <div class="stars"></div>
+
+  <!-- Mode switcher (booting / working / blueprints) -->
+  <div class="modesw">
+    <button class="m" data-mode="boot">Booting</button>
+    <button class="m on" data-mode="work">Working</button>
+    <button class="m" data-mode="bp">Blueprint Gallery</button>
+  </div>
+
+  <!-- DESKTOP STAGE -->
+  <div class="stage" id="stage">
+
+    <!-- Launcher (left back) -->
+    <div class="layer slab slab-launcher glass">
+      <h3>Start</h3>
+      <div class="qs-grid">
+        <button class="qs"><i data-lucide="wordpress" style="display:none"></i><i data-lucide="globe"></i>Vanilla WordPress</button>
+        <button class="qs alt"><i data-lucide="git-pull-request"></i>WordPress PR</button>
+        <button class="qs alt"><i data-lucide="git-merge"></i>Gutenberg PR</button>
+        <button class="qs warm"><i data-lucide="github"></i>From GitHub</button>
+        <button class="qs warm"><i data-lucide="link-2"></i>Blueprint URL</button>
+        <button class="qs"><i data-lucide="upload-cloud"></i>Import .zip</button>
+      </div>
+
+      <h3>Featured Blueprints</h3>
+      <div class="featured-row">
+        <div class="feat"><div class="cover thumb bp1"></div><div class="t">Art Gallery</div></div>
+        <div class="feat"><div class="cover thumb bp2"></div><div class="t">Coffee Shop</div></div>
+        <div class="feat"><div class="cover thumb bp3"></div><div class="t">Feed Reader</div></div>
+        <div class="feat"><div class="cover thumb bp4"></div><div class="t">Gaming News</div></div>
+        <div class="feat"><div class="cover thumb bp5"></div><div class="t">Non-profit Org</div></div>
+        <div class="feat" id="viewAllFeat">
+          <div class="cover" style="background:linear-gradient(135deg,#1a1f3a,#4a4e8a)"></div>
+          <div class="t">View all 43 →</div>
+        </div>
+      </div>
+      <button class="view-all" id="openBp"><i data-lucide="grid-3x3"></i>Browse all 43 blueprints</button>
+
+      <h3 style="margin-top:16px">Your Playgrounds</h3>
+      <div class="your-pg">
+        <div class="pg">
+          <div class="ic"><i data-lucide="store" style="width:16px;height:16px"></i></div>
+          <div class="meta"><div class="t">Coffee Shop — staging</div><div class="s">WP 6.7 · PHP 8.2 · 2.4 MB · 2h ago</div></div>
+          <span class="badge">Saved</span>
+        </div>
+        <div class="pg">
+          <div class="ic" style="background:linear-gradient(135deg,#ff9f7a55,#ff3a7c55)"><i data-lucide="palette" style="width:16px;height:16px"></i></div>
+          <div class="meta"><div class="t">Theme tester · Twenty-25</div><div class="s">WP 6.8-beta · PHP 8.3 · 5.1 MB · yesterday</div></div>
+          <span class="badge">Saved</span>
+        </div>
+        <div class="pg">
+          <div class="ic" style="background:linear-gradient(135deg,#7ee2a855,#5b8cff55)"><i data-lucide="bug" style="width:16px;height:16px"></i></div>
+          <div class="meta"><div class="t">Gutenberg PR #58743</div><div class="s">WP trunk · PHP 8.2 · 8.7 MB · 3d ago</div></div>
+          <span class="badge">Saved</span>
+        </div>
+        <div class="pg" style="opacity:.7">
+          <div class="ic" style="background:rgba(255,255,255,.06)"><i data-lucide="circle-dashed" style="width:16px;height:16px"></i></div>
+          <div class="meta"><div class="t">Unsaved Playground</div><div class="s muted">Not saved to browser storage</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IFrame slab (center) -->
+    <div class="layer iframe-slab" id="iframeSlab">
+      <div class="glass">
+        <!-- Window bar -->
+        <div class="windowbar">
+          <button class="wb-btn" title="Refresh"><i data-lucide="rotate-cw"></i></button>
+          <div class="wb-sep"></div>
+          <div class="wb-addr">
+            <i data-lucide="lock" class="lock" style="width:14px;height:14px"></i>
+            <span style="color:var(--ink-3)">playground.wordpress.net</span>
+            <input value="/wp-admin/edit.php" />
+            <button class="wb-btn" style="width:24px;height:24px"><i data-lucide="corner-down-left" style="width:14px;height:14px"></i></button>
+          </div>
+          <div class="wb-sep"></div>
+          <div class="wb-name"><span class="dot"></span>Unsaved Playground</div>
+          <button class="wb-save">Save</button>
+          <div class="wb-sep"></div>
+          <button class="wb-btn" id="tgLauncher" title="Saved Playgrounds"><i data-lucide="layout-grid"></i></button>
+          <button class="wb-btn active" id="tgSm" title="Site Manager"><i data-lucide="panel-right-open"></i></button>
+          <button class="wb-btn" id="tgSettings" title="Settings"><i data-lucide="settings-2"></i></button>
+        </div>
+
+        <!-- Ornament rail (right edge) -->
+        <div class="ornament">
+          <button class="orn-btn on" data-pane="settings"><i data-lucide="sliders-horizontal"></i><span class="tip">Settings</span></button>
+          <button class="orn-btn" data-pane="files"><i data-lucide="folder-tree"></i><span class="tip">Files</span></button>
+          <button class="orn-btn" data-pane="blueprint"><i data-lucide="file-json-2"></i><span class="tip">Blueprint</span></button>
+          <button class="orn-btn" data-pane="database"><i data-lucide="database"></i><span class="tip">Database</span></button>
+          <button class="orn-btn" data-pane="logs"><i data-lucide="terminal-square"></i><span class="tip">Logs</span></button>
+          <div class="orn-divider"></div>
+          <button class="orn-btn"><i data-lucide="home"></i><span class="tip">Homepage</span></button>
+          <button class="orn-btn"><i data-lucide="shield-check"></i><span class="tip">WP Admin</span></button>
+          <div class="sm-aa">
+            <button class="orn-btn" id="aaTrigger"><i data-lucide="more-horizontal"></i><span class="tip">More actions</span></button>
+            <div class="sm-aa-menu" id="aaMenu" style="top:0;right:54px">
+              <div class="it"><i data-lucide="github"></i><div><div style="font-weight:600;color:var(--ink)">Export to GitHub PR</div>Export theme, plugin, or wp-content directory to a GitHub repo as a Pull Request.</div></div>
+              <div class="sep"></div>
+              <div class="it"><i data-lucide="download"></i><div><div style="font-weight:600;color:var(--ink)">Download .zip</div>Download the current playground as a .zip archive.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="viewport">
+          <div class="wp-mock" id="wpMock">
+            <div class="wp-bar">
+              <span class="b"></span><span class="b"></span><span class="b"></span>
+              <span style="margin-left:6px;font-weight:600">Dashboard ‹ My WordPress Playground — WordPress</span>
+              <div class="links"><span>Howdy, admin</span><span>Log out</span></div>
+            </div>
+            <div class="wp-hero">
+              <div>
+                <h1>Hello from<br/>WordPress Playground!</h1>
+                <p>A sandbox that lives entirely in your browser. Boot a blueprint, test a PR, or build a site — nothing leaves this tab unless you save.</p>
+                <div class="cta">
+                  <button class="pb">Edit your site</button>
+                  <button class="sb">Documentation</button>
+                </div>
+              </div>
+              <div class="wp-art"></div>
+            </div>
+            <div class="wp-foot">Powered by WordPress · Playground 1.42</div>
+          </div>
+          <div class="wp-loading" id="wpLoading">
+            <div class="spinner"></div>
+            <div style="font:600 13px 'Inter';color:var(--ink)">Booting WordPress…</div>
+            <div style="font:500 11.5px 'Inter';color:var(--ink-3)">PHP 8.2 · WordPress 6.7 · SQLite 3.42</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings slab (front-right) -->
+    <div class="layer slab slab-settings glass">
+      <h3>Settings</h3>
+      <div class="set-row">
+        <div class="lbl"><i data-lucide="globe-2" style="width:16px;height:16px"></i>WordPress version</div>
+        <div class="pill-sel">6.7 <i data-lucide="chevron-down" style="width:13px;height:13px"></i></div>
+      </div>
+      <div class="set-row">
+        <div class="lbl"><i data-lucide="code-2" style="width:16px;height:16px"></i>PHP version</div>
+        <div class="pill-sel">8.2 <i data-lucide="chevron-down" style="width:13px;height:13px"></i></div>
+      </div>
+      <div class="set-row">
+        <div class="lbl"><i data-lucide="languages" style="width:16px;height:16px"></i>Language</div>
+        <div class="pill-sel">en_US <i data-lucide="chevron-down" style="width:13px;height:13px"></i></div>
+      </div>
+      <div class="set-row">
+        <div class="lbl"><i data-lucide="wifi" style="width:16px;height:16px"></i>Network access</div>
+        <div class="tog on"></div>
+      </div>
+      <div class="set-row">
+        <div class="lbl"><i data-lucide="network" style="width:16px;height:16px"></i>Multisite</div>
+        <div class="tog"></div>
+      </div>
+      <button class="apply"><i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"></i>Apply Settings & Reset</button>
+      <div class="apply-note">Resetting wipes the current playground. Save first to keep your work.</div>
+    </div>
+
+    <!-- Site manager slab -->
+    <div class="layer slab slab-sitemgr glass on" id="smSlab">
+      <div class="sm-head">
+        <input class="sm-title-edit" value="My Playground" />
+        <div class="sm-actions">
+          <button class="b" title="Homepage"><i data-lucide="home" style="width:16px;height:16px"></i></button>
+          <button class="b" title="WP Admin"><i data-lucide="shield-check" style="width:16px;height:16px"></i></button>
+          <button class="b" title="More actions" id="aaTrigger2"><i data-lucide="more-horizontal" style="width:16px;height:16px"></i></button>
+        </div>
+      </div>
+
+      <div class="sm-tabs" id="smTabs">
+        <button class="t on" data-tab="settings"><i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i>Settings</button>
+        <button class="t" data-tab="files"><i data-lucide="folder-tree" style="width:13px;height:13px"></i>Files</button>
+        <button class="t" data-tab="bp"><i data-lucide="file-json-2" style="width:13px;height:13px"></i>Blueprint</button>
+        <button class="t" data-tab="db"><i data-lucide="database" style="width:13px;height:13px"></i>Database</button>
+        <button class="t" data-tab="logs"><i data-lucide="terminal-square" style="width:13px;height:13px"></i>Logs</button>
+      </div>
+
+      <!-- Settings tab -->
+      <div class="sm-pane on" data-pane="settings">
+        <div class="unsaved-notice">
+          <i data-lucide="info" style="width:15px;height:15px"></i>
+          <span>Unsaved Playground. Changes will be lost on page refresh.</span>
+          <button class="save">Save site locally</button>
+        </div>
+        <div class="set-row">
+          <div class="lbl"><i data-lucide="globe-2" style="width:16px;height:16px"></i>WordPress</div>
+          <div class="pill-sel">6.7 <i data-lucide="chevron-down" style="width:13px;height:13px"></i></div>
+        </div>
+        <div class="set-row">
+          <div class="lbl"><i data-lucide="code-2" style="width:16px;height:16px"></i>PHP</div>
+          <div class="pill-sel">8.2 <i data-lucide="chevron-down" style="width:13px;height:13px"></i></div>
+        </div>
+        <div class="set-row">
+          <div class="lbl"><i data-lucide="languages" style="width:16px;height:16px"></i>Language</div>
+          <div class="pill-sel">en_US <i data-lucide="chevron-down" style="width:13px;height:13px"></i></div>
+        </div>
+        <div class="set-row">
+          <div class="lbl"><i data-lucide="wifi" style="width:16px;height:16px"></i>Network</div>
+          <div class="tog on"></div>
+        </div>
+        <div class="set-row">
+          <div class="lbl"><i data-lucide="network" style="width:16px;height:16px"></i>Multisite</div>
+          <div class="tog"></div>
+        </div>
+        <button class="apply">Apply Settings & Reset Playground</button>
+      </div>
+
+      <!-- Files tab -->
+      <div class="sm-pane" data-pane="files">
+        <div class="fb-wrap">
+          <div class="fb-tree">
+            <div class="d open">▾ /wordpress</div>
+            <div class="d" style="padding-left:14px">▸ wp-admin</div>
+            <div class="d open" style="padding-left:14px">▾ wp-content</div>
+            <div class="d open" style="padding-left:28px">▾ themes</div>
+            <div class="d" style="padding-left:42px">▸ twentytwentyfive</div>
+            <div class="d" style="padding-left:42px">▸ vueo</div>
+            <div class="d" style="padding-left:28px">▸ plugins</div>
+            <div class="d" style="padding-left:28px">▸ uploads</div>
+            <div class="d" style="padding-left:14px">▸ wp-includes</div>
+            <div class="f a">wp-config.php</div>
+            <div class="f">index.php</div>
+            <div class="f">.htaccess</div>
+          </div>
+          <div>
+            <div class="fb-edit"><span class="com">// wp-config.php</span>
+<span class="kw">define</span>(<span class="str">'DB_NAME'</span>, <span class="str">'wordpress'</span>);
+<span class="kw">define</span>(<span class="str">'DB_USER'</span>, <span class="str">'root'</span>);
+<span class="kw">define</span>(<span class="str">'DB_HOST'</span>, <span class="str">'localhost'</span>);
+<span class="kw">define</span>(<span class="str">'WP_DEBUG'</span>, <span class="num">true</span>);
+<span class="kw">define</span>(<span class="str">'WP_DEBUG_LOG'</span>, <span class="num">true</span>);
+$table_prefix = <span class="str">'wp_'</span>;
+<span class="kw">require_once</span>(ABSPATH . <span class="str">'wp-settings.php'</span>);</div>
+            <div class="fb-actions">
+              <button class="b"><i data-lucide="file-plus" style="width:13px;height:13px;vertical-align:-2px"></i> New file</button>
+              <button class="b"><i data-lucide="folder-plus" style="width:13px;height:13px;vertical-align:-2px"></i> New folder</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blueprint tab -->
+      <div class="sm-pane" data-pane="bp">
+        <div class="bp-pane">
+          <div class="fb-wrap">
+            <div class="fb-tree">
+              <div class="d open">▾ blueprint</div>
+              <div class="f a">blueprint.json</div>
+              <div class="f">setup.php</div>
+              <div class="d" style="padding-left:14px">▸ assets</div>
+            </div>
+            <div class="bp-json">{
+  <span style="color:#a8c1ff">"landingPage"</span>: <span style="color:#b6f0d0">"/wp-admin/"</span>,
+  <span style="color:#a8c1ff">"preferredVersions"</span>: {
+    <span style="color:#a8c1ff">"php"</span>: <span style="color:#b6f0d0">"8.2"</span>,
+    <span style="color:#a8c1ff">"wp"</span>: <span style="color:#b6f0d0">"6.7"</span>
+  },
+  <span style="color:#a8c1ff">"steps"</span>: [
+    { <span style="color:#a8c1ff">"step"</span>: <span style="color:#b6f0d0">"login"</span> },
+    { <span style="color:#a8c1ff">"step"</span>: <span style="color:#b6f0d0">"installTheme"</span>,
+      <span style="color:#a8c1ff">"themeData"</span>: { <span style="color:#a8c1ff">"resource"</span>: <span style="color:#b6f0d0">"wordpress.org/themes"</span>, <span style="color:#a8c1ff">"slug"</span>: <span style="color:#b6f0d0">"vueo"</span> } }
+  ]
+}</div>
+          </div>
+          <div class="row">
+            <button class="b"><i data-lucide="link" style="width:13px;height:13px"></i> Copy link</button>
+            <button class="b"><i data-lucide="package-2" style="width:13px;height:13px"></i> Download bundle</button>
+            <button class="b primary"><i data-lucide="play" style="width:13px;height:13px"></i> Run Blueprint</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Database tab -->
+      <div class="sm-pane" data-pane="db">
+        <div class="db-notice"><i data-lucide="flask-conical" style="width:13px;height:13px;vertical-align:-2px"></i> Database management is an early access feature. Report issues on the GitHub tracker.</div>
+        <div class="db-tbl">
+          <div class="db-row head"><span>Table</span><span>Rows</span><span>Size</span></div>
+          <div class="db-row"><span>wp_posts</span><span>42</span><span>180 KB</span></div>
+          <div class="db-row"><span>wp_postmeta</span><span>118</span><span>96 KB</span></div>
+          <div class="db-row"><span>wp_options</span><span>342</span><span>220 KB</span></div>
+          <div class="db-row"><span>wp_users</span><span>2</span><span>4 KB</span></div>
+          <div class="db-row"><span>wp_usermeta</span><span>14</span><span>8 KB</span></div>
+          <div class="db-row"><span>wp_comments</span><span>3</span><span>2 KB</span></div>
+        </div>
+      </div>
+
+      <!-- Logs tab -->
+      <div class="sm-pane" data-pane="logs">
+        <div class="lg-notice"><i data-lucide="search" style="width:13px;height:13px;vertical-align:-2px"></i> Search PHP error log:</div>
+        <div class="logs-body" style="max-height:200px">
+          <div class="ln"><span class="ts">12:04:11</span><span class="lv info">INFO</span><span class="msg">WordPress booted in 412ms (PHP 8.2.0, WP 6.7)</span></div>
+          <div class="ln"><span class="ts">12:04:11</span><span class="lv info">INFO</span><span class="msg">Loaded mu-plugin: playground-mu.php</span></div>
+          <div class="ln"><span class="ts">12:04:13</span><span class="lv deb">DEBUG</span><span class="msg">Theme: twentytwentyfive activated</span></div>
+          <div class="ln"><span class="ts">12:04:18</span><span class="lv warn">WARN</span><span class="msg">Plugin "wp-graphql" loaded outside expected lifecycle</span></div>
+          <div class="ln"><span class="ts">12:04:21</span><span class="lv err">ERROR</span><span class="msg">PHP Notice: Undefined index 'foo' in /wp-content/plugins/demo/loader.php on line 42</span></div>
+          <div class="ln"><span class="ts">12:05:02</span><span class="lv info">INFO</span><span class="msg">REST request /wp-json/wp/v2/posts → 200 (37ms)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs strip (always visible mini) -->
+    <div class="layer slab slab-logs glass">
+      <div class="logs-head">
+        <span class="title">Logs</span>
+        <div class="pills">
+          <span class="pl on">All</span>
+          <span class="pl">Info</span>
+          <span class="pl">Warn</span>
+          <span class="pl">Error</span>
+          <span class="pl">Debug</span>
+        </div>
+        <div class="search">
+          <i data-lucide="search" style="width:13px;height:13px;color:var(--ink-3)"></i>
+          <input placeholder="Search logs…">
+        </div>
+      </div>
+      <div class="logs-body">
+        <div class="ln"><span class="ts">12:04:11</span><span class="lv info">INFO</span><span class="msg">WordPress booted in 412ms · PHP 8.2.0 · WP 6.7</span></div>
+        <div class="ln"><span class="ts">12:04:21</span><span class="lv err">ERROR</span><span class="msg">PHP Notice: Undefined index 'foo' in /wp-content/plugins/demo/loader.php:42</span></div>
+        <div class="ln"><span class="ts">12:05:02</span><span class="lv info">INFO</span><span class="msg">REST /wp-json/wp/v2/posts → 200 (37ms)</span></div>
+      </div>
+    </div>
+
+    <!-- Blueprint constellation (far back, summoned) -->
+    <div class="layer slab slab-blueprints glass" id="bpSlab">
+      <div class="bp-head">
+        <div class="bp-search">
+          <i data-lucide="search" style="width:14px;height:14px;color:var(--ink-3)"></i>
+          <input placeholder="Search 43 blueprints — try ‘woo’, ‘gutenberg’, ‘theme’…" />
+        </div>
+        <button class="bp-close" id="bpClose"><i data-lucide="x" style="width:15px;height:15px"></i></button>
+      </div>
+      <div class="bp-tabs">
+        <button class="bp-tab on">All <span class="muted">43</span></button>
+        <button class="bp-tab">Featured</button>
+        <button class="bp-tab">Website</button>
+        <button class="bp-tab">Personal</button>
+        <button class="bp-tab">Content</button>
+        <button class="bp-tab">Themes</button>
+        <button class="bp-tab">Gutenberg</button>
+        <button class="bp-tab">Experiments</button>
+        <button class="bp-tab">WooCommerce</button>
+        <button class="bp-tab">News</button>
+      </div>
+
+      <div class="bp-grid" id="bpGrid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+  </div>
+  <!-- /stage -->
+
+  <!-- Toast region (bottom-left) -->
+  <div class="toasts">
+    <div class="toast ok"><i data-lucide="check-circle-2" style="width:15px;height:15px"></i><div><strong>Saved.</strong> "Coffee Shop — staging" persisted to OPFS.</div></div>
+    <div class="toast warn"><i data-lucide="alert-triangle" style="width:15px;height:15px"></i><div>Reset is destructive — apply will wipe the current playground.</div></div>
+  </div>
+
+  <!-- Bottom info pill (status bar replacement) -->
+  <div class="botinfo">
+    <span class="dot"></span>
+    <span>Playground 1.42</span>·
+    <span>PHP 8.2</span>·
+    <span>WP 6.7</span>·
+    <span>SQLite 3.42</span>·
+    <span style="color:var(--good)">Online</span>
+  </div>
+
+  <!-- MOBILE -->
+  <div class="mobile-frame">
+    <div class="mb-top">
+      <div class="mb-name"><span class="dot"></span>Unsaved Playground</div>
+      <button class="save">Save</button>
+    </div>
+    <div class="mb-addr">
+      <i data-lucide="lock" style="width:14px;height:14px;color:var(--good)"></i>
+      <input value="/wp-admin/edit.php"/>
+      <i data-lucide="rotate-cw" style="width:14px;height:14px;color:var(--ink-3)"></i>
+    </div>
+    <div class="mb-iframe">
+      <div class="wp-mock">
+        <div class="wp-bar">
+          <span class="b"></span><span class="b"></span><span class="b"></span>
+          <span style="margin-left:6px;font-weight:600">My WordPress</span>
+        </div>
+        <div class="wp-hero">
+          <div>
+            <h1>Hello from WordPress Playground</h1>
+            <p>Your sandbox runs in this tab. Tap Site to manage, or Blueprint to start fresh.</p>
+            <div class="cta"><button class="pb">Open</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-sheet">
+      <h3>Quick start</h3>
+      <div class="row"><span>Vanilla WordPress</span><i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>WordPress PR</span><i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Gutenberg PR</span><i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>From GitHub</span><i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Blueprint URL</span><i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Import .zip</span><i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--ink-3)"></i></div>
+    </div>
+
+    <div class="mb-sheet">
+      <h3>Featured Blueprints</h3>
+      <div class="featured-row" style="grid-template-columns:repeat(2,1fr)">
+        <div class="feat"><div class="cover thumb bp1"></div><div class="t">Art Gallery</div></div>
+        <div class="feat"><div class="cover thumb bp2"></div><div class="t">Coffee Shop</div></div>
+        <div class="feat"><div class="cover thumb bp3"></div><div class="t">Feed Reader</div></div>
+        <div class="feat"><div class="cover thumb bp4"></div><div class="t">Gaming News</div></div>
+      </div>
+      <button class="view-all" style="margin-top:10px"><i data-lucide="grid-3x3"></i>Browse all 43 blueprints</button>
+    </div>
+
+    <div class="mb-sheet">
+      <h3>Your Playgrounds</h3>
+      <div class="row"><span>Coffee Shop — staging</span><span class="muted">2h ago</span></div>
+      <div class="row"><span>Theme tester · Twenty-25</span><span class="muted">yesterday</span></div>
+      <div class="row"><span>Gutenberg PR #58743</span><span class="muted">3d ago</span></div>
+    </div>
+
+    <div class="mb-sheet">
+      <h3>Site Manager</h3>
+      <div class="row"><span>WP version</span><span>6.7</span></div>
+      <div class="row"><span>PHP</span><span>8.2</span></div>
+      <div class="row"><span>Language</span><span>en_US</span></div>
+      <div class="row"><span>Network access</span><span style="color:var(--good)">On</span></div>
+      <div class="row"><span>Multisite</span><span class="muted">Off</span></div>
+      <div class="row" style="color:var(--bad)"><span>Apply &amp; Reset</span><i data-lucide="alert-triangle" style="width:14px;height:14px"></i></div>
+    </div>
+
+    <div class="mb-sheet">
+      <h3>More</h3>
+      <div class="row"><span>Export to GitHub PR</span><i data-lucide="github" style="width:14px;height:14px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Download .zip</span><i data-lucide="download" style="width:14px;height:14px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>File browser</span><i data-lucide="folder-tree" style="width:14px;height:14px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Blueprint editor</span><i data-lucide="file-json-2" style="width:14px;height:14px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Database</span><i data-lucide="database" style="width:14px;height:14px;color:var(--ink-3)"></i></div>
+      <div class="row"><span>Logs</span><i data-lucide="terminal-square" style="width:14px;height:14px;color:var(--ink-3)"></i></div>
+    </div>
+
+    <nav class="mb-tabbar">
+      <div class="tb on"><i data-lucide="globe" style="width:18px;height:18px"></i>Site</div>
+      <div class="tb"><i data-lucide="grid-3x3" style="width:18px;height:18px"></i>Blueprints</div>
+      <div class="tb"><i data-lucide="folder-tree" style="width:18px;height:18px"></i>Files</div>
+      <div class="tb"><i data-lucide="terminal-square" style="width:18px;height:18px"></i>Logs</div>
+      <div class="tb"><i data-lucide="more-horizontal" style="width:18px;height:18px"></i>More</div>
+    </nav>
+  </div>
+
+</div>
+
+<script>
+// blueprints data
+const BLUEPRINTS = [
+  {n:1,t:"Art Gallery",d:"An art gallery created with the Vueo theme.",tags:["Website","Personal"],c:"bp1"},
+  {n:2,t:"Coffee Shop",d:"A WooCommerce coffee shop with custom theme, products, and content.",tags:["WooCommerce","Store"],c:"bp2"},
+  {n:3,t:"Feed Reader (Friends)",d:"Read feeds incl. ActivityPub via the Friends plugin.",tags:["rss","social"],c:"bp3"},
+  {n:4,t:"Gaming News",d:"A gaming news site created with the Spiel theme.",tags:["Website","News"],c:"bp4"},
+  {n:5,t:"Non-profit Organization",d:"A non-profit site created with the Koinonia theme.",tags:["Website","Organization"],c:"bp5"},
+  {n:6,t:"Personal Blog",d:"A personal blog with the Substrata theme.",tags:["Website","Blog"],c:"bp6"},
+  {n:7,t:"Personal Resume",d:"A resume site with the Readymade theme.",tags:["Website","Personal"],c:"bp7"},
+  {n:8,t:"Photography Portfolio",d:"A photography portfolio with the Grammer theme.",tags:["Photography"],c:"bp8"},
+  {n:9,t:"Skincare Blog",d:"A skincare blog with the Piel theme.",tags:["Blog","News"],c:"bp9"},
+  {n:10,t:"University Website",d:"A university site with the Kentwood theme.",tags:["Education"],c:"bp10"},
+  {n:11,t:"Create Block Theme",d:"Install Create Block Theme and start editing right away.",tags:["Editor","theme"],c:"bp11"},
+  {n:12,t:"New user for the blog",d:"Update user meta data.",tags:["meta"],c:"bp12"},
+  {n:13,t:"Custom Post Type: Books",d:"Add a custom post type to playground.",tags:["Content","CPT"],c:"bp13"},
+  {n:14,t:"Twenty-Twenty-Five Demo",d:"Demo content for the default theme.",tags:["Themes","default"],c:"bp14"},
+  {n:15,t:"Display Admin Notice",d:"Tiny mu-plugin that shows an admin notice.",tags:["Admin notices"],c:"bp15"},
+  {n:16,t:"Dataview Experiments",d:"Enable Dataview experiments in Gutenberg.",tags:["Gutenberg","Experiments"],c:"bp16"},
+  {n:17,t:"Fancy Dashboard Widget",d:"Stats about users, posts and comments.",tags:["Admin"],c:"bp17"},
+  {n:18,t:"Grid Variations",d:"Toggle a Gutenberg Experiments feature.",tags:["Gutenberg","Experiments"],c:"bp18"},
+  {n:19,t:"Gutenberg Guidelines",d:"Enable the Gutenberg Guidelines experiment.",tags:["Gutenberg","Experiments"],c:"bp19"},
+  {n:20,t:"Theme Starter Content",d:"Install a theme with starter content (Twenty-Twenty-One).",tags:["Themes","Starter"],c:"bp20"},
+  {n:21,t:"Standalone Starter Content",d:"Use a stand-alone starter content file and import it.",tags:["Themes"],c:"bp21"},
+  {n:22,t:"Language pack: Japanese",d:"Install and activate the latest Japanese translation pack.",tags:["core"],c:"bp22"},
+  {n:23,t:"Install plugin from gist",d:"Install/activate a plugin from a .php file in a gist.",tags:["plugins"],c:"bp23"},
+  {n:24,t:"Latest Gutenberg",d:"Preview of the latest Gutenberg plugin.",tags:["plugins"],c:"bp24"},
+];
+const grid = document.getElementById('bpGrid');
+grid.innerHTML = BLUEPRINTS.map(b => `
+  <div class="bp-card">
+    <div class="thumb ${b.c}"></div>
+    <div class="t">${b.t}</div>
+    <div class="d">${b.d}</div>
+    <div class="tags">${b.tags.map(t=>`<span class="tg">${t}</span>`).join('')}</div>
+  </div>
+`).join('');
+
+// Toggles
+function setMode(mode){
+  document.querySelectorAll('.modesw .m').forEach(m=>m.classList.toggle('on',m.dataset.mode===mode));
+  const slab = document.getElementById('iframeSlab');
+  const loading = document.getElementById('wpLoading');
+  const bp = document.getElementById('bpSlab');
+  loading.classList.toggle('on', mode==='boot');
+  bp.classList.toggle('on', mode==='bp');
+  if(mode==='bp'){
+    slab.style.transform = 'translate(-50%,-50%) translateZ(-220px) scale(.78)';
+    slab.style.opacity = '.5';
+  } else {
+    slab.style.transform = 'translate(-50%,-50%) translateZ(0)';
+    slab.style.opacity = '1';
+  }
+}
+document.querySelectorAll('.modesw .m').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+// Site manager tabs
+document.querySelectorAll('#smTabs .t').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('#smTabs .t').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  document.querySelectorAll('#smSlab .sm-pane').forEach(p=>p.classList.toggle('on', p.dataset.pane===t.dataset.tab));
+  // sync ornament
+  document.querySelectorAll('.ornament .orn-btn').forEach(b=>{
+    b.classList.toggle('on', b.dataset.pane===t.dataset.tab);
+  });
+}));
+// Ornament syncs with site manager
+document.querySelectorAll('.ornament .orn-btn[data-pane]').forEach(b => b.addEventListener('click', () => {
+  const p = b.dataset.pane;
+  // find matching tab key
+  const map={settings:'settings',files:'files',blueprint:'bp',database:'db',logs:'logs'};
+  const k = map[p];
+  document.querySelectorAll('#smTabs .t').forEach(t=>t.classList.toggle('on', t.dataset.tab===k));
+  document.querySelectorAll('#smSlab .sm-pane').forEach(pn=>pn.classList.toggle('on', pn.dataset.pane===k));
+  document.querySelectorAll('.ornament .orn-btn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+}));
+
+// Additional actions menu
+function toggleAa(){
+  document.getElementById('aaMenu').classList.toggle('on');
+}
+document.getElementById('aaTrigger').addEventListener('click', toggleAa);
+document.getElementById('aaTrigger2').addEventListener('click', toggleAa);
+
+// Open blueprint constellation
+document.getElementById('openBp').addEventListener('click', () => setMode('bp'));
+document.getElementById('viewAllFeat').addEventListener('click', () => setMode('bp'));
+document.getElementById('bpClose').addEventListener('click', () => setMode('work'));
+
+// Subtle parallax tilt of stage
+const stage = document.getElementById('stage');
+let raf=null;
+document.addEventListener('mousemove', (e) => {
+  if(raf) return;
+  raf = requestAnimationFrame(() => {
+    const x = (e.clientX / window.innerWidth - .5);
+    const y = (e.clientY / window.innerHeight - .5);
+    stage.style.transform = `rotateY(${x*4}deg) rotateX(${-y*3}deg)`;
+    raf=null;
+  });
+});
+
+// Render Lucide icons
+window.addEventListener('load', () => { try { lucide.createIcons(); } catch(e){} });
+</script>
+</body>
+</html>
