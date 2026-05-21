@@ -1,0 +1,1951 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordPress Playground — Stage Manager lite (v5 #004)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+:root{
+  --ink:#0a0e1a;
+  --ink-2:#3b4357;
+  --ink-3:#6b7280;
+  --ink-4:#9aa3b2;
+  --line:rgba(15,23,42,0.10);
+  --line-2:rgba(15,23,42,0.16);
+  --glass:rgba(255,255,255,0.55);
+  --glass-strong:rgba(255,255,255,0.78);
+  --glass-dark:rgba(8,12,28,0.55);
+  --glass-border:rgba(255,255,255,0.55);
+  --wp:#3858e9;
+  --accent:#0a7cff;
+  --accent-2:#0066d6;
+  --ok:#0ea96d;
+  --warn:#f59e0b;
+  --danger:#e23434;
+  --r-l:22px;
+  --r-m:14px;
+  --r-s:10px;
+  --r-xs:7px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;color:var(--ink);background:#070b16;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{min-height:100vh}
+.page{display:flex;flex-direction:column;gap:56px;padding:36px 24px 96px;max-width:1560px;margin:0 auto}
+.cover{color:#cbd5e1;display:flex;flex-direction:column;gap:8px;padding:0 8px;max-width:1100px}
+.cover h1{margin:0;color:#fff;font-size:26px;font-weight:600;letter-spacing:-0.01em}
+.cover p{margin:0;font-size:13.5px;line-height:1.55;color:#94a3b8}
+.cover .tag{display:inline-flex;align-items:center;gap:8px;color:#cbd5e1;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
+.cover .tag::before{content:"";width:6px;height:6px;border-radius:50%;background:#34d399}
+.state-label{display:inline-flex;align-items:center;gap:10px;color:#cbd5e1;font-size:11.5px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.state-label::before{content:"";width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(52,211,153,0.18)}
+.state-label.idle::before{background:#64748b;box-shadow:0 0 0 4px rgba(100,116,139,0.18)}
+.state-label.warn::before{background:#fbbf24;box-shadow:0 0 0 4px rgba(251,191,36,0.18)}
+.state-label .meta{color:#64748b;text-transform:none;letter-spacing:0;font-weight:500;margin-left:4px;font-size:12.5px}
+
+/* Device frame */
+.ipad{
+  --w:1440px; --h:920px;
+  width:var(--w);max-width:100%;height:var(--h);
+  border-radius:38px;padding:13px;
+  background:linear-gradient(180deg,#1c2230,#0f131c);
+  box-shadow:0 36px 80px rgba(2,8,28,0.45),0 6px 20px rgba(2,8,28,0.3),inset 0 0 0 1.5px rgba(255,255,255,0.04);
+  position:relative;margin:0 auto;
+}
+.ipad::before,.ipad::after{content:"";position:absolute;background:rgba(255,255,255,0.05);border-radius:2px}
+.ipad::before{left:-3px;top:140px;width:3px;height:60px}
+.ipad::after{left:-3px;top:220px;width:3px;height:90px}
+.ipad-cam{position:absolute;top:50%;left:9px;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:#080a10;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.07)}
+.screen{
+  position:relative;width:100%;height:100%;border-radius:26px;overflow:hidden;
+  background:
+    radial-gradient(1100px 700px at 8% -10%,rgba(80,114,255,0.55),transparent 60%),
+    radial-gradient(900px 800px at 100% 110%,rgba(236,72,153,0.32),transparent 55%),
+    radial-gradient(800px 600px at 65% 45%,rgba(56,88,233,0.28),transparent 60%),
+    linear-gradient(135deg,#1e1b4b 0%,#1e3a8a 35%,#3b1d72 70%,#4c1d4f 100%);
+}
+.screen::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(2px 2px at 18% 22%,rgba(255,255,255,0.7),transparent 60%),
+    radial-gradient(1.5px 1.5px at 40% 70%,rgba(255,255,255,0.4),transparent 60%),
+    radial-gradient(1px 1px at 78% 30%,rgba(255,255,255,0.6),transparent 60%),
+    radial-gradient(1.5px 1.5px at 92% 88%,rgba(255,255,255,0.5),transparent 60%);
+  mix-blend-mode:screen;
+}
+
+/* Top status bar */
+.statusbar{
+  position:absolute;top:0;left:0;right:0;height:42px;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;color:#fff;font-size:13px;font-weight:600;letter-spacing:-0.01em;
+  background:linear-gradient(180deg,rgba(8,12,24,0.32),rgba(8,12,24,0));
+  pointer-events:none;
+}
+.statusbar .l{display:flex;align-items:center;gap:8px}
+.statusbar .r{display:flex;align-items:center;gap:14px}
+.statusbar .signal{display:inline-flex;align-items:flex-end;gap:1.5px;height:10px}
+.statusbar .signal span{width:2.5px;background:#fff;border-radius:1px}
+.statusbar .signal span:nth-child(1){height:3px}
+.statusbar .signal span:nth-child(2){height:5px}
+.statusbar .signal span:nth-child(3){height:7px}
+.statusbar .signal span:nth-child(4){height:9px}
+.batt{position:relative;width:24px;height:11px;border:1.2px solid rgba(255,255,255,0.7);border-radius:3px;display:inline-flex;align-items:center;padding:1px}
+.batt::after{content:"";position:absolute;right:-3px;top:3px;width:2px;height:5px;background:rgba(255,255,255,0.7);border-radius:0 1.5px 1.5px 0}
+.batt span{display:block;width:14px;height:6px;background:#fff;border-radius:1.5px}
+
+/* === TOP CHROME (slim, glass) === */
+.topbar{
+  position:absolute;top:42px;left:18px;right:18px;height:46px;z-index:46;
+  display:flex;align-items:center;gap:12px;
+  background:var(--glass-strong);
+  backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+  border:1px solid var(--glass-border);
+  border-radius:16px;
+  padding:5px 8px 5px 14px;
+  box-shadow:0 12px 30px rgba(2,8,28,0.28),0 1px 0 rgba(255,255,255,0.4) inset;
+}
+.tb-name{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 12px;border-radius:10px;
+  background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);
+  font-size:13px;font-weight:600;color:var(--ink);max-width:280px;min-width:0;
+}
+.tb-name .dot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0}
+.tb-name.saved .dot{background:var(--ok)}
+.tb-name .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-name .pill{font-size:10px;font-weight:700;color:var(--warn);background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:5px;letter-spacing:0.04em;text-transform:uppercase;flex-shrink:0}
+.tb-name.saved .pill{color:var(--ok);background:rgba(14,169,109,0.12)}
+.tb-url{
+  flex:1;min-width:0;display:flex;align-items:center;gap:8px;
+  background:rgba(15,23,42,0.05);border:1px solid rgba(15,23,42,0.08);
+  border-radius:10px;padding:7px 12px;font-size:13px;color:var(--ink-2);
+  font-family:'Inter',sans-serif;
+}
+.tb-url .lock{color:var(--ink-3)}
+.tb-url .path{color:var(--ink);font-weight:500;flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tb-url .host{color:var(--ink-3)}
+.tb-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:9px;background:transparent;border:none;cursor:pointer;
+  color:var(--ink-2);font-size:13px;font-weight:500;font-family:inherit;
+}
+.tb-btn:hover{background:rgba(15,23,42,0.06);color:var(--ink)}
+.tb-btn.primary{
+  background:var(--ink);color:#fff;font-weight:600;padding:7px 14px;
+}
+.tb-btn.primary:hover{background:#1a2235}
+.tb-btn .ico{width:16px;height:16px}
+.tb-divider{width:1px;height:22px;background:rgba(15,23,42,0.12)}
+
+/* === STAGE WORKSPACE === */
+.stage-wrap{
+  position:absolute;left:0;right:0;top:88px;bottom:110px;
+  display:flex;align-items:stretch;
+}
+
+/* Recessed thumbnails on the left */
+.recess{
+  width:170px;flex-shrink:0;
+  padding:60px 0 0 22px;display:flex;flex-direction:column;gap:14px;align-items:flex-end;
+}
+.thumb{
+  width:148px;height:96px;
+  border-radius:12px;overflow:hidden;
+  position:relative;cursor:pointer;
+  background:#fff;
+  box-shadow:0 6px 20px rgba(2,8,28,0.35),0 1.5px 4px rgba(2,8,28,0.18);
+  border:1px solid rgba(255,255,255,0.18);
+  opacity:0.85;
+  transform-origin:right center;
+  transition:opacity .22s ease, transform .22s ease;
+}
+.thumb:hover{opacity:1;transform:translateX(-4px) scale(1.03)}
+.thumb .tb-chrome{height:14px;background:#1a1d29;display:flex;align-items:center;padding:0 6px;gap:3px}
+.thumb .tb-chrome span{width:4px;height:4px;border-radius:50%;background:#ff5f57}
+.thumb .tb-chrome span:nth-child(2){background:#febc2e}
+.thumb .tb-chrome span:nth-child(3){background:#28c840}
+.thumb .body{height:calc(100% - 14px);position:relative;overflow:hidden}
+.thumb-1 .body{background:linear-gradient(135deg,#0b3b8c 0%,#2563eb 60%,#3b82f6 100%);display:flex;align-items:center;justify-content:center}
+.thumb-1 .body::after{content:"My Coffee Shop";color:#fff;font-size:9px;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:0.02em;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+.thumb-2 .body{background:linear-gradient(135deg,#fef3c7 0%,#fbbf24 70%);display:flex;align-items:center;justify-content:center;color:#451a03}
+.thumb-2 .body::after{content:"Gaming News";font-size:9px;font-weight:700;font-family:'Inter',sans-serif}
+.thumb .label{
+  position:absolute;bottom:-22px;right:8px;
+  font-size:11px;color:#cbd5e1;font-weight:500;
+  text-shadow:0 1px 2px rgba(0,0,0,0.45);
+}
+.thumb .badge{position:absolute;top:18px;left:6px;
+  background:rgba(255,255,255,0.95);color:var(--ink);
+  font-size:9px;font-weight:600;padding:2px 5px;border-radius:4px;
+  text-shadow:none;
+}
+.recess .stack-hint{
+  width:148px;text-align:center;color:#94a3b8;font-size:11px;font-weight:500;margin-top:6px;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+
+/* Stage: the active iframe, center-stage */
+.stage{
+  flex:1;display:flex;align-items:flex-start;justify-content:center;
+  padding:38px 70px 0 36px;position:relative;
+}
+.iframe-window{
+  width:100%;max-width:980px;height:100%;
+  border-radius:16px;overflow:hidden;
+  background:#fff;
+  box-shadow:0 30px 80px rgba(2,8,28,0.55),0 12px 30px rgba(2,8,28,0.35),0 0 0 1px rgba(255,255,255,0.06);
+  position:relative;
+  display:flex;flex-direction:column;
+}
+.iw-chrome{
+  height:30px;background:#f6f7f9;border-bottom:1px solid rgba(15,23,42,0.08);
+  display:flex;align-items:center;padding:0 12px;gap:8px;font-size:11px;color:var(--ink-3);font-weight:500;
+}
+.iw-chrome .dots{display:flex;gap:5px}
+.iw-chrome .dots span{width:9px;height:9px;border-radius:50%;background:#ff5f57}
+.iw-chrome .dots span:nth-child(2){background:#febc2e}
+.iw-chrome .dots span:nth-child(3){background:#28c840}
+.iw-chrome .center{flex:1;text-align:center;color:var(--ink-3)}
+.iw-chrome .right{display:flex;gap:8px;color:var(--ink-4)}
+.iw-body{flex:1;background:#fff;position:relative;overflow:hidden}
+
+/* Mock WordPress site */
+.wp-site{height:100%;display:flex;flex-direction:column;background:#fff;color:#1a1a1a;font-family:'Inter',sans-serif}
+.wp-nav{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid #e5e7eb;background:#fff}
+.wp-logo{font-family:'Inter',sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.01em;color:#0a3a82}
+.wp-menu{display:flex;gap:24px;font-size:13px;color:#374151;font-weight:500}
+.wp-menu a{color:inherit;text-decoration:none}
+.wp-menu a:hover{color:#0a3a82}
+.wp-cta{padding:8px 18px;border-radius:6px;background:#0a3a82;color:#fff;font-size:13px;font-weight:600}
+.wp-hero{
+  flex:1;padding:48px 56px;display:flex;flex-direction:column;justify-content:center;gap:24px;
+  background:linear-gradient(135deg,#fef3c7 0%,#fff7ed 50%,#fefce8 100%);
+}
+.wp-hero .eyebrow{font-size:12px;font-weight:600;color:#92400e;text-transform:uppercase;letter-spacing:0.12em}
+.wp-hero h1{margin:0;font-size:38px;line-height:1.1;font-weight:700;color:#1c1917;letter-spacing:-0.02em;max-width:560px}
+.wp-hero p{margin:0;font-size:15px;color:#57534e;max-width:520px;line-height:1.55}
+.wp-hero .row{display:flex;gap:12px}
+.wp-hero .row a{padding:10px 22px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none}
+.wp-hero .row a:first-child{background:#1c1917;color:#fff}
+.wp-hero .row a:last-child{border:1.5px solid #1c1917;color:#1c1917}
+.wp-grid{padding:0 56px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.wp-card{padding:18px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+.wp-card .k{font-size:11px;font-weight:700;color:#0a3a82;letter-spacing:0.08em;text-transform:uppercase}
+.wp-card .h{margin:6px 0 4px;font-size:14px;font-weight:600;color:#1c1917}
+.wp-card .b{font-size:12px;color:#6b7280;line-height:1.5}
+
+/* === BOTTOM DOCK === */
+.dock{
+  position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:44;
+  display:flex;align-items:center;gap:10px;
+  background:var(--glass-strong);
+  backdrop-filter:blur(34px) saturate(190%);-webkit-backdrop-filter:blur(34px) saturate(190%);
+  border:1px solid var(--glass-border);
+  border-radius:22px;padding:10px 14px;
+  box-shadow:0 18px 40px rgba(2,8,28,0.4),0 2px 0 rgba(255,255,255,0.5) inset;
+}
+.dock-app{
+  width:54px;height:54px;border-radius:13px;overflow:hidden;
+  position:relative;cursor:pointer;flex-shrink:0;
+  background:#fff;box-shadow:0 2px 6px rgba(2,8,28,0.18);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;text-align:center;line-height:1.1;padding:4px;
+  transition:transform .18s ease;
+}
+.dock-app:hover{transform:translateY(-4px)}
+.dock-app .name{font-size:9px;letter-spacing:0.02em}
+.dock-app.active::after{
+  content:"";position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:#fff;
+  box-shadow:0 0 0 2px rgba(255,255,255,0.25);
+}
+.da-coffee{background:linear-gradient(135deg,#0b3b8c,#2563eb)}
+.da-coffee::before{content:"☕";position:absolute;font-size:22px;top:8px;left:50%;transform:translateX(-50%)}
+.da-coffee .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px}
+.da-gaming{background:linear-gradient(135deg,#1e1b4b,#7c3aed);color:#fde68a}
+.da-gaming::before{content:"🎮";position:absolute;font-size:22px;top:8px;left:50%;transform:translateX(-50%);filter:grayscale(0.1)}
+.da-gaming .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px;color:#fde68a}
+.da-resume{background:linear-gradient(135deg,#0f172a,#475569)}
+.da-resume::before{content:"AK";position:absolute;font-size:18px;font-weight:800;top:14px;left:50%;transform:translateX(-50%);color:#e2e8f0;letter-spacing:-0.02em}
+.da-resume .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px;color:#e2e8f0}
+.da-art{background:linear-gradient(135deg,#fef3c7,#f59e0b);color:#451a03}
+.da-art::before{content:"🎨";position:absolute;font-size:22px;top:8px;left:50%;transform:translateX(-50%)}
+.da-art .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px;color:#451a03}
+.da-photo{background:linear-gradient(135deg,#1f2937,#0b0d12)}
+.da-photo::before{content:"📷";position:absolute;font-size:22px;top:8px;left:50%;transform:translateX(-50%)}
+.da-photo .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px;color:#e5e7eb}
+.da-unsaved{background:repeating-linear-gradient(45deg,#fef3c7 0 6px,#fed7aa 6px 12px);color:#7c2d12;border:1.5px dashed #f59e0b}
+.da-unsaved::before{content:"?";position:absolute;font-size:26px;font-weight:800;top:8px;left:50%;transform:translateX(-50%);color:#9a3412}
+.da-unsaved .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px;color:#7c2d12}
+
+.dock-sep{width:1px;height:34px;background:rgba(15,23,42,0.12)}
+.dock-tool{
+  width:54px;height:54px;border-radius:13px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:rgba(255,255,255,0.65);border:1px solid rgba(15,23,42,0.08);
+  cursor:pointer;color:var(--ink);font-size:9px;font-weight:600;
+  transition:transform .18s ease,background .15s ease;
+}
+.dock-tool:hover{transform:translateY(-4px);background:#fff}
+.dock-tool .ico{width:22px;height:22px;color:var(--ink)}
+.dock-tool.primary{background:linear-gradient(135deg,#3858e9,#2540c7);color:#fff;border-color:rgba(255,255,255,0.2)}
+.dock-tool.primary .ico{color:#fff}
+
+/* Right-edge pull-tab for Site Manager */
+.pulltab{
+  position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:45;
+  width:34px;height:120px;
+  background:var(--glass-strong);
+  backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+  border:1px solid var(--glass-border);border-right:none;
+  border-radius:16px 0 0 16px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  cursor:pointer;color:var(--ink-2);
+  box-shadow:-8px 0 24px rgba(2,8,28,0.25);
+  font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+  writing-mode:vertical-rl;text-orientation:mixed;
+}
+.pulltab .grip{
+  width:4px;height:34px;background:rgba(15,23,42,0.15);border-radius:4px;
+  writing-mode:initial;
+}
+
+/* Control Center button (top right) */
+.cc-btn{
+  position:absolute;top:48px;right:30px;z-index:48;
+  width:34px;height:34px;border-radius:10px;
+  background:var(--glass-strong);backdrop-filter:blur(28px) saturate(180%);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);
+  border:1px solid var(--glass-border);
+  display:flex;align-items:center;justify-content:center;color:var(--ink-2);
+  box-shadow:0 8px 20px rgba(2,8,28,0.2);cursor:pointer;
+}
+.cc-btn .ico{width:18px;height:18px}
+
+/* === STATE B: Booting (right column on first canvas) === */
+.boot-thumb{
+  width:148px;height:96px;
+  border-radius:12px;overflow:hidden;
+  background:#0a0e1a;
+  box-shadow:0 6px 20px rgba(2,8,28,0.35);
+  border:1.5px solid rgba(56,88,233,0.4);
+  position:relative;
+  display:flex;flex-direction:column;
+}
+.boot-thumb .pulse{
+  position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 60%,rgba(56,88,233,0.45),transparent 60%);
+  animation:pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
+.boot-thumb .ring{
+  position:absolute;top:32%;left:50%;transform:translate(-50%,-50%);
+  width:30px;height:30px;border-radius:50%;
+  border:2.5px solid rgba(255,255,255,0.18);
+  border-top-color:#7e9bff;
+  animation:spin 1.1s linear infinite;
+}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.boot-thumb .lbl{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#cbd5e1;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em}
+
+/* === Z-INDEX overlays (Launcher state and Site Manager state) === */
+/* Launcher overlay scene */
+.launcher-scene .stage,.launcher-scene .recess,.launcher-scene .pulltab{filter:blur(2px) brightness(0.85)}
+.launcher{
+  position:absolute;top:96px;left:50%;transform:translateX(-50%);
+  width:1080px;height:680px;z-index:60;
+  background:var(--glass-strong);
+  backdrop-filter:blur(40px) saturate(190%);-webkit-backdrop-filter:blur(40px) saturate(190%);
+  border:1px solid var(--glass-border);
+  border-radius:24px;
+  box-shadow:0 30px 90px rgba(2,8,28,0.6),0 1px 0 rgba(255,255,255,0.55) inset;
+  overflow:hidden;
+  display:flex;
+}
+.launcher-side{
+  width:230px;border-right:1px solid rgba(15,23,42,0.08);
+  background:rgba(255,255,255,0.4);
+  display:flex;flex-direction:column;padding:18px 14px;gap:6px;
+}
+.launcher-side h4{margin:0 0 8px;padding:0 8px;font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:0.1em;text-transform:uppercase}
+.ls-item{
+  display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;
+  font-size:13px;color:var(--ink);font-weight:500;cursor:pointer;
+}
+.ls-item:hover{background:rgba(15,23,42,0.05)}
+.ls-item.active{background:rgba(56,88,233,0.13);color:#1d2a6b;font-weight:600}
+.ls-item .ico{width:15px;height:15px;color:var(--ink-2)}
+.ls-item.active .ico{color:#3858e9}
+.ls-item .ct{margin-left:auto;font-size:11px;color:var(--ink-3);font-weight:500}
+.launcher-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.lm-head{
+  padding:18px 22px 14px;border-bottom:1px solid rgba(15,23,42,0.08);
+  display:flex;align-items:center;gap:12px;
+}
+.lm-head h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-0.01em;color:var(--ink);flex:1}
+.lm-search{
+  display:flex;align-items:center;gap:8px;background:rgba(15,23,42,0.06);
+  border:1px solid rgba(15,23,42,0.08);border-radius:9px;padding:6px 10px;
+  font-size:12.5px;color:var(--ink-2);min-width:260px;
+}
+.lm-search input{background:transparent;border:none;outline:none;font:inherit;color:var(--ink);flex:1;min-width:0}
+.lm-close{width:30px;height:30px;border-radius:50%;background:rgba(15,23,42,0.08);display:flex;align-items:center;justify-content:center;color:var(--ink-2);cursor:pointer}
+.lm-filters{padding:12px 22px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(15,23,42,0.06)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;
+  font-size:12px;color:var(--ink-2);background:rgba(15,23,42,0.05);
+  border:1px solid transparent;cursor:pointer;font-weight:500;
+}
+.chip.active{background:var(--ink);color:#fff;font-weight:600}
+.chip .ct{color:var(--ink-4);font-weight:500}
+.chip.active .ct{color:rgba(255,255,255,0.7)}
+.lm-grid{flex:1;overflow:auto;padding:14px 22px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-content:start}
+.bp{
+  border:1px solid rgba(15,23,42,0.08);background:rgba(255,255,255,0.7);border-radius:11px;
+  padding:10px;display:flex;gap:10px;cursor:pointer;
+  transition:transform .14s ease,box-shadow .14s ease;
+}
+.bp:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(2,8,28,0.1)}
+.bp .thumb{
+  width:54px;height:54px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+}
+.bp h5{margin:0 0 3px;font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.25;letter-spacing:-0.005em}
+.bp p{margin:0 0 5px;font-size:11px;color:var(--ink-3);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bp .tags{display:flex;gap:4px;flex-wrap:wrap}
+.bp .tag{font-size:9.5px;color:var(--ink-3);background:rgba(15,23,42,0.05);padding:1.5px 5px;border-radius:3px;font-weight:500}
+
+/* New playground sources mini-grid */
+.sources{
+  padding:14px 22px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  border-bottom:1px solid rgba(15,23,42,0.06);background:rgba(255,255,255,0.35);
+}
+.src{
+  display:flex;align-items:center;gap:10px;padding:9px 11px;
+  background:rgba(255,255,255,0.7);border:1px solid rgba(15,23,42,0.08);
+  border-radius:9px;cursor:pointer;
+}
+.src:hover{background:#fff;border-color:rgba(15,23,42,0.16)}
+.src .ico{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(56,88,233,0.12);color:#3858e9;flex-shrink:0}
+.src .nm{font-size:12px;font-weight:600;color:var(--ink);line-height:1.15}
+.src .sub{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+
+/* === Site Manager pull-tab (state C: open Site Manager sheet) === */
+.sm-sheet{
+  position:absolute;top:96px;right:18px;bottom:110px;width:440px;z-index:55;
+  background:var(--glass-strong);
+  backdrop-filter:blur(40px) saturate(190%);-webkit-backdrop-filter:blur(40px) saturate(190%);
+  border:1px solid var(--glass-border);
+  border-radius:18px;
+  box-shadow:-12px 12px 36px rgba(2,8,28,0.4),0 1px 0 rgba(255,255,255,0.5) inset;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sm-head{padding:14px 16px 0;display:flex;flex-direction:column;gap:10px}
+.sm-titlerow{display:flex;align-items:center;gap:10px}
+.sm-titlerow h3{margin:0;font-size:14px;font-weight:600;color:var(--ink);flex:1;letter-spacing:-0.005em}
+.sm-titlerow input{background:transparent;border:none;outline:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink);flex:1;padding:2px 0;border-bottom:1px dashed transparent}
+.sm-titlerow input:hover,.sm-titlerow input:focus{border-bottom-color:rgba(15,23,42,0.2)}
+.sm-actions{display:flex;gap:6px}
+.sm-iconbtn{
+  width:28px;height:28px;border-radius:7px;background:rgba(15,23,42,0.06);
+  display:flex;align-items:center;justify-content:center;color:var(--ink-2);cursor:pointer;
+}
+.sm-iconbtn:hover{background:rgba(15,23,42,0.12);color:var(--ink)}
+.sm-shortcuts{display:flex;gap:6px}
+.sm-sc{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:7px 10px;background:rgba(255,255,255,0.55);border:1px solid rgba(15,23,42,0.08);
+  border-radius:9px;font-size:12px;font-weight:500;color:var(--ink);cursor:pointer;
+}
+.sm-sc:hover{background:#fff}
+.sm-sc .ico{width:14px;height:14px;color:var(--ink-2)}
+.sm-tabs{
+  display:flex;gap:2px;padding:8px 12px 0;border-bottom:1px solid rgba(15,23,42,0.08);
+  background:rgba(255,255,255,0.25);
+}
+.sm-tab{
+  display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:12px;font-weight:500;
+  color:var(--ink-3);cursor:pointer;border-radius:8px 8px 0 0;border-bottom:2px solid transparent;
+}
+.sm-tab .ico{width:14px;height:14px}
+.sm-tab.active{color:var(--ink);font-weight:600;border-bottom-color:#3858e9;background:rgba(255,255,255,0.7)}
+.sm-tab .ico-{display:none}
+.sm-body{flex:1;overflow:auto;padding:14px 16px}
+
+/* settings tab */
+.set-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.set-row label{font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:0.04em;text-transform:uppercase}
+.set-row .seg{display:flex;gap:0;background:rgba(15,23,42,0.05);border-radius:9px;padding:3px;border:1px solid rgba(15,23,42,0.08)}
+.set-row .seg button{
+  flex:1;border:none;background:transparent;padding:6px 10px;border-radius:6px;
+  font-family:inherit;font-size:12px;font-weight:500;color:var(--ink-2);cursor:pointer;
+}
+.set-row .seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+.set-row .field{
+  background:#fff;border:1px solid rgba(15,23,42,0.12);border-radius:9px;padding:8px 12px;font-size:13px;color:var(--ink);font-family:inherit;
+}
+.set-toggle{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);border-radius:9px}
+.set-toggle .lab{flex:1}
+.set-toggle .lab .nm{font-size:13px;font-weight:600;color:var(--ink)}
+.set-toggle .lab .ds{font-size:11px;color:var(--ink-3);margin-top:2px}
+.switch{width:36px;height:22px;border-radius:99px;background:rgba(15,23,42,0.15);position:relative;cursor:pointer;flex-shrink:0}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.18)}
+.switch.on{background:var(--ok)}
+.switch.on::after{left:16px}
+.danger-zone{
+  margin-top:14px;padding:12px;border-radius:11px;
+  background:linear-gradient(180deg,rgba(226,52,52,0.05),rgba(226,52,52,0.02));
+  border:1px solid rgba(226,52,52,0.18);
+}
+.danger-zone .h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#9a1c1c;letter-spacing:-0.005em}
+.danger-zone .h .ico{width:14px;height:14px}
+.danger-zone p{margin:6px 0 10px;font-size:11.5px;color:#7f1414;line-height:1.4}
+.danger-zone button{
+  width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(226,52,52,0.4);
+  background:#fff;color:#9a1c1c;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.danger-zone button:hover{background:#fff7f7}
+
+/* === MOBILE (390x844) === */
+.iphone{
+  --w:390px; --h:844px;
+  width:var(--w);height:var(--h);
+  border-radius:50px;padding:11px;
+  background:linear-gradient(180deg,#1c2230,#0f131c);
+  box-shadow:0 30px 60px rgba(2,8,28,0.5),inset 0 0 0 1.5px rgba(255,255,255,0.04);
+  position:relative;margin:0 auto;
+}
+.iphone .screen{border-radius:39px;
+  background:
+    radial-gradient(800px 600px at 10% 0%,rgba(80,114,255,0.55),transparent 60%),
+    radial-gradient(700px 700px at 100% 100%,rgba(236,72,153,0.32),transparent 55%),
+    linear-gradient(135deg,#1e1b4b 0%,#1e3a8a 50%,#3b1d72 100%);
+}
+.notch{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:50;
+  width:120px;height:30px;border-radius:99px;background:#000;
+}
+.iphone .statusbar{height:48px;padding:0 28px;font-size:14px;align-items:flex-end;padding-bottom:6px}
+.m-top{
+  position:absolute;top:54px;left:14px;right:14px;height:42px;z-index:46;
+  display:flex;align-items:center;gap:8px;
+  background:var(--glass-strong);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+  border:1px solid var(--glass-border);border-radius:14px;padding:5px 7px 5px 11px;
+  box-shadow:0 10px 24px rgba(2,8,28,0.28),0 1px 0 rgba(255,255,255,0.4) inset;
+}
+.m-top .nm{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink);flex:1;min-width:0;background:rgba(255,255,255,0.55);border-radius:8px;padding:4px 9px;border:1px solid rgba(15,23,42,0.08);overflow:hidden}
+.m-top .nm .dot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0}
+.m-top .nm .nm-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-top .ib{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+.m-stage{
+  position:absolute;top:104px;left:14px;right:14px;bottom:128px;z-index:30;
+  border-radius:18px;overflow:hidden;background:#fff;
+  box-shadow:0 14px 36px rgba(2,8,28,0.45),0 0 0 1px rgba(255,255,255,0.08);
+}
+.m-stage .iw-chrome{height:24px;font-size:10px}
+.m-stage .iw-chrome .dots span{width:7px;height:7px}
+.m-stage .wp-nav{padding:14px 16px}
+.m-stage .wp-logo{font-size:13px}
+.m-stage .wp-menu{display:none}
+.m-stage .wp-cta{padding:6px 12px;font-size:11px}
+.m-stage .wp-hero{padding:24px 20px;gap:12px}
+.m-stage .wp-hero h1{font-size:22px}
+.m-stage .wp-hero p{font-size:12px}
+.m-stage .wp-hero .row a{padding:7px 14px;font-size:11px}
+.m-stage .wp-grid{padding:0 20px 18px;grid-template-columns:1fr;gap:8px}
+.m-stage .wp-card{padding:12px}
+
+/* Mobile recessed strip on left */
+.m-recess{
+  position:absolute;top:108px;bottom:128px;left:0;width:14px;z-index:35;
+  display:flex;flex-direction:column;gap:6px;padding-top:30px;align-items:flex-start;
+}
+.m-recess .thumb{
+  width:8px;height:42px;border-radius:0 4px 4px 0;opacity:0.65;
+}
+.m-recess .thumb-1{background:linear-gradient(135deg,#0b3b8c,#3b82f6)}
+.m-recess .thumb-2{background:linear-gradient(135deg,#fbbf24,#f97316)}
+
+/* Mobile dock */
+.m-dock{
+  position:absolute;left:14px;right:14px;bottom:18px;z-index:44;
+  display:flex;align-items:center;gap:6px;
+  background:var(--glass-strong);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+  border:1px solid var(--glass-border);border-radius:18px;padding:7px;
+  box-shadow:0 12px 30px rgba(2,8,28,0.4),0 1px 0 rgba(255,255,255,0.5) inset;
+}
+.m-dock .dock-app{width:42px;height:42px;border-radius:10px}
+.m-dock .dock-app::before{font-size:18px;top:6px}
+.m-dock .dock-app .name{font-size:7px;bottom:4px}
+.m-dock .dock-sep{height:28px}
+.m-dock .dock-tool{width:42px;height:42px;border-radius:10px}
+.m-dock .dock-tool .ico{width:18px;height:18px}
+.m-dock .dock-tool .lab{display:none}
+
+.m-cc{position:absolute;top:62px;right:18px;z-index:48;width:26px;height:26px;border-radius:8px;background:var(--glass-strong);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center}
+
+/* === Comparison row: device-side captions === */
+.devices-row{
+  display:grid;grid-template-columns:1fr 410px;gap:32px;align-items:flex-start;
+}
+.devices-row .col-cap{padding-top:6px}
+
+/* === Section helpers === */
+section{padding:0}
+section h2{color:#fff;font-size:18px;font-weight:600;letter-spacing:-0.01em;margin:0 0 6px}
+section p.lede{color:#94a3b8;font-size:13px;line-height:1.55;margin:0 0 18px;max-width:760px}
+
+/* Annotation labels */
+.anno{
+  position:absolute;display:flex;align-items:center;gap:6px;
+  font-size:10.5px;font-weight:600;letter-spacing:0.04em;color:#94a3b8;
+  background:rgba(2,8,24,0.6);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.08);
+  padding:4px 9px;border-radius:99px;z-index:80;
+}
+.anno .num{
+  width:16px;height:16px;border-radius:50%;background:#3858e9;color:#fff;display:inline-flex;
+  align-items:center;justify-content:center;font-size:9.5px;font-weight:700;
+}
+
+/* === Affordance counter chip === */
+.count-pill{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;
+  background:rgba(56,88,233,0.18);color:#bfd0ff;font-size:11.5px;font-weight:600;
+  letter-spacing:0.04em;border:1px solid rgba(56,88,233,0.25);
+}
+.count-pill strong{color:#fff;font-weight:700}
+
+/* === Confirm sheet === */
+.confirm-scrim{
+  position:absolute;inset:0;z-index:90;background:rgba(2,8,24,0.55);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;
+}
+.confirm{
+  width:460px;border-radius:18px;background:#fff;
+  box-shadow:0 30px 80px rgba(2,8,28,0.6);
+  padding:22px;display:flex;flex-direction:column;gap:14px;
+}
+.confirm h3{margin:0;font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
+.confirm h3 .ico{color:var(--danger);width:18px;height:18px}
+.confirm p{margin:0;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.confirm .changes{background:rgba(15,23,42,0.04);border-radius:9px;padding:10px 12px;font-size:12px;display:flex;flex-direction:column;gap:5px}
+.confirm .ch{display:flex;justify-content:space-between;color:var(--ink-2)}
+.confirm .ch span:last-child{color:var(--ink);font-weight:600}
+.confirm .typer{background:rgba(15,23,42,0.04);border:1.5px solid rgba(226,52,52,0.4);border-radius:9px;padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink);display:flex;align-items:center;gap:6px}
+.confirm .typer .ph{color:var(--ink-3)}
+.confirm .typer .ty{color:var(--danger);font-weight:600}
+.confirm .typer .caret{width:1.5px;height:13px;background:var(--danger);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.confirm .row{display:flex;gap:8px}
+.confirm .btn{flex:1;padding:9px 14px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;border:none;font-family:inherit}
+.confirm .btn.ghost{background:rgba(15,23,42,0.06);color:var(--ink)}
+.confirm .btn.danger{background:var(--danger);color:#fff}
+
+/* === Boot scene === */
+.booting-iframe{
+  background:linear-gradient(135deg,#0a0e1a 0%,#1a1f36 100%);
+  color:#cbd5e1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  font-family:'Inter',sans-serif;
+}
+.booting-iframe .ring{
+  width:64px;height:64px;border-radius:50%;
+  border:3.5px solid rgba(255,255,255,0.1);
+  border-top-color:#7e9bff;animation:spin 1.05s linear infinite;
+  position:static;transform:none;
+}
+.booting-iframe .ti{font-size:15px;font-weight:600;color:#fff}
+.booting-iframe .sub{font-size:12.5px;color:#94a3b8;margin-top:-12px}
+.booting-iframe .steps{
+  margin-top:16px;display:flex;flex-direction:column;gap:6px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:#94a3b8;
+  background:rgba(0,0,0,0.25);padding:12px 18px;border-radius:10px;min-width:340px;
+}
+.booting-iframe .steps .ln{display:flex;align-items:center;gap:8px}
+.booting-iframe .steps .ln .ok{color:#34d399}
+.booting-iframe .steps .ln .now{color:#fbbf24}
+.booting-iframe .steps .ln .pending{color:#475569}
+
+/* fullscreen hint */
+.fs-hint{
+  position:absolute;bottom:14px;right:14px;z-index:60;
+  display:flex;align-items:center;gap:6px;
+  background:rgba(2,8,24,0.55);color:#cbd5e1;
+  border:1px solid rgba(255,255,255,0.1);
+  padding:5px 10px;border-radius:8px;font-size:11px;font-weight:500;
+  backdrop-filter:blur(8px);
+}
+.fs-hint kbd{
+  font-family:'JetBrains Mono',monospace;font-size:10px;
+  background:rgba(255,255,255,0.12);padding:1.5px 5px;border-radius:4px;color:#fff;
+}
+
+/* === Fullscreen iframe state === */
+.fullscreen-banner{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:70;
+  display:flex;align-items:center;gap:10px;
+  background:rgba(2,8,24,0.75);color:#fff;
+  border:1px solid rgba(255,255,255,0.12);
+  padding:8px 14px;border-radius:99px;font-size:12px;font-weight:500;
+  backdrop-filter:blur(12px);
+  box-shadow:0 8px 20px rgba(0,0,0,0.3);
+}
+.fullscreen-banner kbd{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  background:rgba(255,255,255,0.15);padding:2px 6px;border-radius:4px;
+}
+
+/* Inner site - alt theme for variety */
+.wp-site.theme-coffee .wp-nav{background:#fef3c7;border-bottom-color:#fed7aa}
+.wp-site.theme-coffee .wp-logo{color:#92400e}
+.wp-site.theme-coffee .wp-menu{color:#78350f}
+.wp-site.theme-coffee .wp-cta{background:#92400e}
+.wp-site.theme-coffee .wp-hero{background:linear-gradient(135deg,#fff7ed 0%,#fef3c7 100%)}
+.wp-site.theme-coffee .wp-hero .eyebrow{color:#9a3412}
+
+/* === Codepad inner === */
+.bp-editor{
+  height:100%;background:#0d1117;color:#e6edf3;
+  font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;
+  padding:18px 20px;overflow:auto;
+}
+.bp-editor .ln{display:flex;gap:14px;white-space:pre}
+.bp-editor .ln .gut{color:#484f58;width:22px;text-align:right;flex-shrink:0;user-select:none}
+.bp-editor .ln .code{flex:1}
+.bp-editor .k{color:#79c0ff}
+.bp-editor .s{color:#a5d6ff}
+.bp-editor .n{color:#79c0ff}
+.bp-editor .c{color:#8b949e;font-style:italic}
+.bp-editor .p{color:#ffa657}
+
+/* Three-state grid row */
+.three-up{display:grid;grid-template-columns:1fr;gap:32px}
+
+/* === Logs panel content === */
+.logs{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;color:var(--ink-2);background:rgba(15,23,42,0.03);border-radius:10px;padding:12px 14px;border:1px solid rgba(15,23,42,0.06)}
+.logs .ln{display:flex;gap:8px;padding:1px 0;align-items:flex-start}
+.logs .ts{color:var(--ink-3);flex-shrink:0}
+.logs .lvl{font-weight:700;flex-shrink:0;width:46px}
+.logs .lvl.E{color:#9a1c1c}
+.logs .lvl.W{color:#9a6c1c}
+.logs .lvl.I{color:#1e6a3a}
+.logs .lvl.D{color:#475569}
+.logs .msg{color:var(--ink-2);min-width:0;word-break:break-word}
+
+/* Files panel */
+.files{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink);background:rgba(15,23,42,0.03);border-radius:10px;padding:6px 8px;border:1px solid rgba(15,23,42,0.06)}
+.files .fl{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:5px;cursor:pointer}
+.files .fl:hover{background:rgba(15,23,42,0.05)}
+.files .fl.dir{font-weight:600}
+.files .fl.active{background:rgba(56,88,233,0.13);color:#1d2a6b;font-weight:600}
+.files .fl .ico{width:13px;height:13px;color:var(--ink-3);flex-shrink:0}
+.files .fl.dir .ico{color:#f59e0b}
+.files .indent{padding-left:14px}
+
+/* DB rows */
+.db{background:rgba(15,23,42,0.03);border-radius:10px;padding:10px;border:1px solid rgba(15,23,42,0.06);font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.db .tbl{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:5px;cursor:pointer;color:var(--ink)}
+.db .tbl:hover{background:rgba(15,23,42,0.05)}
+.db .tbl .ico{width:13px;height:13px;color:var(--ink-3)}
+.db .tbl .rows{margin-left:auto;color:var(--ink-3);font-size:10.5px}
+
+/* Bp panel */
+.bp-panel-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.bp-panel-head h4{margin:0;font-size:12px;font-weight:600;color:var(--ink);flex:1;letter-spacing:-0.005em}
+.bp-tinybtn{padding:4px 9px;background:rgba(15,23,42,0.06);border:none;border-radius:6px;font-size:11px;font-weight:500;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-family:inherit}
+.bp-tinybtn .ico{width:11px;height:11px}
+.bp-tinybtn.primary{background:#3858e9;color:#fff;font-weight:600}
+.bp-mini{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;font-size:10.5px;border-radius:9px;padding:10px 12px;line-height:1.55;overflow:auto;max-height:280px}
+.bp-mini .k{color:#79c0ff}
+.bp-mini .s{color:#a5d6ff}
+.bp-mini .n{color:#ffa657}
+.bp-mini .c{color:#8b949e;font-style:italic}
+
+/* extra dock thumbnail look for "Welcome" */
+.da-welcome{background:linear-gradient(135deg,#1e40af,#7c3aed)}
+.da-welcome::before{content:"W";position:absolute;font-size:24px;font-weight:800;top:10px;left:50%;transform:translateX(-50%);color:#fff;letter-spacing:-0.02em}
+.da-welcome .name{position:absolute;bottom:6px;left:0;right:0;font-size:8px;color:#fff}
+
+/* Toast */
+.toast{
+  position:absolute;left:50%;bottom:120px;transform:translateX(-50%);z-index:80;
+  display:flex;align-items:center;gap:10px;
+  background:rgba(2,8,24,0.85);color:#fff;
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:99px;padding:9px 16px;font-size:12.5px;font-weight:500;
+  backdrop-filter:blur(14px);
+  box-shadow:0 10px 26px rgba(0,0,0,0.3);
+}
+.toast .ico{width:15px;height:15px;color:#34d399}
+
+/* When in the third scene, hide blurs to keep crisp */
+.scene-launcher .iframe-window,.scene-launcher .recess .thumb{filter:none}
+.scene-launcher .iframe-window{opacity:0.5}
+
+/* Site-Manager open-state: shift stage left so iframe doesn't disappear */
+.scene-sm .stage{padding-right:480px}
+
+/* Booting scene: dock app shows booting animation */
+.dock-app.booting{opacity:0.65}
+.dock-app.booting::after{content:"";position:absolute;inset:6px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:9px;animation:spin 1s linear infinite;background:transparent;width:auto;height:auto;left:6px;bottom:6px;box-shadow:none;border-radius:9px}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="cover">
+    <span class="tag">v5 · #004 · iPad Stage Manager lite</span>
+    <h1>One playground on stage. Peers recessed left. Saved sites docked below.</h1>
+    <p>Apple's Stage Manager metaphor applied to WordPress Playground: the iframe is one focused "app" at center stage; two scaled-down peers wait on the left; a frosted dock at the bottom holds every saved site plus the Launcher tile and the lone "Site Manager" pull-tab on the right edge. Press <kbd style="font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px;color:#fff;font-size:11px">F</kbd> or click the chevron to fullscreen the iframe; <kbd style="font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px;color:#fff;font-size:11px">Esc</kbd> exits.</p>
+    <p style="margin-top:8px"><span class="count-pill"><strong>8</strong> always-visible affordances at idle</span></p>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- STATE 1: WORKING SESSION (desktop) -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label"><span>Active session · 1440 × 900</span><span class="meta">"Unsaved Playground" · WP 6.7 · PHP 8.3 · Stage in focus</span></span>
+
+    <div class="ipad">
+      <span class="ipad-cam"></span>
+      <div class="screen">
+
+        <!-- iPadOS status bar -->
+        <div class="statusbar">
+          <div class="l"><span>Playground</span></div>
+          <div class="r">
+            <span>9:41</span>
+            <span class="signal"><span></span><span></span><span></span><span></span></span>
+            <span style="font-size:11px">Wi-Fi</span>
+            <span class="batt"><span></span></span>
+          </div>
+        </div>
+
+        <!-- Slim top bar -->
+        <div class="topbar">
+          <div class="tb-name">
+            <span class="dot"></span>
+            <span class="nm">Unsaved Playground</span>
+            <span class="pill">Unsaved</span>
+          </div>
+          <div class="tb-url">
+            <i data-lucide="lock" style="width:13px;height:13px"></i>
+            <span class="host">playground.wordpress.net</span>
+            <span class="path">/wp-admin/edit.php?post_type=post</span>
+          </div>
+          <button class="tb-btn" title="Refresh"><i data-lucide="refresh-cw" class="ico"></i></button>
+          <span class="tb-divider"></span>
+          <button class="tb-btn primary"><i data-lucide="bookmark" class="ico"></i>Save</button>
+        </div>
+
+        <!-- Control Center tile -->
+        <button class="cc-btn" title="Control Center"><i data-lucide="sliders-horizontal" class="ico"></i></button>
+
+        <!-- Stage workspace -->
+        <div class="stage-wrap">
+
+          <!-- Recessed peers -->
+          <div class="recess">
+            <div class="thumb thumb-1">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body"></div>
+              <span class="badge">PHP 8.2</span>
+              <span class="label">My Coffee Shop</span>
+            </div>
+            <div class="thumb thumb-2" style="margin-top:18px">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body"></div>
+              <span class="badge">PHP 8.3</span>
+              <span class="label">Gaming News (PR)</span>
+            </div>
+            <div class="stack-hint">
+              <i data-lucide="chevron-up" style="width:11px;height:11px"></i>
+              3 more in dock
+            </div>
+          </div>
+
+          <!-- Active stage -->
+          <div class="stage">
+            <div class="iframe-window">
+              <div class="iw-chrome">
+                <div class="dots"><span></span><span></span><span></span></div>
+                <div class="center">playground.wordpress.net /wp-admin/edit.php</div>
+                <div class="right"><i data-lucide="maximize-2" style="width:13px;height:13px"></i></div>
+              </div>
+              <div class="iw-body">
+                <div class="wp-site">
+                  <div class="wp-nav">
+                    <div class="wp-logo">Twenty Twenty-Five</div>
+                    <div class="wp-menu">
+                      <a>Posts</a><a>Pages</a><a>Plugins</a><a>Appearance</a><a>Settings</a>
+                    </div>
+                    <a class="wp-cta">Visit site</a>
+                  </div>
+                  <div class="wp-hero">
+                    <div class="eyebrow">Welcome back, admin</div>
+                    <h1>Edit your latest draft "Quarterly product update"</h1>
+                    <p>You have 3 drafts, 12 published posts, and 2 pending comments. Pick up where you left off.</p>
+                    <div class="row">
+                      <a>Open editor</a><a>View drafts</a>
+                    </div>
+                  </div>
+                  <div class="wp-grid">
+                    <div class="wp-card"><div class="k">Drafts</div><div class="h">3 in progress</div><div class="b">Last edited 14 min ago by admin@local.</div></div>
+                    <div class="wp-card"><div class="k">Posts</div><div class="h">12 published</div><div class="b">2 pending in moderation queue.</div></div>
+                    <div class="wp-card"><div class="k">Plugins</div><div class="h">5 active</div><div class="b">WPGraphQL, Gutenberg, Friends, ACF, Yoast.</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- fullscreen hint -->
+            <div class="fs-hint"><kbd>F</kbd><span>fullscreen iframe</span></div>
+          </div>
+        </div>
+
+        <!-- Right-edge Site Manager pull-tab -->
+        <div class="pulltab" title="Pull for Site Manager">
+          <div class="grip"></div>
+          <span>Site Manager</span>
+        </div>
+
+        <!-- Bottom dock -->
+        <div class="dock">
+          <div class="dock-app da-coffee active"><span class="name">Coffee Shop</span></div>
+          <div class="dock-app da-gaming"><span class="name">Gaming News</span></div>
+          <div class="dock-app da-resume"><span class="name">Resume site</span></div>
+          <div class="dock-app da-art"><span class="name">Art Gallery</span></div>
+          <div class="dock-app da-photo"><span class="name">Photo</span></div>
+          <div class="dock-app da-welcome"><span class="name">Welcome</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-app da-unsaved"><span class="name">Unsaved</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-tool primary" title="New playground / launcher">
+            <i data-lucide="plus" class="ico"></i>
+            <span>New</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Counted affordances -->
+    <div style="margin-top:18px;color:#94a3b8;font-size:12.5px;line-height:1.7;max-width:1100px;padding:0 8px">
+      <strong style="color:#cbd5e1;font-weight:600">Idle affordances counted:</strong>
+      (1) name pill · (2) URL bar · (3) Save · (4) Refresh · (5) Control Center · (6) Recessed peers · (7) Site Manager pull-tab · (8) Dock.
+      Hover/focus discloses the rest. The dock is one widget (saved sites + New).
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATE 2: BOOTING (a peer is mid-boot) -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label warn"><span>Booting · 1440 × 900</span><span class="meta">Switching to "Gaming News" from the dock · iframe shows boot log</span></span>
+
+    <div class="ipad">
+      <span class="ipad-cam"></span>
+      <div class="screen">
+
+        <div class="statusbar">
+          <div class="l"><span>Playground</span></div>
+          <div class="r">
+            <span>9:43</span>
+            <span class="signal"><span></span><span></span><span></span><span></span></span>
+            <span style="font-size:11px">Wi-Fi</span>
+            <span class="batt"><span></span></span>
+          </div>
+        </div>
+
+        <div class="topbar">
+          <div class="tb-name">
+            <span class="dot" style="background:#3858e9;animation:pulse 1.4s ease-in-out infinite"></span>
+            <span class="nm">Gaming News (PR #54812)</span>
+            <span class="pill" style="color:#3858e9;background:rgba(56,88,233,0.12)">Booting</span>
+          </div>
+          <div class="tb-url">
+            <i data-lucide="loader-2" style="width:13px;height:13px"></i>
+            <span class="host">playground.wordpress.net</span>
+            <span class="path">/</span>
+          </div>
+          <button class="tb-btn" disabled style="opacity:0.4"><i data-lucide="refresh-cw" class="ico"></i></button>
+          <span class="tb-divider"></span>
+          <button class="tb-btn primary" disabled style="opacity:0.5"><i data-lucide="bookmark" class="ico"></i>Save</button>
+        </div>
+
+        <button class="cc-btn"><i data-lucide="sliders-horizontal" class="ico"></i></button>
+
+        <div class="stage-wrap">
+
+          <div class="recess">
+            <div class="thumb thumb-1">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body"></div>
+              <span class="badge">PHP 8.2</span>
+              <span class="label">My Coffee Shop</span>
+            </div>
+            <div class="thumb thumb-2" style="margin-top:18px">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body" style="background:linear-gradient(135deg,#fef3c7,#fbbf24);display:flex;align-items:center;justify-content:center;color:#451a03"><span style="font-size:9px;font-weight:700">Art Gallery</span></div>
+              <span class="badge">PHP 8.3</span>
+              <span class="label">Art Gallery</span>
+            </div>
+            <div class="stack-hint"><i data-lucide="chevron-up" style="width:11px;height:11px"></i>3 more in dock</div>
+          </div>
+
+          <div class="stage">
+            <div class="iframe-window">
+              <div class="iw-chrome">
+                <div class="dots"><span></span><span></span><span></span></div>
+                <div class="center">Booting playground · gutenberg-pr#54812</div>
+                <div class="right"><i data-lucide="loader-2" style="width:13px;height:13px"></i></div>
+              </div>
+              <div class="iw-body">
+                <div class="wp-site booting-iframe">
+                  <div class="ring"></div>
+                  <div class="ti">Booting Gutenberg PR #54812</div>
+                  <div class="sub">Cloning · installing dependencies · applying blueprint</div>
+                  <div class="steps">
+                    <div class="ln"><span class="ok">✓</span><span>Mount OPFS filesystem</span></div>
+                    <div class="ln"><span class="ok">✓</span><span>Boot PHP 8.3 (WASM)</span></div>
+                    <div class="ln"><span class="ok">✓</span><span>Install WordPress 6.7</span></div>
+                    <div class="ln"><span class="ok">✓</span><span>Fetch gutenberg-pr#54812 .zip (8.4 MB)</span></div>
+                    <div class="ln"><span class="now">●</span><span>Activate plugin: gutenberg</span></div>
+                    <div class="ln"><span class="pending">○</span><span>Apply blueprint: gaming-news</span></div>
+                    <div class="ln"><span class="pending">○</span><span>Seed sample posts (12)</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pulltab"><div class="grip"></div><span>Site Manager</span></div>
+
+        <div class="dock">
+          <div class="dock-app da-coffee"><span class="name">Coffee Shop</span></div>
+          <div class="dock-app da-gaming active booting"><span class="name">Gaming News</span></div>
+          <div class="dock-app da-resume"><span class="name">Resume site</span></div>
+          <div class="dock-app da-art"><span class="name">Art Gallery</span></div>
+          <div class="dock-app da-photo"><span class="name">Photo</span></div>
+          <div class="dock-app da-welcome"><span class="name">Welcome</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-app da-unsaved"><span class="name">Unsaved</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-tool primary"><i data-lucide="plus" class="ico"></i><span>New</span></div>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast"><i data-lucide="download-cloud" class="ico"></i>Fetched gutenberg-pr#54812 · 8.4 MB</div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATE 3: LAUNCHER OPEN (the New tile clicked) -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label idle"><span>Launcher · 1440 × 900</span><span class="meta">Clicked the dock's "+ New" tile · stage recedes · full blueprint gallery</span></span>
+
+    <div class="ipad launcher-scene scene-launcher">
+      <span class="ipad-cam"></span>
+      <div class="screen">
+
+        <div class="statusbar">
+          <div class="l"><span>Playground</span></div>
+          <div class="r">
+            <span>9:46</span>
+            <span class="signal"><span></span><span></span><span></span><span></span></span>
+            <span style="font-size:11px">Wi-Fi</span>
+            <span class="batt"><span></span></span>
+          </div>
+        </div>
+
+        <div class="topbar">
+          <div class="tb-name saved">
+            <span class="dot"></span>
+            <span class="nm">My Coffee Shop</span>
+            <span class="pill">Saved</span>
+          </div>
+          <div class="tb-url">
+            <i data-lucide="lock" style="width:13px;height:13px"></i>
+            <span class="host">playground.wordpress.net</span>
+            <span class="path">/shop</span>
+          </div>
+          <button class="tb-btn"><i data-lucide="refresh-cw" class="ico"></i></button>
+          <span class="tb-divider"></span>
+          <button class="tb-btn primary" style="opacity:0.45"><i data-lucide="check" class="ico"></i>Saved</button>
+        </div>
+
+        <button class="cc-btn"><i data-lucide="sliders-horizontal" class="ico"></i></button>
+
+        <div class="stage-wrap">
+          <div class="recess">
+            <div class="thumb thumb-2">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body"></div>
+              <span class="badge">PHP 8.3</span>
+              <span class="label">Gaming News</span>
+            </div>
+            <div class="thumb thumb-1" style="margin-top:18px">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body" style="background:linear-gradient(135deg,#0f172a,#475569);display:flex;align-items:center;justify-content:center;color:#e2e8f0;font-size:11px;font-weight:600">Resume</div>
+              <span class="badge">PHP 8.3</span>
+              <span class="label">Personal Resume</span>
+            </div>
+            <div class="stack-hint"><i data-lucide="chevron-up" style="width:11px;height:11px"></i>3 more in dock</div>
+          </div>
+
+          <div class="stage">
+            <div class="iframe-window">
+              <div class="iw-chrome">
+                <div class="dots"><span></span><span></span><span></span></div>
+                <div class="center">playground.wordpress.net /shop</div>
+              </div>
+              <div class="iw-body">
+                <div class="wp-site theme-coffee">
+                  <div class="wp-nav">
+                    <div class="wp-logo">The Roastery</div>
+                    <div class="wp-menu"><a>Beans</a><a>Brew Guides</a><a>Shop</a><a>About</a></div>
+                    <a class="wp-cta">Cart · 2</a>
+                  </div>
+                  <div class="wp-hero">
+                    <div class="eyebrow">Single Origin · Ethiopia Yirgacheffe</div>
+                    <h1>Fruity, bright, full of citrus.</h1>
+                    <p>Roasted Tuesdays. Ships Wednesdays. Buy a bag.</p>
+                    <div class="row"><a>Shop beans</a><a>Read brew guide</a></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pulltab"><div class="grip"></div><span>Site Manager</span></div>
+
+        <div class="dock">
+          <div class="dock-app da-coffee active"><span class="name">Coffee Shop</span></div>
+          <div class="dock-app da-gaming"><span class="name">Gaming News</span></div>
+          <div class="dock-app da-resume"><span class="name">Resume site</span></div>
+          <div class="dock-app da-art"><span class="name">Art Gallery</span></div>
+          <div class="dock-app da-photo"><span class="name">Photo</span></div>
+          <div class="dock-app da-welcome"><span class="name">Welcome</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-app da-unsaved"><span class="name">Unsaved</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-tool primary" style="background:linear-gradient(135deg,#5b7df7,#3858e9);box-shadow:0 0 0 3px rgba(56,88,233,0.35)"><i data-lucide="plus" class="ico"></i><span>New</span></div>
+        </div>
+
+        <!-- Launcher overlay -->
+        <div class="launcher">
+          <aside class="launcher-side">
+            <h4>Sources</h4>
+            <div class="ls-item active"><i data-lucide="layout-grid" class="ico"></i>Blueprints<span class="ct">43</span></div>
+            <div class="ls-item"><i data-lucide="hard-drive" class="ico"></i>Your Playgrounds<span class="ct">5</span></div>
+            <h4 style="margin-top:14px">Start new from</h4>
+            <div class="ls-item"><i data-lucide="sparkles" class="ico"></i>Vanilla WordPress</div>
+            <div class="ls-item"><i data-lucide="git-pull-request" class="ico"></i>WordPress PR</div>
+            <div class="ls-item"><i data-lucide="git-pull-request-arrow" class="ico"></i>Gutenberg PR</div>
+            <div class="ls-item"><i data-lucide="github" class="ico"></i>From GitHub</div>
+            <div class="ls-item"><i data-lucide="link" class="ico"></i>Blueprint URL</div>
+            <div class="ls-item"><i data-lucide="upload" class="ico"></i>Import .zip</div>
+          </aside>
+          <div class="launcher-main">
+            <div class="lm-head">
+              <h2>Start from a blueprint</h2>
+              <div class="lm-search">
+                <i data-lucide="search" style="width:14px;height:14px"></i>
+                <input placeholder="Search 43 blueprints..." value="">
+              </div>
+              <div class="lm-close"><i data-lucide="x" style="width:15px;height:15px"></i></div>
+            </div>
+            <div class="lm-filters">
+              <span class="chip active">All <span class="ct">43</span></span>
+              <span class="chip">Featured <span class="ct">5</span></span>
+              <span class="chip">Website <span class="ct">10</span></span>
+              <span class="chip">Personal <span class="ct">5</span></span>
+              <span class="chip">Content <span class="ct">7</span></span>
+              <span class="chip">Themes <span class="ct">6</span></span>
+              <span class="chip">Gutenberg <span class="ct">4</span></span>
+              <span class="chip">Experiments <span class="ct">3</span></span>
+              <span class="chip">WooCommerce <span class="ct">4</span></span>
+              <span class="chip">News <span class="ct">2</span></span>
+            </div>
+            <div class="lm-grid">
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fef3c7,#fbbf24)">🎨</div><div><h5>Art Gallery</h5><p>An art gallery created with the Vueo theme.</p><div class="tags"><span class="tag">Website</span><span class="tag">Personal</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#0b3b8c,#2563eb);color:#fff">☕</div><div><h5>Coffee Shop</h5><p>A stylish WooCommerce coffee shop storefront with custom theme, products, and content.</p><div class="tags"><span class="tag">WooCommerce</span><span class="tag">Store</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#f0abfc,#a855f7);color:#fff">📰</div><div><h5>Feed Reader · Friends Plugin</h5><p>Read feeds (incl. ActivityPub) in Playground via the Friends plugin.</p><div class="tags"><span class="tag">rss</span><span class="tag">social</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#1e1b4b,#7c3aed);color:#fde68a">🎮</div><div><h5>Gaming News</h5><p>A gaming news site created with the Spiel theme.</p><div class="tags"><span class="tag">Website</span><span class="tag">News</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#bbf7d0,#10b981);color:#064e3b">🤝</div><div><h5>Non-profit Organization</h5><p>A non-profit organization site created with the Koinonia theme.</p><div class="tags"><span class="tag">Website</span><span class="tag">Org</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fce7f3,#ec4899);color:#831843">✍️</div><div><h5>Personal Blog</h5><p>A personal blog site created with the Substrata theme.</p><div class="tags"><span class="tag">Personal</span><span class="tag">Blog</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#0f172a,#475569);color:#e2e8f0">AK</div><div><h5>Personal Resume</h5><p>A resume site created with the Readymade theme.</p><div class="tags"><span class="tag">Personal</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#1f2937,#0b0d12);color:#fff">📷</div><div><h5>Photography Portfolio</h5><p>A photography portfolio created with the Grammer theme.</p><div class="tags"><span class="tag">Personal</span><span class="tag">Photography</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fde68a,#fb7185);color:#7f1d1d">🧴</div><div><h5>Skincare Blog</h5><p>A skincare blog created with the Piel theme.</p><div class="tags"><span class="tag">News</span><span class="tag">Blog</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#dbeafe,#1d4ed8);color:#1e3a8a">🎓</div><div><h5>University Website</h5><p>A university website created with the Kentwood theme.</p><div class="tags"><span class="tag">Org</span><span class="tag">Education</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#cffafe,#0891b2);color:#083344">🧱</div><div><h5>Create Block Theme</h5><p>Install Create Block Theme and start editing right away.</p><div class="tags"><span class="tag">Editor</span><span class="tag">theme</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#f5f5f4,#a8a29e);color:#1c1917">📚</div><div><h5>Custom Post Type: Books</h5><p>Add a custom post type to playground.</p><div class="tags"><span class="tag">Content</span><span class="tag">CPT</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#e0e7ff,#6366f1);color:#1e1b4b">2️⃣5️⃣</div><div><h5>Demo of Twenty Twenty-Five</h5><p>Demo content for the Twenty Twenty-Five default theme.</p><div class="tags"><span class="tag">Themes</span><span class="tag">default</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fef9c3,#facc15);color:#713f12">🧪</div><div><h5>Dataview Experiments</h5><p>Enable all three Dataview Experiments in Gutenberg.</p><div class="tags"><span class="tag">Gutenberg</span><span class="tag">Experiments</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fce7f3,#db2777);color:#831843">🛒</div><div><h5>Minimal WooCommerce</h5><p>WooCommerce + flat-rate shipping + sample products + bank transfer.</p><div class="tags"><span class="tag">woocommerce</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#ddd6fe,#a78bfa);color:#3730a3">📊</div><div><h5>WPGraphQL IDE</h5><p>Loads WordPress with WPGraphQL active and the IDE page.</p><div class="tags"><span class="tag">API</span><span class="tag">wpgraphql</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#cffafe,#06b6d4);color:#0e7490">🌐</div><div><h5>Pretty permalinks</h5><p>Set the permalink structure to pretty permalinks.</p><div class="tags"><span class="tag">Settings</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fee2e2,#ef4444);color:#7f1d1d">🚧</div><div><h5>WordPress Beta</h5><p>Test the latest WordPress Beta/RC with theme test data and debugging plugins.</p><div class="tags"><span class="tag">Testing</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#f3e8ff,#9333ea);color:#581c87">⚙️</div><div><h5>wp-cli: add posts</h5><p>Add posts via a wp-cli command.</p><div class="tags"><span class="tag">Content</span><span class="tag">wpcli</span></div></div></div>
+
+              <div class="bp"><div class="thumb" style="background:linear-gradient(135deg,#fed7aa,#ea580c);color:#7c2d12">🌤️</div><div><h5>Weather Shortcode</h5><p>Connect weather API and show data as a shortcode.</p><div class="tags"><span class="tag">plugin</span></div></div></div>
+
+              <div class="bp" style="opacity:0.6"><div class="thumb" style="background:rgba(15,23,42,0.06);color:var(--ink-3)"><i data-lucide="more-horizontal" style="width:24px;height:24px"></i></div><div><h5>23 more blueprints</h5><p>Twenty-Twenty-One, theme starter content, language packs, gist plugins, latest Gutenberg, login as editor, Markdown editor, My WordPress welcome, Playground welcome, Serve media from external host, admin color scheme, Showcase plugin, Stylish Press, Theme Tester, wp-cli with image, WooCommerce product feed…</p><div class="tags"><span class="tag">+23</span></div></div></div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATE 4: SITE MANAGER PULL-TAB OPEN -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label"><span>Site Manager pull-tab · 1440 × 900</span><span class="meta">One sheet, swaps content across 5 tabs · stage compresses to fit · iframe stays visible</span></span>
+
+    <div class="ipad scene-sm">
+      <span class="ipad-cam"></span>
+      <div class="screen">
+
+        <div class="statusbar">
+          <div class="l"><span>Playground</span></div>
+          <div class="r">
+            <span>9:48</span>
+            <span class="signal"><span></span><span></span><span></span><span></span></span>
+            <span style="font-size:11px">Wi-Fi</span>
+            <span class="batt"><span></span></span>
+          </div>
+        </div>
+
+        <div class="topbar">
+          <div class="tb-name saved">
+            <span class="dot"></span>
+            <span class="nm">My Coffee Shop</span>
+            <span class="pill">Saved</span>
+          </div>
+          <div class="tb-url">
+            <i data-lucide="lock" style="width:13px;height:13px"></i>
+            <span class="host">playground.wordpress.net</span>
+            <span class="path">/wp-admin/options-general.php</span>
+          </div>
+          <button class="tb-btn"><i data-lucide="refresh-cw" class="ico"></i></button>
+          <span class="tb-divider"></span>
+          <button class="tb-btn primary" style="opacity:0.45"><i data-lucide="check" class="ico"></i>Saved</button>
+        </div>
+
+        <button class="cc-btn"><i data-lucide="sliders-horizontal" class="ico"></i></button>
+
+        <div class="stage-wrap">
+          <div class="recess">
+            <div class="thumb thumb-2">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body"></div>
+              <span class="badge">PHP 8.3</span>
+              <span class="label">Gaming News</span>
+            </div>
+            <div class="thumb thumb-1" style="margin-top:18px">
+              <div class="tb-chrome"><span></span><span></span><span></span></div>
+              <div class="body" style="background:linear-gradient(135deg,#1f2937,#0b0d12);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">📷</div>
+              <span class="badge">PHP 8.3</span>
+              <span class="label">Photography</span>
+            </div>
+            <div class="stack-hint"><i data-lucide="chevron-up" style="width:11px;height:11px"></i>3 more in dock</div>
+          </div>
+
+          <div class="stage">
+            <div class="iframe-window">
+              <div class="iw-chrome">
+                <div class="dots"><span></span><span></span><span></span></div>
+                <div class="center">playground.wordpress.net /wp-admin/options-general.php</div>
+              </div>
+              <div class="iw-body">
+                <div class="wp-site theme-coffee">
+                  <div class="wp-nav">
+                    <div class="wp-logo">wp-admin</div>
+                    <div class="wp-menu"><a>Dashboard</a><a>Posts</a><a>Settings</a></div>
+                    <a class="wp-cta">View site</a>
+                  </div>
+                  <div class="wp-hero">
+                    <div class="eyebrow">General settings</div>
+                    <h1>Site title, tagline, language</h1>
+                    <p>Configure the basics. WP-level settings live here; Playground-level settings (PHP/WP version) live in the Site Manager pull-tab on the right.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Site Manager sheet (open state) -->
+        <div class="sm-sheet">
+          <div class="sm-head">
+            <div class="sm-titlerow">
+              <input value="My Coffee Shop" />
+              <div class="sm-actions">
+                <span class="sm-iconbtn" title="Additional actions"><i data-lucide="more-horizontal" style="width:15px;height:15px"></i></span>
+                <span class="sm-iconbtn" title="Close pull-tab"><i data-lucide="chevron-right" style="width:15px;height:15px"></i></span>
+              </div>
+            </div>
+            <div class="sm-shortcuts">
+              <div class="sm-sc"><i data-lucide="layout-dashboard" class="ico"></i>WP Admin</div>
+              <div class="sm-sc"><i data-lucide="home" class="ico"></i>Homepage</div>
+              <div class="sm-sc"><i data-lucide="github" class="ico"></i>Export to GitHub PR</div>
+            </div>
+          </div>
+          <div class="sm-tabs">
+            <div class="sm-tab active"><i data-lucide="settings-2" class="ico"></i>Settings</div>
+            <div class="sm-tab"><i data-lucide="folder-tree" class="ico"></i>Files</div>
+            <div class="sm-tab"><i data-lucide="file-json-2" class="ico"></i>Blueprint</div>
+            <div class="sm-tab"><i data-lucide="database" class="ico"></i>DB</div>
+            <div class="sm-tab"><i data-lucide="terminal" class="ico"></i>Logs</div>
+          </div>
+          <div class="sm-body">
+            <div class="set-row">
+              <label>WordPress version</label>
+              <div class="seg">
+                <button>6.5</button>
+                <button>6.6</button>
+                <button class="on">6.7</button>
+                <button>Nightly</button>
+              </div>
+            </div>
+            <div class="set-row">
+              <label>PHP version</label>
+              <div class="seg">
+                <button>7.4</button>
+                <button>8.0</button>
+                <button>8.1</button>
+                <button>8.2</button>
+                <button class="on">8.3</button>
+              </div>
+            </div>
+            <div class="set-row">
+              <label>Language</label>
+              <div class="field">English (en_US)</div>
+            </div>
+            <div class="set-toggle" style="margin-bottom:8px">
+              <div class="lab">
+                <div class="nm">Network access</div>
+                <div class="ds">Allow PHP to fetch external HTTP resources</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="set-toggle" style="margin-bottom:8px">
+              <div class="lab">
+                <div class="nm">Multisite</div>
+                <div class="ds">Enable WordPress network mode</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+
+            <!-- Destructive zone -->
+            <div class="danger-zone">
+              <div class="h"><i data-lucide="triangle-alert" class="ico"></i>Apply settings &amp; reset</div>
+              <p>Changing WordPress/PHP versions wipes the site database. Type <b>reset coffee</b> below to confirm.</p>
+              <div class="confirm-changes" style="background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11.5px;color:var(--ink-2);font-family:'JetBrains Mono',monospace;line-height:1.6">
+                WP&nbsp; 6.6 → <b style="color:#1c1917">6.7</b><br>
+                PHP 8.2 → <b style="color:#1c1917">8.3</b>
+              </div>
+              <button><i data-lucide="rotate-ccw" style="width:13px;height:13px"></i>Confirm reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dock">
+          <div class="dock-app da-coffee active"><span class="name">Coffee Shop</span></div>
+          <div class="dock-app da-gaming"><span class="name">Gaming News</span></div>
+          <div class="dock-app da-resume"><span class="name">Resume site</span></div>
+          <div class="dock-app da-art"><span class="name">Art Gallery</span></div>
+          <div class="dock-app da-photo"><span class="name">Photo</span></div>
+          <div class="dock-app da-welcome"><span class="name">Welcome</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-app da-unsaved"><span class="name">Unsaved</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-tool primary"><i data-lucide="plus" class="ico"></i><span>New</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- The remaining 4 SM tabs' content -->
+    <div style="margin-top:32px;display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:1100px">
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:12px;font-weight:600;margin-bottom:12px;letter-spacing:-0.005em"><i data-lucide="folder-tree" style="width:14px;height:14px"></i>Files tab content</div>
+        <div class="files">
+          <div class="fl dir"><i data-lucide="folder" class="ico"></i>wordpress</div>
+          <div class="indent">
+            <div class="fl dir"><i data-lucide="folder" class="ico"></i>wp-admin</div>
+            <div class="fl dir"><i data-lucide="folder-open" class="ico"></i>wp-content</div>
+            <div class="indent">
+              <div class="fl dir"><i data-lucide="folder" class="ico"></i>plugins</div>
+              <div class="fl dir"><i data-lucide="folder-open" class="ico"></i>themes</div>
+              <div class="indent">
+                <div class="fl dir"><i data-lucide="folder-open" class="ico"></i>twentytwentyfive</div>
+                <div class="indent">
+                  <div class="fl active"><i data-lucide="file-code" class="ico"></i>style.css</div>
+                  <div class="fl"><i data-lucide="file-code" class="ico"></i>functions.php</div>
+                  <div class="fl"><i data-lucide="file-json" class="ico"></i>theme.json</div>
+                  <div class="fl"><i data-lucide="file" class="ico"></i>screenshot.png</div>
+                </div>
+              </div>
+              <div class="fl dir"><i data-lucide="folder" class="ico"></i>uploads</div>
+            </div>
+            <div class="fl dir"><i data-lucide="folder" class="ico"></i>wp-includes</div>
+            <div class="fl"><i data-lucide="file-code" class="ico"></i>wp-config.php</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="bp-tinybtn"><i data-lucide="file-plus" class="ico"></i>New file</button>
+          <button class="bp-tinybtn"><i data-lucide="folder-plus" class="ico"></i>New folder</button>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+        <div class="bp-panel-head">
+          <i data-lucide="file-json-2" style="width:14px;height:14px;color:#cbd5e1"></i>
+          <h4 style="color:#cbd5e1">Blueprint tab content</h4>
+          <button class="bp-tinybtn"><i data-lucide="link" class="ico"></i>Copy link</button>
+          <button class="bp-tinybtn"><i data-lucide="download" class="ico"></i>Bundle</button>
+          <button class="bp-tinybtn primary"><i data-lucide="play" class="ico"></i>Run</button>
+        </div>
+        <div class="bp-mini">
+<span class="c">// coffee-shop.blueprint.json</span>
+{
+  <span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,
+  <span class="k">"landingPage"</span>: <span class="s">"/shop"</span>,
+  <span class="k">"preferredVersions"</span>: { <span class="k">"php"</span>: <span class="s">"8.3"</span>, <span class="k">"wp"</span>: <span class="s">"6.7"</span> },
+  <span class="k">"phpExtensionBundles"</span>: [<span class="s">"kitchen-sink"</span>],
+  <span class="k">"steps"</span>: [
+    { <span class="k">"step"</span>: <span class="s">"installTheme"</span>, <span class="k">"themeZipFile"</span>: { <span class="k">"resource"</span>: <span class="s">"wordpress.org/themes"</span>, <span class="k">"slug"</span>: <span class="s">"vueo"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"installPlugin"</span>, <span class="k">"pluginZipFile"</span>: { <span class="k">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="k">"options"</span>: { <span class="k">"blogname"</span>: <span class="s">"The Roastery"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"importWxr"</span>, <span class="k">"file"</span>: { <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"https://.../products.wxr"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"login"</span>, <span class="k">"username"</span>: <span class="s">"admin"</span> }
+  ]
+}
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:12px;font-weight:600;margin-bottom:6px"><i data-lucide="database" style="width:14px;height:14px"></i>Database tab content</div>
+        <div style="font-size:11px;color:#fbbf24;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);border-radius:7px;padding:6px 9px;margin-bottom:10px;line-height:1.4">
+          <strong>Early access.</strong> File a bug at github.com/WordPress/wordpress-playground.
+        </div>
+        <div class="db">
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_options<span class="rows">142 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_posts<span class="rows">38 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_postmeta<span class="rows">214 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_users<span class="rows">2 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_usermeta<span class="rows">28 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_terms<span class="rows">16 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_term_relationships<span class="rows">42 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_woocommerce_order_items<span class="rows">7 rows</span></div>
+          <div class="tbl"><i data-lucide="table" class="ico"></i>wp_wc_product_meta_lookup<span class="rows">12 rows</span></div>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px">
+        <div style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:12px;font-weight:600;margin-bottom:10px"><i data-lucide="terminal" style="width:14px;height:14px"></i>Logs tab content</div>
+        <div class="lm-search" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#cbd5e1;margin-bottom:8px">
+          <i data-lucide="search" style="width:13px;height:13px"></i>
+          <input placeholder="Filter logs..." style="color:#fff" />
+        </div>
+        <div class="logs">
+          <div class="ln"><span class="ts">09:46:12</span><span class="lvl I">INFO</span><span class="msg">Playground booted (WP 6.7 · PHP 8.3 · 1.8s)</span></div>
+          <div class="ln"><span class="ts">09:46:13</span><span class="lvl I">INFO</span><span class="msg">Blueprint coffee-shop applied (5 steps)</span></div>
+          <div class="ln"><span class="ts">09:46:14</span><span class="lvl W">WARN</span><span class="msg">PHP Notice: Undefined index: woocommerce_default_country in /wordpress/wp-content/plugins/woocommerce/includes/class-wc-countries.php on line 47</span></div>
+          <div class="ln"><span class="ts">09:46:15</span><span class="lvl D">DEBUG</span><span class="msg">WP_Query SELECT * FROM wp_posts WHERE post_type='product' LIMIT 10</span></div>
+          <div class="ln"><span class="ts">09:47:02</span><span class="lvl E">ERROR</span><span class="msg">PHP Fatal error: Uncaught WP_Error: Could not retrieve site icon URL · /wordpress/wp-includes/option.php:312</span></div>
+          <div class="ln"><span class="ts">09:47:02</span><span class="lvl E">ERROR</span><span class="msg">  Stack trace: #0 wp-includes/general-template.php(122): get_site_icon_url()</span></div>
+          <div class="ln"><span class="ts">09:47:18</span><span class="lvl I">INFO</span><span class="msg">User admin@local logged in</span></div>
+          <div class="ln"><span class="ts">09:47:33</span><span class="lvl W">WARN</span><span class="msg">Deprecated: Use of strpos() with null parameter (woocommerce-blocks/order-confirmation/loader.php:88)</span></div>
+          <div class="ln"><span class="ts">09:48:05</span><span class="lvl I">INFO</span><span class="msg">OPFS snapshot saved · 4.2 MB</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATE 5: FULLSCREEN IFRAME -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label"><span>Fullscreen iframe · 1440 × 900</span><span class="meta">F or chevron toggles · Esc to exit · chrome is gone, the WordPress site is the whole document</span></span>
+
+    <div class="ipad">
+      <span class="ipad-cam"></span>
+      <div class="screen" style="background:#fff">
+        <!-- iframe completely fills the device -->
+        <div class="wp-site theme-coffee" style="height:100%">
+          <div class="wp-nav" style="padding:24px 56px">
+            <div class="wp-logo">The Roastery</div>
+            <div class="wp-menu"><a>Beans</a><a>Brew Guides</a><a>Shop</a><a>About</a></div>
+            <a class="wp-cta">Cart · 2</a>
+          </div>
+          <div class="wp-hero">
+            <div class="eyebrow">Single Origin · Ethiopia Yirgacheffe</div>
+            <h1>Fruity, bright, full of citrus.</h1>
+            <p>Roasted Tuesdays. Ships Wednesdays. Buy a bag.</p>
+            <div class="row"><a>Shop beans</a><a>Read brew guide</a></div>
+          </div>
+          <div class="wp-grid">
+            <div class="wp-card"><div class="k">In stock</div><div class="h">12 origins</div><div class="b">Six single-origins, six blends. Fresh weekly.</div></div>
+            <div class="wp-card"><div class="k">Subscriptions</div><div class="h">From $14/mo</div><div class="b">A new bag every two weeks. Pause anytime.</div></div>
+            <div class="wp-card"><div class="k">Reviews</div><div class="h">4.9 / 5</div><div class="b">"Best beans I've ever ordered online." — Lina S.</div></div>
+          </div>
+        </div>
+        <!-- floating banner to leave -->
+        <div class="fullscreen-banner">
+          <i data-lucide="maximize" style="width:13px;height:13px"></i>
+          Fullscreen iframe
+          <span style="opacity:0.6">·</span>
+          Press <kbd>Esc</kbd> to exit
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATE 6: CONTROL CENTER (Edit Playground settings popover) -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label idle"><span>Control Center · 1440 × 900</span><span class="meta">Click the Control Center button → quick-settings tiles + ".zip / GitHub PR" actions · one door for settings</span></span>
+
+    <div class="ipad">
+      <span class="ipad-cam"></span>
+      <div class="screen">
+
+        <div class="statusbar">
+          <div class="l"><span>Playground</span></div>
+          <div class="r">
+            <span>9:50</span>
+            <span class="signal"><span></span><span></span><span></span><span></span></span>
+            <span style="font-size:11px">Wi-Fi</span>
+            <span class="batt"><span></span></span>
+          </div>
+        </div>
+
+        <div class="topbar">
+          <div class="tb-name saved">
+            <span class="dot"></span>
+            <span class="nm">My Coffee Shop</span>
+            <span class="pill">Saved</span>
+          </div>
+          <div class="tb-url">
+            <i data-lucide="lock" style="width:13px;height:13px"></i>
+            <span class="host">playground.wordpress.net</span>
+            <span class="path">/shop</span>
+          </div>
+          <button class="tb-btn"><i data-lucide="refresh-cw" class="ico"></i></button>
+          <span class="tb-divider"></span>
+          <button class="tb-btn primary" style="opacity:0.45"><i data-lucide="check" class="ico"></i>Saved</button>
+        </div>
+
+        <!-- recessed thumbnails -->
+        <div class="stage-wrap" style="filter:blur(2px) brightness(0.85)">
+          <div class="recess">
+            <div class="thumb thumb-1"><div class="tb-chrome"><span></span><span></span><span></span></div><div class="body"></div><span class="label">Coffee Shop</span></div>
+            <div class="thumb thumb-2" style="margin-top:18px"><div class="tb-chrome"><span></span><span></span><span></span></div><div class="body"></div><span class="label">Gaming News</span></div>
+          </div>
+          <div class="stage">
+            <div class="iframe-window">
+              <div class="iw-chrome"><div class="dots"><span></span><span></span><span></span></div><div class="center">/shop</div></div>
+              <div class="iw-body">
+                <div class="wp-site theme-coffee">
+                  <div class="wp-nav"><div class="wp-logo">The Roastery</div><div class="wp-menu"><a>Shop</a></div><a class="wp-cta">Cart</a></div>
+                  <div class="wp-hero"><h1>Beans</h1></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pulltab"><div class="grip"></div><span>Site Manager</span></div>
+
+        <div class="dock">
+          <div class="dock-app da-coffee active"><span class="name">Coffee Shop</span></div>
+          <div class="dock-app da-gaming"><span class="name">Gaming</span></div>
+          <div class="dock-app da-resume"><span class="name">Resume</span></div>
+          <div class="dock-app da-art"><span class="name">Art</span></div>
+          <div class="dock-app da-photo"><span class="name">Photo</span></div>
+          <div class="dock-app da-welcome"><span class="name">Welcome</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-app da-unsaved"><span class="name">Unsaved</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-tool primary"><i data-lucide="plus" class="ico"></i><span>New</span></div>
+        </div>
+
+        <!-- Control Center popover -->
+        <div style="position:absolute;top:88px;right:30px;width:360px;z-index:65;background:var(--glass-strong);backdrop-filter:blur(40px) saturate(190%);-webkit-backdrop-filter:blur(40px) saturate(190%);border:1px solid var(--glass-border);border-radius:18px;padding:14px;box-shadow:0 24px 60px rgba(2,8,28,0.45),0 1px 0 rgba(255,255,255,0.5) inset">
+          <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Control Center · this playground</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px">
+            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);border-radius:11px;padding:10px;display:flex;align-items:center;gap:8px">
+              <div style="width:30px;height:30px;border-radius:8px;background:rgba(56,88,233,0.13);display:flex;align-items:center;justify-content:center;color:#3858e9;font-weight:700;font-size:11px">WP</div>
+              <div><div style="font-size:11px;color:var(--ink-3)">WordPress</div><div style="font-size:13px;font-weight:600;color:var(--ink)">6.7</div></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);border-radius:11px;padding:10px;display:flex;align-items:center;gap:8px">
+              <div style="width:30px;height:30px;border-radius:8px;background:rgba(110,84,148,0.13);display:flex;align-items:center;justify-content:center;color:#6e5494;font-weight:700;font-size:11px">PHP</div>
+              <div><div style="font-size:11px;color:var(--ink-3)">PHP</div><div style="font-size:13px;font-weight:600;color:var(--ink)">8.3</div></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);border-radius:11px;padding:10px;display:flex;align-items:center;justify-content:space-between">
+              <div><div style="font-size:11px;color:var(--ink-3)">Network</div><div style="font-size:13px;font-weight:600;color:var(--ink)">On</div></div>
+              <div class="switch on" style="transform:scale(0.85)"></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(15,23,42,0.08);border-radius:11px;padding:10px;display:flex;align-items:center;justify-content:space-between">
+              <div><div style="font-size:11px;color:var(--ink-3)">Multisite</div><div style="font-size:13px;font-weight:600;color:var(--ink)">Off</div></div>
+              <div class="switch" style="transform:scale(0.85)"></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;border-top:1px solid rgba(15,23,42,0.08);padding-top:10px">
+            <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">Export &amp; share</div>
+            <div class="src" style="background:transparent;border:none;padding:7px 8px"><div class="ico"><i data-lucide="github" style="width:14px;height:14px"></i></div><div><div class="nm">Export to GitHub PR</div><div class="sub">Theme, plugin or wp-content dir</div></div></div>
+            <div class="src" style="background:transparent;border:none;padding:7px 8px"><div class="ico"><i data-lucide="download" style="width:14px;height:14px"></i></div><div><div class="nm">Download .zip</div><div class="sub">Full playground bundle</div></div></div>
+            <div class="src" style="background:transparent;border:none;padding:7px 8px"><div class="ico"><i data-lucide="link" style="width:14px;height:14px"></i></div><div><div class="nm">Copy share link</div><div class="sub">With this blueprint encoded</div></div></div>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.08);font-size:11px;color:var(--ink-3);line-height:1.4">
+            Want to change versions? Apply &amp; reset lives in the Site Manager (one door per feature).
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATE 7: APPLY & RESET CONFIRM SHEET -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label warn"><span>Apply &amp; Reset confirm · 1440 × 900</span><span class="meta">Destructive — typed confirmation required (one phrase = your playground's name)</span></span>
+
+    <div class="ipad scene-sm">
+      <span class="ipad-cam"></span>
+      <div class="screen">
+
+        <div class="statusbar">
+          <div class="l"><span>Playground</span></div>
+          <div class="r">
+            <span>9:53</span>
+            <span class="signal"><span></span><span></span><span></span><span></span></span>
+            <span style="font-size:11px">Wi-Fi</span>
+            <span class="batt"><span></span></span>
+          </div>
+        </div>
+
+        <div class="topbar">
+          <div class="tb-name saved">
+            <span class="dot"></span>
+            <span class="nm">My Coffee Shop</span>
+            <span class="pill">Saved</span>
+          </div>
+          <div class="tb-url">
+            <i data-lucide="lock" style="width:13px;height:13px"></i>
+            <span class="host">playground.wordpress.net</span>
+            <span class="path">/wp-admin/options-general.php</span>
+          </div>
+          <button class="tb-btn"><i data-lucide="refresh-cw" class="ico"></i></button>
+          <span class="tb-divider"></span>
+          <button class="tb-btn primary" style="opacity:0.45"><i data-lucide="check" class="ico"></i>Saved</button>
+        </div>
+
+        <button class="cc-btn"><i data-lucide="sliders-horizontal" class="ico"></i></button>
+
+        <div class="stage-wrap" style="filter:blur(2.5px) brightness(0.7)">
+          <div class="recess">
+            <div class="thumb thumb-2"><div class="tb-chrome"><span></span><span></span><span></span></div><div class="body"></div><span class="label">Gaming News</span></div>
+            <div class="thumb thumb-1" style="margin-top:18px"><div class="tb-chrome"><span></span><span></span><span></span></div><div class="body" style="background:#475569"></div><span class="label">Photo</span></div>
+          </div>
+          <div class="stage">
+            <div class="iframe-window">
+              <div class="iw-chrome"><div class="dots"><span></span><span></span><span></span></div></div>
+              <div class="iw-body"><div class="wp-site theme-coffee"><div class="wp-nav"><div class="wp-logo">The Roastery</div></div><div class="wp-hero"><h1>Settings</h1></div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dock">
+          <div class="dock-app da-coffee active"><span class="name">Coffee</span></div>
+          <div class="dock-app da-gaming"><span class="name">Gaming</span></div>
+          <div class="dock-app da-resume"><span class="name">Resume</span></div>
+          <div class="dock-app da-art"><span class="name">Art</span></div>
+          <div class="dock-app da-photo"><span class="name">Photo</span></div>
+          <div class="dock-app da-welcome"><span class="name">Welcome</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-app da-unsaved"><span class="name">Unsaved</span></div>
+          <div class="dock-sep"></div>
+          <div class="dock-tool primary"><i data-lucide="plus" class="ico"></i><span>New</span></div>
+        </div>
+
+        <!-- Confirm sheet -->
+        <div class="confirm-scrim">
+          <div class="confirm">
+            <h3><i data-lucide="triangle-alert" class="ico"></i>This will wipe your site</h3>
+            <p>Changing the WP/PHP version resets the playground's database and uploads. Your saved blueprint is kept — restored content is not. Type the playground name to continue.</p>
+            <div class="changes">
+              <div class="ch"><span>WordPress version</span><span>6.6 → 6.7</span></div>
+              <div class="ch"><span>PHP version</span><span>8.2 → 8.3</span></div>
+              <div class="ch"><span>Language</span><span>English (unchanged)</span></div>
+              <div class="ch"><span>Network access</span><span>On (unchanged)</span></div>
+              <div class="ch"><span>Database</span><span style="color:var(--danger)">Will be wiped</span></div>
+              <div class="ch"><span>Uploads</span><span style="color:var(--danger)">Will be wiped</span></div>
+            </div>
+            <div class="typer">
+              <span class="ph">Type</span>
+              <span class="ty">my coffee shop</span>
+              <span class="ty">my coffee</span><span class="caret"></span>
+              <span class="ph" style="margin-left:auto;font-size:11px">to confirm</span>
+            </div>
+            <div class="row">
+              <button class="btn ghost">Cancel</button>
+              <button class="btn danger" style="opacity:0.55"><i data-lucide="rotate-ccw" style="width:13px;height:13px;display:inline;vertical-align:-2px;margin-right:6px"></i>Apply &amp; Reset</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- MOBILE 390×844: same metaphor scaled to thumb -->
+  <!-- ============================================================ -->
+  <section>
+    <span class="state-label"><span>Mobile · 390 × 844</span><span class="meta">Same Stage Manager metaphor — thinner left strip, smaller dock. "Desktop = wider mobile."</span></span>
+
+    <div class="devices-row">
+      <div style="display:flex;gap:32px;align-items:flex-start;justify-content:center;flex-wrap:wrap">
+
+        <!-- Mobile working session -->
+        <div class="iphone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="statusbar">
+              <div class="l"><span>9:41</span></div>
+              <div class="r">
+                <span class="signal"><span></span><span></span><span></span><span></span></span>
+                <span style="font-size:13px">Wi-Fi</span>
+                <span class="batt"><span></span></span>
+              </div>
+            </div>
+
+            <div class="m-top">
+              <div class="nm"><span class="dot"></span><span class="nm-t">Unsaved · /wp-admin</span></div>
+              <div class="ib"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i></div>
+              <div class="ib" style="background:var(--ink);color:#fff"><i data-lucide="bookmark" style="width:14px;height:14px"></i></div>
+            </div>
+            <div class="m-cc"><i data-lucide="sliders-horizontal" style="width:14px;height:14px;color:var(--ink-2)"></i></div>
+
+            <div class="m-recess">
+              <div class="thumb thumb-1"></div>
+              <div class="thumb thumb-2"></div>
+              <div class="thumb thumb-1" style="background:linear-gradient(135deg,#fef3c7,#f59e0b)"></div>
+            </div>
+
+            <div class="m-stage">
+              <div class="iw-chrome"><div class="dots"><span></span><span></span><span></span></div><div class="center" style="font-size:9px">playground · /wp-admin</div></div>
+              <div class="iw-body">
+                <div class="wp-site">
+                  <div class="wp-nav"><div class="wp-logo">2025</div><a class="wp-cta">Visit</a></div>
+                  <div class="wp-hero">
+                    <div class="eyebrow">Welcome back</div>
+                    <h1>Edit your latest draft</h1>
+                    <p>3 drafts, 12 posts, 2 pending comments.</p>
+                    <div class="row"><a>Open editor</a></div>
+                  </div>
+                  <div class="wp-grid">
+                    <div class="wp-card"><div class="k">Posts</div><div class="h">12 published</div><div class="b">2 pending in moderation.</div></div>
+                    <div class="wp-card"><div class="k">Plugins</div><div class="h">5 active</div><div class="b">WPGraphQL, Gutenberg, Friends…</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="m-dock">
+              <div class="dock-app da-coffee active"></div>
+              <div class="dock-app da-gaming"></div>
+              <div class="dock-app da-resume"></div>
+              <div class="dock-app da-art"></div>
+              <div class="dock-sep"></div>
+              <div class="dock-app da-unsaved"></div>
+              <div class="dock-sep"></div>
+              <div class="dock-tool primary"><i data-lucide="plus" class="ico"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile launcher state -->
+        <div class="iphone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="statusbar">
+              <div class="l"><span>9:42</span></div>
+              <div class="r">
+                <span class="signal"><span></span><span></span><span></span><span></span></span>
+                <span style="font-size:13px">Wi-Fi</span>
+                <span class="batt"><span></span></span>
+              </div>
+            </div>
+
+            <div class="m-top">
+              <div class="nm"><span class="dot saved" style="background:var(--ok)"></span><span class="nm-t">Coffee Shop · /shop</span></div>
+              <div class="ib"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i></div>
+              <div class="ib" style="opacity:0.45"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+            </div>
+
+            <!-- launcher bottom-sheet on mobile -->
+            <div style="position:absolute;top:104px;left:14px;right:14px;bottom:78px;background:var(--glass-strong);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--glass-border);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;z-index:55;box-shadow:0 20px 50px rgba(2,8,28,0.4)">
+              <div style="display:flex;align-items:center;gap:8px;padding:11px 12px 0">
+                <h3 style="margin:0;font-size:14px;font-weight:700;color:var(--ink);flex:1">Launcher</h3>
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(15,23,42,0.08);display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="width:13px;height:13px;color:var(--ink-2)"></i></div>
+              </div>
+              <div style="display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid rgba(15,23,42,0.08)">
+                <span class="chip active" style="font-size:10.5px;padding:4px 9px">Blueprints</span>
+                <span class="chip" style="font-size:10.5px;padding:4px 9px">Your sites</span>
+                <span class="chip" style="font-size:10.5px;padding:4px 9px">+ New</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;background:rgba(15,23,42,0.05);border-radius:8px;padding:6px 9px;margin:8px 12px;font-size:11.5px;color:var(--ink-2)"><i data-lucide="search" style="width:12px;height:12px"></i><span>Search 43 blueprints…</span></div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;padding:0 12px 6px">
+                <span class="chip active" style="font-size:10px;padding:3px 8px">All<span class="ct">43</span></span>
+                <span class="chip" style="font-size:10px;padding:3px 8px">Featured</span>
+                <span class="chip" style="font-size:10px;padding:3px 8px">Website</span>
+                <span class="chip" style="font-size:10px;padding:3px 8px">Personal</span>
+                <span class="chip" style="font-size:10px;padding:3px 8px">WooComm.</span>
+              </div>
+              <div style="flex:1;overflow:auto;padding:6px 12px 12px;display:grid;grid-template-columns:1fr;gap:6px">
+                <div class="bp" style="padding:7px"><div class="thumb" style="width:38px;height:38px;background:linear-gradient(135deg,#fef3c7,#fbbf24);font-size:17px">🎨</div><div><h5 style="font-size:11.5px">Art Gallery</h5><p style="font-size:10px;-webkit-line-clamp:1">Built with Vueo theme.</p></div></div>
+                <div class="bp" style="padding:7px"><div class="thumb" style="width:38px;height:38px;background:linear-gradient(135deg,#0b3b8c,#2563eb);font-size:17px;color:#fff">☕</div><div><h5 style="font-size:11.5px">Coffee Shop</h5><p style="font-size:10px;-webkit-line-clamp:1">WooCommerce storefront.</p></div></div>
+                <div class="bp" style="padding:7px"><div class="thumb" style="width:38px;height:38px;background:linear-gradient(135deg,#1e1b4b,#7c3aed);font-size:17px;color:#fde68a">🎮</div><div><h5 style="font-size:11.5px">Gaming News</h5><p style="font-size:10px;-webkit-line-clamp:1">Spiel theme. News-feed homepage.</p></div></div>
+                <div class="bp" style="padding:7px"><div class="thumb" style="width:38px;height:38px;background:linear-gradient(135deg,#fce7f3,#ec4899);font-size:17px;color:#831843">✍️</div><div><h5 style="font-size:11.5px">Personal Blog</h5><p style="font-size:10px;-webkit-line-clamp:1">Substrata theme.</p></div></div>
+                <div class="bp" style="padding:7px"><div class="thumb" style="width:38px;height:38px;background:linear-gradient(135deg,#bbf7d0,#10b981);font-size:17px;color:#064e3b">🤝</div><div><h5 style="font-size:11.5px">Non-profit</h5><p style="font-size:10px;-webkit-line-clamp:1">Koinonia theme.</p></div></div>
+                <div class="bp" style="padding:7px;opacity:0.6"><div class="thumb" style="width:38px;height:38px;background:rgba(15,23,42,0.06);font-size:14px;color:var(--ink-3)">+38</div><div><h5 style="font-size:11.5px">38 more blueprints</h5><p style="font-size:10px;-webkit-line-clamp:1">Tap to scroll the gallery.</p></div></div>
+              </div>
+            </div>
+
+            <div class="m-dock">
+              <div class="dock-app da-coffee active"></div>
+              <div class="dock-app da-gaming"></div>
+              <div class="dock-app da-resume"></div>
+              <div class="dock-app da-art"></div>
+              <div class="dock-sep"></div>
+              <div class="dock-tool primary" style="background:linear-gradient(135deg,#5b7df7,#3858e9);box-shadow:0 0 0 3px rgba(56,88,233,0.35)"><i data-lucide="plus" class="ico"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Site Manager pull-tab -->
+        <div class="iphone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="statusbar">
+              <div class="l"><span>9:48</span></div>
+              <div class="r">
+                <span class="signal"><span></span><span></span><span></span><span></span></span>
+                <span style="font-size:13px">Wi-Fi</span>
+                <span class="batt"><span></span></span>
+              </div>
+            </div>
+
+            <div class="m-top">
+              <div class="nm"><span class="dot" style="background:var(--ok)"></span><span class="nm-t">Coffee · Logs</span></div>
+              <div class="ib"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i></div>
+              <div class="ib" style="opacity:0.45"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+            </div>
+
+            <!-- Bottom sheet for SM on mobile -->
+            <div style="position:absolute;top:118px;left:14px;right:14px;bottom:78px;background:var(--glass-strong);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--glass-border);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;z-index:55;box-shadow:0 20px 50px rgba(2,8,28,0.4)">
+              <!-- iframe peek -->
+              <div style="height:90px;border-bottom:1px solid rgba(15,23,42,0.08);background:#fff;display:flex;flex-direction:column">
+                <div class="iw-chrome" style="height:18px;font-size:9px"><div class="dots"><span style="width:6px;height:6px"></span><span style="width:6px;height:6px"></span><span style="width:6px;height:6px"></span></div><div class="center" style="font-size:9px">/shop</div></div>
+                <div class="wp-site theme-coffee" style="flex:1">
+                  <div class="wp-hero" style="padding:8px 14px;gap:4px">
+                    <div class="eyebrow" style="font-size:9px">Single Origin</div>
+                    <h1 style="font-size:13px">Fruity, bright, citrus.</h1>
+                  </div>
+                </div>
+              </div>
+              <!-- SM tabs -->
+              <div style="display:flex;gap:0;padding:6px 8px 0;border-bottom:1px solid rgba(15,23,42,0.08);overflow-x:auto">
+                <div class="sm-tab" style="font-size:10.5px;padding:6px 8px"><i data-lucide="settings-2" class="ico"></i>Settings</div>
+                <div class="sm-tab" style="font-size:10.5px;padding:6px 8px"><i data-lucide="folder-tree" class="ico"></i>Files</div>
+                <div class="sm-tab" style="font-size:10.5px;padding:6px 8px"><i data-lucide="file-json-2" class="ico"></i>BP</div>
+                <div class="sm-tab" style="font-size:10.5px;padding:6px 8px"><i data-lucide="database" class="ico"></i>DB</div>
+                <div class="sm-tab active" style="font-size:10.5px;padding:6px 8px"><i data-lucide="terminal" class="ico"></i>Logs</div>
+              </div>
+              <div style="flex:1;overflow:auto;padding:10px 12px">
+                <div class="logs" style="font-size:9.5px">
+                  <div class="ln"><span class="lvl I">INFO</span><span class="msg">Booted · 1.8s</span></div>
+                  <div class="ln"><span class="lvl I">INFO</span><span class="msg">Blueprint applied</span></div>
+                  <div class="ln"><span class="lvl W">WARN</span><span class="msg">Undefined index woocommerce_default_country</span></div>
+                  <div class="ln"><span class="lvl D">DEBUG</span><span class="msg">SELECT * FROM wp_posts</span></div>
+                  <div class="ln"><span class="lvl E">ERROR</span><span class="msg">Fatal: Could not retrieve site icon URL</span></div>
+                  <div class="ln"><span class="lvl I">INFO</span><span class="msg">User admin logged in</span></div>
+                  <div class="ln"><span class="lvl W">WARN</span><span class="msg">strpos() null param deprecated</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="m-dock">
+              <div class="dock-app da-coffee active"></div>
+              <div class="dock-app da-gaming"></div>
+              <div class="dock-app da-resume"></div>
+              <div class="dock-app da-art"></div>
+              <div class="dock-sep"></div>
+              <div class="dock-tool primary"><i data-lucide="plus" class="ico"></i></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="col-cap">
+        <h2 style="color:#fff;font-size:16px;font-weight:600;margin:0 0 8px;letter-spacing:-0.005em">Same metaphor on a 390-pt screen.</h2>
+        <p style="color:#94a3b8;font-size:12.5px;line-height:1.55;margin:0 0 14px">
+          The left "recessed stack" becomes a thin vertical sliver — peek-only thumbnails. The dock stays at the bottom; sites + the New tile sit side-by-side. The Site Manager pull-tab becomes a bottom sheet (with the iframe poking out 90 px so it's never invisible — the iframe-≥-65% rule of the parent direction stays honored here even if it's not the headline lesson for #04).
+        </p>
+        <p style="color:#94a3b8;font-size:12.5px;line-height:1.55;margin:0 0 14px">
+          On both phones and iPads, the metaphor lands without extra explanation: app-stage, peers behind, dock below. Stage Manager works because every iPad user already understands it; this design lifts that literacy.
+        </p>
+        <p style="color:#94a3b8;font-size:12.5px;line-height:1.55;margin:0">
+          Three states shown: <strong style="color:#cbd5e1">working session</strong>, <strong style="color:#cbd5e1">launcher open</strong>, <strong style="color:#cbd5e1">Site Manager open with Logs tab active</strong>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  if(window.lucide && window.lucide.createIcons){window.lucide.createIcons();}
+</script>
+</body>
+</html>
