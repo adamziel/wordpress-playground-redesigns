@@ -1,0 +1,2511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>v5 / 023 — Smart resize</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  :root {
+    --wp:        #3858E9;
+    --wp-deep:   #1E3FCE;
+    --wp-soft:   #EBF0FE;
+    --wp-glow:   rgba(56,88,233,0.35);
+    --ink:       #0B1020;
+    --ink-2:     #1A2138;
+    --ink-3:     #3B4566;
+    --ink-4:     #5C6685;
+    --mute:      #8893B0;
+    --mute-2:    #B9C2D9;
+    --line:      #E4E8F2;
+    --line-2:    #D6DBEA;
+    --paper:     #FAFBFE;
+    --paper-2:   #F1F3FA;
+    --paper-3:   #E8ECF5;
+    --green:     #10B981;
+    --green-soft:#E8F8F1;
+    --amber:     #F59E0B;
+    --amber-soft:#FEF4E2;
+    --red:       #DC2626;
+    --red-soft:  #FDECEC;
+    --bg:        #0A0D18;
+    --focus:     #3858E9;
+    --focus-glow:rgba(56,88,233,0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; color: #E6EAF5;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background:
+      radial-gradient(50% 35% at 18% 8%, rgba(56,88,233,0.20), transparent 60%),
+      radial-gradient(45% 30% at 85% 92%, rgba(168,85,247,0.08), transparent 60%),
+      #06070F;
+    min-height: 100vh;
+    padding: 56px 48px 96px;
+  }
+
+  /* ====== Showcase header ====== */
+  .showcase-header {
+    max-width: 1880px;
+    margin: 0 auto 28px;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 40px;
+  }
+  .showcase-header h1 {
+    font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -0.02em;
+  }
+  .showcase-header h1 .num {
+    display: inline-block; padding: 3px 10px 4px; border-radius: 999px;
+    background: var(--wp); color: white; font-size: 14px; vertical-align: middle;
+    margin-right: 10px; font-weight: 600;
+  }
+  .showcase-header h1 .tag {
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    background: rgba(56,88,233,0.12); color: #B9C5FB; font-size: 12px;
+    margin-left: 10px; font-weight: 500; vertical-align: middle;
+    border: 1px solid rgba(56,88,233,0.25);
+  }
+  .showcase-header p { color: var(--mute-2); margin: 10px 0 0; font-size: 15px; max-width: 760px; line-height: 1.55; }
+  .legend { display: flex; gap: 18px; color: var(--mute); font-size: 12px; flex-wrap: wrap; }
+  .legend b { color: #E6EAF5; font-weight: 600; }
+
+  /* ====== Affordance counter ====== */
+  .counter {
+    max-width: 1880px;
+    margin: 0 auto 36px;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: rgba(56,88,233,0.08);
+    border: 1px solid rgba(56,88,233,0.18);
+    color: #B9C5FB;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .counter b { color: white; font-weight: 600; }
+  .counter .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--green); box-shadow: 0 0 8px rgba(16,185,129,0.7); }
+
+  /* ====== Stage / grid ====== */
+  .stage { max-width: 1880px; margin: 0 auto; display: grid; gap: 70px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1440px 390px;
+    gap: 56px; align-items: flex-start; justify-content: center;
+  }
+  .row-single {
+    display: grid;
+    grid-template-columns: 1440px;
+    gap: 56px; justify-content: center;
+  }
+  .row-label {
+    grid-column: 1 / -1;
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 0;
+  }
+  .row-label h2 { font-size: 22px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  .row-label span { color: var(--mute); font-size: 13px; flex: 1; }
+  .row-label .badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    padding: 3px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.06); color: #B9C2D9; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .frame-cap {
+    font-size: 11px; color: var(--mute); margin-bottom: 10px; display: block;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em;
+  }
+  .frame-wrap { display: flex; flex-direction: column; }
+
+  /* ====== Window frame (the actual UI canvas) ====== */
+  .frame {
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.04),
+      0 28px 70px -22px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.06);
+    position: relative;
+    isolation: isolate;
+  }
+  .desktop { width: 1440px; height: 900px; }
+  .mobile  {
+    width: 390px;  height: 844px; border-radius: 44px;
+    border: 8px solid #0A0D18;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.04),
+      0 28px 60px -22px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .mobile .inner {
+    width: 100%; height: 100%; border-radius: 36px; overflow: hidden; position: relative;
+    background: var(--paper);
+  }
+
+  /* ====== Top bar (desktop) ====== */
+  .topbar {
+    height: 44px;
+    background: rgba(255,255,255,0.96);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center;
+    padding: 0 12px 0 16px;
+    gap: 10px;
+    position: relative; z-index: 8;
+    backdrop-filter: blur(12px);
+  }
+  .topbar .wp-mark {
+    width: 24px; height: 24px; border-radius: 7px;
+    background: linear-gradient(135deg, #3858E9, #1E3FCE);
+    display: grid; place-items: center;
+    color: white; font-weight: 700; font-size: 13px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .topbar .wp-mark::after {
+    content: ""; position: absolute; inset: -3px; border-radius: 10px;
+    border: 1.5px solid rgba(56,88,233,0); transition: border-color .2s;
+  }
+  .topbar .iconbtn {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: grid; place-items: center;
+    color: var(--ink-3);
+    border: 1px solid transparent;
+    flex-shrink: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .topbar .iconbtn:hover, .topbar .iconbtn.active { background: var(--paper-2); }
+  .topbar .iconbtn svg { width: 15px; height: 15px; }
+
+  .urlbar {
+    flex: 1;
+    height: 30px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: flex; align-items: center;
+    padding: 0 10px 0 12px;
+    gap: 10px;
+    min-width: 0;
+  }
+  .urlbar .lock {
+    width: 14px; height: 14px; color: var(--ink-4); flex-shrink: 0;
+  }
+  .urlbar .path {
+    font-size: 12.5px; color: var(--ink-2);
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden; white-space: nowrap;
+    flex: 1; min-width: 0;
+  }
+  .urlbar .path .host { color: var(--ink-4); }
+  .urlbar .path .slash { color: var(--ink-4); }
+
+  /* Name pill — save-state lives here as STATUS only */
+  .name-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px 0 8px;
+    border-radius: 999px;
+    background: var(--amber-soft);
+    border: 1px solid #F8D89A;
+    color: #92500A;
+    font-size: 12px; font-weight: 600;
+    cursor: default; flex-shrink: 0;
+  }
+  .name-pill .pip { width: 6px; height: 6px; border-radius: 999px; background: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,0.18); }
+  .name-pill.saved { background: var(--green-soft); border-color: #B6EBD3; color: #0F6E48; }
+  .name-pill.saved .pip { background: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,0.18); }
+  .name-pill.saving { background: #EEF1FE; border-color: #C9D2FA; color: #2A3FB0; }
+  .name-pill.saving .pip { background: var(--wp); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(56,88,233,0.4); }
+    50% { box-shadow: 0 0 0 5px rgba(56,88,233,0); }
+  }
+
+  /* save action — separate from status when unsaved */
+  .save-btn {
+    height: 26px; padding: 0 10px; border-radius: 999px;
+    background: var(--ink-2); color: white;
+    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: none; cursor: pointer; flex-shrink: 0;
+  }
+  .save-btn svg { width: 12px; height: 12px; }
+
+  .right-chips {
+    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  }
+
+  /* ====== Body wrap — two-pane split ====== */
+  .body {
+    position: relative; width: 100%; height: calc(100% - 44px);
+    background: #ECF0F8;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* iframe + pane share row; widths controlled by inline grid */
+  .split {
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: var(--iframe, 50%) 8px var(--pane, calc(50% - 8px));
+    transition: grid-template-columns 0.55s cubic-bezier(.2,.7,.2,1);
+  }
+
+  /* Iframe area */
+  .iframe-wp {
+    background: white;
+    position: relative;
+    overflow: hidden;
+    transition: filter .25s, transform .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .iframe-wp.dim { filter: saturate(.85) brightness(.95); }
+
+  /* The seam — a 8px hairline. NOT a draggable divider. Static visual edge between focus zones. */
+  .seam {
+    background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(56,88,233,0.10) 50%, rgba(0,0,0,0) 100%);
+    position: relative;
+    overflow: visible;
+  }
+  .seam::before {
+    content: ""; position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px; height: 64px;
+    background: linear-gradient(180deg, transparent, var(--line-2) 30%, var(--line-2) 70%, transparent);
+    border-radius: 2px;
+  }
+  /* arrow indicator showing which way focus shifted */
+  .seam .shift {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    height: 28px; min-width: 28px;
+    padding: 0 8px;
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ink-3);
+    box-shadow: 0 4px 10px -2px rgba(0,0,0,0.08);
+    z-index: 4;
+    white-space: nowrap;
+  }
+  .seam .shift svg { width: 11px; height: 11px; color: var(--focus); }
+  .seam .shift b { color: var(--focus); font-weight: 600; }
+
+  /* Pane wrapper */
+  .pane {
+    background: white;
+    border-left: 1px solid var(--line);
+    display: flex; flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ====== Pane head: segmented control + actions ====== */
+  .pane-head {
+    height: 44px;
+    display: flex; align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .seg {
+    display: inline-flex;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 1px;
+  }
+  .seg button {
+    height: 26px; padding: 0 10px;
+    background: transparent; border: none; cursor: pointer;
+    font-size: 12px; font-weight: 500; color: var(--ink-3);
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: inherit;
+  }
+  .seg button svg { width: 12px; height: 12px; }
+  .seg button.active {
+    background: white;
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.04);
+    font-weight: 600;
+  }
+  .seg button:hover:not(.active) { color: var(--ink-2); }
+
+  .pane-head .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .pane-head .ph-btn {
+    height: 26px; padding: 0 8px;
+    border-radius: 6px;
+    background: transparent; border: 1px solid transparent; cursor: pointer;
+    font-size: 12px; color: var(--ink-3);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .pane-head .ph-btn:hover { background: var(--paper-2); }
+  .pane-head .ph-btn svg { width: 13px; height: 13px; }
+
+  /* ====== Pane content ====== */
+  .pane-body {
+    flex: 1; min-height: 0;
+    overflow: auto;
+  }
+
+  /* Sites tab — launcher home */
+  .sites-tab { padding: 16px 18px; }
+  .sites-h {
+    font-size: 11px; font-weight: 600;
+    color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sites-h.first { margin-top: 0; }
+  .sites-h .ct { font-weight: 500; color: var(--mute); letter-spacing: 0; text-transform: none; }
+  .sites-h .more { margin-left: auto; font-size: 11px; color: var(--wp); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+  .source-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 22px;
+  }
+  .source {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 11px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .source:hover { background: white; border-color: var(--line-2); }
+  .source .sicon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: white;
+    border: 1px solid var(--line);
+    display: grid; place-items: center;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+  .source .sicon svg { width: 15px; height: 15px; }
+  .source.primary .sicon { background: var(--wp); border-color: var(--wp); color: white; }
+  .source .lbl { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.15; }
+  .source .sub { font-size: 10.5px; color: var(--mute); margin-top: 1px; }
+
+  .saved-grid { display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; }
+  .saved {
+    display: flex; align-items: center; gap: 11px;
+    padding: 9px 10px;
+    border-radius: 9px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .saved:hover { background: var(--paper-2); }
+  .saved.active { background: var(--wp-soft); border-color: rgba(56,88,233,0.25); }
+  .saved .thumb {
+    width: 38px; height: 28px; border-radius: 5px;
+    background: var(--paper-3);
+    flex-shrink: 0;
+    background-size: cover;
+    position: relative;
+    overflow: hidden;
+  }
+  .saved .thumb.coffee { background: linear-gradient(135deg, #B27928 0%, #6B4513 100%); }
+  .saved .thumb.gallery { background: linear-gradient(135deg, #2C2C44 0%, #5D4A91 100%); }
+  .saved .thumb.gaming { background: linear-gradient(135deg, #0F1024 0%, #2A1B5C 100%); }
+  .saved .thumb.gutenberg { background: linear-gradient(135deg, #2C5F2D 0%, #97BC62 100%); }
+  .saved .thumb.unsaved { background: repeating-linear-gradient(45deg, #FEF4E2, #FEF4E2 6px, #FDE9C0 6px, #FDE9C0 12px); }
+  .saved .meta { flex: 1; min-width: 0; }
+  .saved .nm { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.15; }
+  .saved .nm .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: var(--green); vertical-align: middle; margin-left: 6px; }
+  .saved .sm { font-size: 10.5px; color: var(--mute); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+  .saved .sm .sep { color: var(--line-2); margin: 0 4px; }
+
+  /* Featured blueprints */
+  .bp-cats {
+    display: flex; gap: 5px; flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .bp-cat {
+    padding: 3px 8px; border-radius: 999px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    font-size: 10.5px; color: var(--ink-3);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .bp-cat.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+  .bp-search {
+    display: flex; align-items: center; gap: 8px;
+    height: 30px;
+    padding: 0 10px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+  .bp-search svg { width: 13px; height: 13px; color: var(--ink-4); }
+  .bp-search .ph { font-size: 12.5px; color: var(--mute); }
+  .bp-search .kbd {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 2px 5px; border-radius: 4px;
+    background: white; border: 1px solid var(--line); color: var(--ink-4);
+  }
+
+  .bp-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .bp-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .bp-card {
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .bp-card:hover { background: white; border-color: var(--line-2); }
+  .bp-card .bpt {
+    height: 64px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Custom blueprint tile illustrations */
+  .bpt.art { background: linear-gradient(135deg, #2C2C44 0%, #5D4A91 100%); }
+  .bpt.art::after { content: ""; position: absolute; top: 14px; left: 14px; right: 14px; bottom: 14px; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 16px, transparent 16px 26px); border-radius: 4px; }
+  .bpt.coffee { background: linear-gradient(135deg, #C28734 0%, #6B4513 100%); }
+  .bpt.coffee::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 28px; height: 22px; background: #2F1707; border-radius: 4px 4px 8px 8px; box-shadow: 16px 0 0 -6px #C28734, -16px 0 0 -6px #C28734; }
+  .bpt.friends { background: linear-gradient(135deg, #4A6FA5 0%, #1E3A5F 100%); }
+  .bpt.friends::after { content: ""; position: absolute; top: 12px; left: 14px; right: 14px; height: 6px; background: rgba(255,255,255,0.5); border-radius: 2px; box-shadow: 0 12px 0 rgba(255,255,255,0.4), 0 24px 0 rgba(255,255,255,0.3); }
+  .bpt.gaming { background: linear-gradient(135deg, #1D1340 0%, #0A1B3B 100%); }
+  .bpt.gaming::after { content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #FF4B7E; font-size: 18px; }
+  .bpt.nonprofit { background: linear-gradient(135deg, #2C5F4F 0%, #67B596 100%); }
+  .bpt.nonprofit::after { content: "♡"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.8); font-size: 22px; }
+  .bpt.blog { background: linear-gradient(135deg, #F4F1ED 0%, #DCD3C5 100%); }
+  .bpt.blog::after { content: ""; position: absolute; top: 14px; left: 14px; width: 32px; height: 4px; background: #44372A; border-radius: 2px; box-shadow: 0 10px 0 #6B5A45, 0 20px 0 #6B5A45; }
+  .bpt.resume { background: linear-gradient(135deg, #FFF9E8 0%, #E5D9A8 100%); }
+  .bpt.resume::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 38px; height: 26px; background: white; border-radius: 3px; border: 1px solid #8A7E4D; }
+  .bpt.photo { background: linear-gradient(135deg, #1A1A1A 0%, #4A4A4A 100%); }
+  .bpt.photo::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 28px; height: 22px; background: #777; border-radius: 3px; border: 3px solid #333; }
+  .bpt.skincare { background: linear-gradient(135deg, #FFE5DE 0%, #E5B8A8 100%); }
+  .bpt.skincare::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 22px; height: 34px; background: rgba(255,255,255,0.6); border-radius: 4px 4px 6px 6px; }
+  .bpt.uni { background: linear-gradient(135deg, #3D2C1E 0%, #8B6F47 100%); }
+  .bpt.uni::after { content: ""; position: absolute; top: 24px; left: 50%; transform: translateX(-50%); width: 36px; height: 14px; border-bottom: 16px solid #F1E3C5; border-left: 8px solid transparent; border-right: 8px solid transparent; }
+  .bpt.cbt { background: linear-gradient(135deg, #1B3057 0%, #3858E9 100%); }
+  .bpt.cbt::after { content: "{}"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; }
+  .bpt.cpt { background: linear-gradient(135deg, #4A2C5E 0%, #8B5FBF 100%); }
+  .bpt.cpt::after { content: "📚"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; }
+  .bpt.tt5 { background: linear-gradient(135deg, #000 0%, #444 100%); }
+  .bpt.tt5::after { content: "25"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: 800; font-size: 22px; }
+  .bpt.dashw { background: linear-gradient(135deg, #2C3E50 0%, #4CA1AF 100%); }
+  .bpt.dashw::after { content: ""; position: absolute; top: 16px; left: 14px; right: 14px; bottom: 14px; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.4) 0 4px, transparent 4px 12px); border-radius: 2px; }
+  .bpt.gutenberg { background: linear-gradient(135deg, #1E1E1E 0%, #007CBA 100%); }
+  .bpt.gutenberg::after { content: "G"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: 800; font-size: 26px; font-family: Georgia, serif; }
+  .bpt.experiment { background: linear-gradient(135deg, #5F2C6B 0%, #B53FAE 100%); }
+  .bpt.experiment::after { content: "⚗"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 24px; }
+  .bpt.woo { background: linear-gradient(135deg, #7F54B3 0%, #C57FE6 100%); }
+  .bpt.woo::after { content: "Wc"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: 700; font-size: 18px; }
+  .bpt.stylish { background: linear-gradient(135deg, #FA709A 0%, #FEE140 100%); }
+  .bpt.stylish::after { content: "S"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: 800; font-size: 24px; font-family: Georgia, serif; }
+  .bpt.graphql { background: linear-gradient(135deg, #E10098 0%, #FF6B9D 100%); }
+  .bpt.graphql::after { content: "◆"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 26px; }
+  .bpt.beta { background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); }
+  .bpt.beta::after { content: "β"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 26px; font-weight: 700; }
+  .bpt.adminc { background: linear-gradient(135deg, #00697D 0%, #4FB3BF 100%); }
+  .bpt.adminc::after { content: ""; position: absolute; top: 14px; left: 14px; right: 14px; bottom: 14px; background: linear-gradient(90deg, #FF6B6B 0 33%, #FFD93D 33% 66%, #6BCB77 66%); border-radius: 3px; opacity: 0.7; }
+  .bpt.tester { background: linear-gradient(135deg, #355C7D 0%, #6C5B7B 100%); }
+  .bpt.tester::after { content: "T"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: 800; font-size: 22px; }
+
+  .bp-card .bpb { padding: 7px 9px 9px; }
+  .bp-card .bpn { font-size: 11.5px; font-weight: 600; color: var(--ink); line-height: 1.2; }
+  .bp-card .bpd { font-size: 10px; color: var(--mute); margin-top: 2px; line-height: 1.35;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .bp-card .bptags { display: flex; gap: 3px; margin-top: 4px; }
+  .bp-card .bptag { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: white; border: 1px solid var(--line); color: var(--ink-4); font-weight: 500; }
+
+  .gallery-foot {
+    margin-top: 12px;
+    padding: 8px 10px;
+    display: flex; align-items: center; gap: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 11px; color: var(--mute);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .gallery-foot b { color: var(--ink); font-weight: 600; }
+
+  /* Settings tab */
+  .settings-body { padding: 16px 18px; }
+  .field {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-bottom: 12px;
+  }
+  .field .lab {
+    font-size: 11px; font-weight: 600; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .field .ctrl {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ctrl-select {
+    flex: 1;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: white;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .ctrl-select svg { width: 14px; height: 14px; color: var(--ink-4); }
+  .ctrl-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .ctrl-toggle .switch {
+    width: 32px; height: 18px; border-radius: 999px;
+    background: var(--line);
+    position: relative;
+    cursor: pointer;
+  }
+  .ctrl-toggle .switch.on { background: var(--wp); }
+  .ctrl-toggle .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 999px;
+    background: white;
+    transition: transform .2s;
+  }
+  .ctrl-toggle .switch.on::after { transform: translateX(14px); }
+  .ctrl-toggle .lab { font-size: 13px; font-weight: 500; color: var(--ink); }
+
+  .danger-row {
+    margin-top: 18px;
+    padding: 12px 13px;
+    background: var(--red-soft);
+    border: 1px solid #F9C4C4;
+    border-radius: 9px;
+  }
+  .danger-row .dh {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--red);
+    margin-bottom: 4px;
+  }
+  .danger-row .dh svg { width: 13px; height: 13px; }
+  .danger-row .dd { font-size: 11.5px; color: #8A2929; line-height: 1.45; margin-bottom: 8px; }
+  .danger-row .apply-confirm {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: white;
+    border: 1px dashed #F9C4C4;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: #8A2929;
+  }
+  .danger-row .apply-confirm .typed {
+    flex: 1;
+    color: var(--ink-2);
+  }
+  .danger-row .apply-confirm .typed b { color: var(--red); font-weight: 700; }
+  .danger-row .danger-btn {
+    height: 28px; padding: 0 12px;
+    background: var(--red); color: white; border: none;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .danger-row .danger-btn:disabled { background: #E5A5A5; cursor: not-allowed; }
+
+  /* Files tab */
+  .files-body {
+    display: grid; grid-template-columns: 220px 1fr;
+    height: 100%;
+  }
+  .files-tree {
+    border-right: 1px solid var(--line);
+    padding: 12px 8px;
+    overflow: auto;
+    background: var(--paper);
+  }
+  .files-tree .th {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0 6px 6px;
+  }
+  .files-tree .th .ic { display: flex; gap: 2px; margin-left: auto; }
+  .files-tree .th .ic button {
+    width: 20px; height: 20px; border-radius: 4px; background: none; border: none; color: var(--ink-4); cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .files-tree .th .ic button svg { width: 12px; height: 12px; }
+  .tree-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px;
+    font-size: 12px; color: var(--ink-2);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tree-item .icon { width: 13px; height: 13px; color: var(--ink-4); flex-shrink: 0; }
+  .tree-item:hover { background: var(--paper-2); }
+  .tree-item.active { background: var(--wp-soft); color: var(--wp-deep); font-weight: 600; }
+  .tree-item.active .icon { color: var(--wp); }
+  .tree-item.indent-1 { padding-left: 22px; }
+  .tree-item.indent-2 { padding-left: 38px; }
+
+  .editor-pane {
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .editor-tabs {
+    height: 32px;
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .editor-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 0 14px 0 12px;
+    font-size: 11px; color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace;
+    border-right: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .editor-tab.active { background: white; color: var(--ink); border-bottom: 2px solid var(--wp); }
+  .editor-tab svg { width: 11px; height: 11px; }
+
+  .code-body {
+    flex: 1; min-height: 0; overflow: auto;
+    background: white;
+    padding: 10px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+  .code-body .ln { display: flex; padding: 0 12px; }
+  .code-body .ln:hover { background: var(--paper-2); }
+  .code-body .ln.curr { background: var(--wp-soft); }
+  .code-body .lnno {
+    width: 30px; color: var(--ink-4); flex-shrink: 0; text-align: right;
+    padding-right: 12px; user-select: none;
+  }
+  .code-body .k { color: #B47217; }
+  .code-body .s { color: #287E5A; }
+  .code-body .n { color: #BB1A57; }
+  .code-body .c { color: var(--mute); font-style: italic; }
+  .code-body .kw { color: #7E22CE; }
+
+  /* Blueprint editor */
+  .bp-pane-body {
+    display: grid; grid-template-columns: 200px 1fr;
+    height: 100%;
+  }
+  .bp-tree {
+    border-right: 1px solid var(--line);
+    background: var(--paper);
+    padding: 12px 8px;
+  }
+  .bp-tree .th {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0 6px 6px;
+  }
+  .bp-actions {
+    height: 36px;
+    display: flex; align-items: center; padding: 0 12px; gap: 6px;
+    border-bottom: 1px solid var(--line);
+    background: white;
+  }
+  .bp-actions .btn {
+    height: 24px; padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: white;
+    font-size: 11px; color: var(--ink-2);
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer;
+  }
+  .bp-actions .btn svg { width: 11px; height: 11px; }
+  .bp-actions .btn.primary { background: var(--wp); color: white; border-color: var(--wp); }
+  .bp-actions .name { font-size: 11.5px; color: var(--ink); font-family: 'JetBrains Mono', monospace; margin-right: auto; }
+  .bp-actions .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; background: var(--green-soft); color: #0F6E48; font-weight: 600; }
+
+  /* DB tab */
+  .db-body { display: grid; grid-template-columns: 200px 1fr; height: 100%; }
+  .db-tables {
+    border-right: 1px solid var(--line);
+    background: var(--paper);
+    padding: 12px 8px;
+    overflow: auto;
+  }
+  .grp-head {
+    font-size: 10px; color: var(--ink-4);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0 6px 4px;
+    margin-top: 4px;
+  }
+  .t-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 8px;
+    font-size: 12px; color: var(--ink-2);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .t-item:hover { background: var(--paper-2); }
+  .t-item.active { background: var(--wp-soft); color: var(--wp-deep); font-weight: 600; }
+  .t-item .ct { font-size: 10px; color: var(--ink-4); font-family: 'JetBrains Mono', monospace; }
+  .t-item.active .ct { color: var(--wp); }
+
+  .db-view { display: flex; flex-direction: column; min-height: 0; }
+  .db-notice {
+    margin: 10px 12px;
+    padding: 8px 10px;
+    background: #FFF7E0;
+    border: 1px solid #F8D89A;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #6B4906;
+    display: flex; align-items: flex-start; gap: 6px;
+    line-height: 1.4;
+  }
+  .db-notice svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
+  .db-notice a { color: #6B4906; text-decoration: underline; cursor: pointer; }
+
+  .db-q {
+    margin: 0 12px 8px;
+    padding: 6px 8px;
+    background: #1A2138;
+    color: #B9C5FB;
+    border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .db-q .kw { color: #F9A8D4; }
+  .db-q .ti { color: #FCD34D; }
+  .db-q .meta { margin-left: auto; color: var(--mute); font-size: 10px; }
+
+  .db-rows { flex: 1; min-height: 0; overflow: auto; margin: 0 12px 12px; border: 1px solid var(--line); border-radius: 6px; }
+  .db-rows table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .db-rows th { padding: 6px 8px; text-align: left; background: var(--paper); color: var(--ink-3); font-weight: 600; border-bottom: 1px solid var(--line); position: sticky; top: 0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .db-rows td { padding: 5px 8px; border-bottom: 1px solid var(--paper-2); color: var(--ink-2); }
+  .db-rows tr:hover td { background: var(--paper-2); }
+
+  /* Logs */
+  .logs-body { display: flex; flex-direction: column; height: 100%; }
+  .logs-head {
+    height: 36px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line);
+    background: white;
+  }
+  .logs-search {
+    flex: 1;
+    height: 24px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    display: flex; align-items: center; padding: 0 8px; gap: 6px;
+  }
+  .logs-search svg { width: 12px; height: 12px; color: var(--ink-4); }
+  .logs-search .ph { font-size: 11px; color: var(--mute); font-family: 'JetBrains Mono', monospace; }
+  .level {
+    font-size: 10px; padding: 2px 6px; border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    cursor: pointer;
+  }
+  .level.err { background: #FEF1F1; color: var(--red); border: 1px solid #F8C8C8; }
+  .level.warn { background: #FEF7E0; color: #92500A; border: 1px solid #F8D89A; }
+  .level.notice { background: var(--paper-2); color: var(--ink-3); border: 1px solid var(--line); }
+
+  .logs-stream {
+    flex: 1; min-height: 0; overflow: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 0;
+  }
+  .log-line {
+    display: grid; grid-template-columns: 70px 60px 60px 1fr;
+    padding: 4px 12px;
+    gap: 8px;
+    border-bottom: 1px solid var(--paper-2);
+  }
+  .log-line .ts { color: var(--ink-4); font-size: 10px; }
+  .log-line .lv { font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 600; text-align: center; align-self: flex-start; }
+  .log-line .lv.err { background: #FEF1F1; color: var(--red); }
+  .log-line .lv.warn { background: #FEF7E0; color: #92500A; }
+  .log-line .lv.notice { background: var(--paper-2); color: var(--ink-3); }
+  .log-line .src { color: var(--ink-4); font-size: 10px; }
+  .log-line .msg { color: var(--ink-2); line-height: 1.35; }
+  .log-line.err .msg { color: var(--red); }
+
+  /* ========== WordPress preview (inside iframe) ========== */
+  .wp-mock {
+    width: 100%; height: 100%;
+    background: white;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  /* Coffee Shop */
+  .wp-mock.coffee {
+    background:
+      radial-gradient(60% 50% at 50% 0%, #FFF7EC 0%, #FFFFFF 60%),
+      #FFFFFF;
+  }
+  .wp-mock .wp-nav {
+    height: 56px;
+    display: flex; align-items: center; padding: 0 36px;
+    border-bottom: 1px solid #EDE6D6;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(8px);
+    flex-shrink: 0;
+  }
+  .wp-mock .wp-nav .brand { font-family: Georgia, serif; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; color: #1A1606; }
+  .wp-mock .wp-nav .links {
+    margin-left: auto; display: flex; gap: 24px;
+    font-size: 13px; color: #4A4538;
+  }
+  .wp-mock .wp-hero {
+    flex: 1; display: grid; grid-template-columns: 1.1fr .9fr;
+    align-items: center;
+    padding: 32px 48px;
+    gap: 32px;
+    min-height: 0;
+  }
+  .wp-mock .wp-hero h1 {
+    font-size: 56px; line-height: 1.02; letter-spacing: -0.02em;
+    font-weight: 700; margin: 0 0 16px;
+    color: #1A1606;
+    font-family: Georgia, serif;
+  }
+  .wp-mock .wp-hero p {
+    font-size: 16px; line-height: 1.55; color: #5A523F; margin: 0 0 24px;
+    max-width: 480px;
+  }
+  .wp-mock .wp-hero .cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 999px;
+    background: #1A1606; color: #FFF5E1;
+    font-weight: 600; font-size: 14px;
+  }
+  .wp-mug {
+    width: 100%; aspect-ratio: 1; max-width: 380px;
+    border-radius: 24px;
+    background: radial-gradient(70% 60% at 50% 40%, #FBE2A2 0%, #E8B65A 50%, #B27928 100%);
+    box-shadow: inset 0 -20px 40px rgba(120,60,0,0.25), inset 0 20px 40px rgba(255,255,255,0.4);
+    position: relative;
+    place-self: center;
+  }
+  .wp-mug::before { content: ""; position: absolute; left: 22%; right: 22%; top: 30%; bottom: 18%; border-radius: 14px; background: linear-gradient(180deg, #4A2812, #2F1707); box-shadow: inset 0 6px 12px rgba(255,255,255,0.12), inset 0 -10px 20px rgba(0,0,0,0.4); }
+  .wp-mug::after { content: ""; position: absolute; right: 8%; top: 38%; width: 14%; height: 30%; border: 8px solid #C28734; border-left: none; border-radius: 0 50% 50% 0 / 0 50% 50% 0; }
+
+  /* Gallery WP mock */
+  .wp-mock.gallery {
+    background: #0D0D1A;
+    color: white;
+  }
+  .wp-mock.gallery .wp-nav { background: transparent; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .wp-mock.gallery .wp-nav .brand { color: white; font-family: 'Inter', sans-serif; letter-spacing: 0.16em; font-size: 13px; font-weight: 600; }
+  .wp-mock.gallery .wp-nav .links { color: rgba(255,255,255,0.6); }
+  .wp-mock.gallery .gallery-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    padding: 24px;
+    min-height: 0;
+  }
+  .wp-mock.gallery .g-tile {
+    background: #2C2C44;
+    border-radius: 2px;
+    aspect-ratio: 4/5;
+    position: relative;
+    overflow: hidden;
+  }
+  .wp-mock.gallery .g-tile.t1 { background: linear-gradient(135deg, #5D4A91, #2C2C44); }
+  .wp-mock.gallery .g-tile.t2 { background: linear-gradient(45deg, #C7945B, #6B4513); }
+  .wp-mock.gallery .g-tile.t3 { background: linear-gradient(225deg, #2C5F4F, #0D0D1A); }
+  .wp-mock.gallery .g-tile.t4 { background: linear-gradient(180deg, #8B5FBF, #4A2C5E); }
+  .wp-mock.gallery .g-tile.t5 { background: linear-gradient(135deg, #355C7D, #6C5B7B); }
+  .wp-mock.gallery .g-tile.t6 { background: linear-gradient(135deg, #F2D7D5, #C39BD3); }
+
+  /* Boot screen */
+  .boot-screen {
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, #0A0D18 0%, #1A1F36 60%, #221A3F 100%);
+    color: #DEE3F5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px;
+    z-index: 2;
+  }
+  .boot-screen .boot-mark {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: linear-gradient(135deg, #3858E9, #1E3FCE);
+    display: grid; place-items: center; color: white; font-weight: 700; font-size: 22px;
+    box-shadow: 0 12px 32px rgba(56,88,233,0.4);
+    position: relative;
+  }
+  .boot-screen .boot-mark::after {
+    content: ""; position: absolute; inset: -10px; border-radius: 22px;
+    border: 2px solid rgba(56,88,233,0.4);
+    border-top-color: rgba(56,88,233,0.9);
+    animation: spin 1.2s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .boot-screen .boot-title { font-size: 17px; font-weight: 600; }
+  .boot-screen .boot-sub { font-size: 13px; color: #8E9AB8; font-family: 'JetBrains Mono', monospace; }
+  .boot-progress { width: 280px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+  .boot-progress > div { height: 100%; background: linear-gradient(90deg, #3858E9, #6E8BFF); border-radius: 999px; }
+  .boot-steps {
+    margin-top: 10px;
+    width: 280px;
+    font-size: 10.5px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #5C6685;
+    line-height: 1.7;
+  }
+  .boot-steps .ok { color: var(--green); }
+  .boot-steps .now { color: #B9C5FB; }
+
+  /* Pane head — focus highlight */
+  .pane.focused .pane-head { background: linear-gradient(180deg, #F4F7FF 0%, white 100%); border-bottom-color: rgba(56,88,233,0.25); }
+  .pane.focused { box-shadow: inset 2px 0 0 var(--wp); }
+  .iframe-wp.focused { box-shadow: inset 0 -2px 0 var(--wp); }
+
+  /* Annotation labels */
+  .anno {
+    position: absolute;
+    background: #0A0D18;
+    color: #B9C5FB;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    border: 1px solid rgba(56,88,233,0.3);
+    z-index: 100;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px -4px rgba(0,0,0,0.4);
+  }
+  .anno b { color: white; font-weight: 600; }
+  .anno::before {
+    content: ""; position: absolute;
+    width: 10px; height: 10px;
+    background: inherit;
+    border-left: 1px solid rgba(56,88,233,0.3);
+    border-top: 1px solid rgba(56,88,233,0.3);
+    transform: rotate(45deg);
+  }
+  .anno.bottom::before { bottom: -6px; left: 16px; transform: rotate(225deg); border-color: rgba(56,88,233,0.3); }
+  .anno.top::before { top: -6px; left: 16px; }
+  .anno.left::before { left: -6px; top: 50%; margin-top: -5px; transform: rotate(-45deg); }
+  .anno.right::before { right: -6px; top: 50%; margin-top: -5px; transform: rotate(135deg); }
+
+  /* Mobile-specific layout */
+  .mobile .topbar { height: 40px; padding: 0 10px; gap: 6px; }
+  .mobile .topbar .urlbar { height: 26px; }
+  .mobile .body { background: #ECF0F8; }
+  .mobile .split {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--m-iframe, 50%) 4px var(--m-pane, calc(50% - 4px));
+  }
+  .mobile .seam {
+    background: linear-gradient(0deg, transparent, rgba(56,88,233,0.15), transparent);
+  }
+  .mobile .seam::before {
+    width: 64px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--line-2) 30%, var(--line-2) 70%, transparent);
+  }
+  .mobile .seam .shift { font-size: 9px; padding: 0 6px; height: 22px; min-width: 22px; }
+  .mobile .pane { border-left: none; border-top: 1px solid var(--line); }
+  .mobile .pane-head { height: 38px; padding: 0 8px; }
+  .mobile .seg { padding: 1px; }
+  .mobile .seg button { height: 22px; padding: 0 7px; font-size: 11px; }
+  .mobile .seg button span { display: none; }
+  .mobile .source-grid { grid-template-columns: 1fr 1fr; }
+  .mobile .bp-grid { grid-template-columns: 1fr 1fr; }
+  .mobile .files-body { grid-template-columns: 130px 1fr; }
+  .mobile .bp-pane-body { grid-template-columns: 130px 1fr; }
+  .mobile .db-body { grid-template-columns: 110px 1fr; }
+  .mobile .saved .nm { font-size: 12px; }
+
+  /* Apply&Reset confirm sheet overlay */
+  .confirm-sheet {
+    position: absolute; inset: 0;
+    background: rgba(10, 13, 24, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .confirm-card {
+    width: 460px;
+    background: white;
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 24px 60px -10px rgba(0,0,0,0.5);
+  }
+  .confirm-card .ch {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--red); font-weight: 700; font-size: 16px;
+    margin-bottom: 6px;
+  }
+  .confirm-card .ch svg { width: 18px; height: 18px; }
+  .confirm-card .cd {
+    font-size: 13px; color: var(--ink-2); line-height: 1.5;
+    margin: 4px 0 16px;
+  }
+  .confirm-card .typed-row {
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+  .confirm-card .typed-row code { background: var(--paper-2); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--red); font-weight: 600; }
+  .confirm-card .typed-input {
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: white;
+    padding: 0 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    margin-top: 4px;
+  }
+  .confirm-card .typed-input.matched { border-color: var(--red); box-shadow: 0 0 0 3px rgba(220,38,38,0.12); }
+  .confirm-card .ca {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 8px;
+  }
+  .confirm-card .ca button {
+    height: 34px; padding: 0 14px;
+    border-radius: 7px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .confirm-card .ca .cancel { background: var(--paper-2); border: 1px solid var(--line); color: var(--ink); }
+  .confirm-card .ca .destroy { background: var(--red); border: 1px solid var(--red); color: white; }
+
+  /* Toast */
+  .toast {
+    position: absolute;
+    left: 16px; bottom: 16px;
+    background: var(--ink);
+    color: white;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 12px 30px -8px rgba(0,0,0,0.4);
+    z-index: 12;
+    max-width: 320px;
+  }
+  .toast svg { width: 14px; height: 14px; color: var(--green); }
+  .toast b { font-weight: 600; }
+
+  /* Footer spec */
+  .footer-note {
+    max-width: 1880px;
+    margin: 56px auto 0;
+    padding: 24px 28px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    color: var(--mute-2);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .footer-note h3 { color: white; margin: 0 0 6px; font-size: 16px; }
+  .footer-note p { margin: 0 0 8px; }
+  .footer-note code { font-family: 'JetBrains Mono', monospace; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; color: #B9C5FB; font-size: 13px; }
+  .footer-note b { color: white; font-weight: 600; }
+
+  /* More menu dropdown */
+  .more-menu {
+    position: absolute;
+    top: 50px; right: 12px;
+    width: 240px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.02);
+    padding: 5px;
+    z-index: 11;
+  }
+  .more-menu .mh {
+    font-size: 10px;
+    color: var(--ink-4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 8px 10px 4px;
+  }
+  .more-menu .mi {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 9px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .more-menu .mi:hover { background: var(--paper-2); }
+  .more-menu .mi svg { width: 14px; height: 14px; color: var(--ink-3); }
+  .more-menu .mi .sub { font-size: 10.5px; color: var(--mute); margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+  .more-menu .mi.danger { color: var(--red); }
+  .more-menu .mi.danger svg { color: var(--red); }
+  .more-menu .div { height: 1px; background: var(--line); margin: 4px 6px; }
+
+  /* Fullscreen state — iframe occupies entire window, chrome auto-hides */
+  .fullscreen .topbar { display: none; }
+  .fullscreen .body { height: 100%; }
+  .fullscreen .split { grid-template-columns: 100% 0 0; }
+  .fullscreen .pane, .fullscreen .seam { display: none; }
+  .fs-hint {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(10, 13, 24, 0.7);
+    backdrop-filter: blur(8px);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+    z-index: 11;
+    box-shadow: 0 6px 20px -4px rgba(0,0,0,0.4);
+  }
+  .fs-hint .kbd {
+    padding: 1px 5px; border-radius: 3px;
+    background: rgba(255,255,255,0.16);
+    font-size: 10px;
+  }
+
+  /* Demo gauge — visualize current split ratio */
+  .gauge {
+    position: absolute;
+    left: 50%; bottom: 12px; transform: translateX(-50%);
+    background: rgba(10, 13, 24, 0.85);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 8px;
+    z-index: 4;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .gauge .bar { width: 80px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 999px; overflow: hidden; display: flex; }
+  .gauge .bar .l { background: #6E8BFF; height: 100%; }
+  .gauge .bar .r { background: #C97FE6; height: 100%; }
+  .gauge b { color: white; font-weight: 600; }
+
+</style>
+</head>
+<body>
+
+<div class="showcase-header">
+  <div>
+    <h1>
+      <span class="num">023</span>
+      Smart resize
+      <span class="tag">v5 refinement · extends #55 iPad multitasking</span>
+    </h1>
+    <p>Two panes — iframe and secondary — always present. <b>Whichever you interact with grows; the other shrinks.</b> No manual divider. Focus is the layout. Click the iframe → it swells to 75%. Click the pane → it swells to 60%. Idle returns to a 50/50 rest state. <kbd>F</kbd> takes the iframe fullscreen, <kbd>Esc</kbd> exits.</p>
+  </div>
+  <div class="legend">
+    <span><b>States</b> 7 demonstrated</span>
+    <span><b>Blueprints</b> 18+ visible</span>
+    <span><b>Sites</b> 4 saved</span>
+    <span><b>Resp.</b> 1440 + 390</span>
+  </div>
+</div>
+
+<div class="counter">
+  <span class="dot"></span>
+  <span><b>Idle affordances ≤ 8 · counted 7:</b></span>
+  <span>(1) WP/Refresh · (2) URL bar · (3) Name pill · (4) Save · (5) Pane segmented control (6 tabs counted as one cluster) · (6) Fullscreen · (7) More</span>
+</div>
+
+<div class="stage">
+
+  <!-- ============== ROW 1: REST STATE (50/50) — IDLE / WORKING ============== -->
+  <div class="row">
+    <div class="row-label">
+      <h2>State A · Rest 50/50</h2>
+      <span>Idle balanced state. iframe shows live coffee shop site; pane shows the Sites tab (launcher home). Both panes ready.</span>
+      <span class="badge">DESKTOP 1440×900</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› default split on session resume — both panes peer</span>
+      <div class="frame desktop">
+        <div class="topbar">
+          <div class="wp-mark" title="Refresh"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></div>
+          <div class="urlbar">
+            <i data-lucide="lock" class="lock"></i>
+            <div class="path"><span class="host">playground.wordpress.net</span><span class="slash"> / </span>?page_id=2</div>
+          </div>
+          <span class="name-pill saved"><span class="pip"></span> Coffee Shop draft</span>
+          <div class="right-chips">
+            <button class="iconbtn" title="Fullscreen iframe (F)"><i data-lucide="maximize-2"></i></button>
+            <button class="iconbtn" title="More"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="split" style="--iframe: 50%; --pane: calc(50% - 8px);">
+            <div class="iframe-wp">
+              <div class="wp-mock coffee">
+                <div class="wp-nav">
+                  <div class="brand">Slow Bean Co.</div>
+                  <div class="links"><span>Shop</span><span>Roasters</span><span>About</span><span>Cart · 1</span></div>
+                </div>
+                <div class="wp-hero">
+                  <div>
+                    <h1>Made with patience.</h1>
+                    <p>Beans roasted yesterday, brewed the way it ought to be. Free shipping on orders over $40.</p>
+                    <a class="cta">Shop now <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></a>
+                  </div>
+                  <div class="wp-mug"></div>
+                </div>
+              </div>
+            </div>
+            <div class="seam">
+              <div class="shift"><i data-lucide="minimize-2"></i> 50 / 50</div>
+            </div>
+            <div class="pane">
+              <div class="pane-head">
+                <div class="seg">
+                  <button class="active"><i data-lucide="layout-grid"></i> Sites</button>
+                  <button><i data-lucide="sliders-horizontal"></i> Settings</button>
+                  <button><i data-lucide="folder"></i> Files</button>
+                  <button><i data-lucide="file-json-2"></i> Blueprint</button>
+                  <button><i data-lucide="database"></i> DB</button>
+                  <button><i data-lucide="scroll-text"></i> Logs</button>
+                </div>
+                <div class="right">
+                  <button class="ph-btn" title="WP Admin"><i data-lucide="layout-dashboard"></i> wp-admin</button>
+                  <button class="ph-btn" title="Homepage"><i data-lucide="home"></i></button>
+                </div>
+              </div>
+              <div class="pane-body">
+                <div class="sites-tab">
+                  <h4 class="sites-h first">Start a new playground</h4>
+                  <div class="source-grid">
+                    <div class="source primary">
+                      <div class="sicon"><i data-lucide="zap"></i></div>
+                      <div><div class="lbl">Vanilla WordPress</div><div class="sub">latest · 6.8 · PHP 8.3</div></div>
+                    </div>
+                    <div class="source">
+                      <div class="sicon"><i data-lucide="git-pull-request"></i></div>
+                      <div><div class="lbl">WordPress PR</div><div class="sub">core PR by number</div></div>
+                    </div>
+                    <div class="source">
+                      <div class="sicon"><i data-lucide="git-branch"></i></div>
+                      <div><div class="lbl">Gutenberg PR</div><div class="sub">editor PR by number</div></div>
+                    </div>
+                    <div class="source">
+                      <div class="sicon"><i data-lucide="github"></i></div>
+                      <div><div class="lbl">From GitHub</div><div class="sub">repo URL</div></div>
+                    </div>
+                    <div class="source">
+                      <div class="sicon"><i data-lucide="link-2"></i></div>
+                      <div><div class="lbl">Blueprint URL</div><div class="sub">paste any JSON</div></div>
+                    </div>
+                    <div class="source">
+                      <div class="sicon"><i data-lucide="upload"></i></div>
+                      <div><div class="lbl">Import .zip</div><div class="sub">restore a previous export</div></div>
+                    </div>
+                  </div>
+
+                  <h4 class="sites-h">Your playgrounds <span class="ct">4 saved</span></h4>
+                  <div class="saved-grid">
+                    <div class="saved active">
+                      <div class="thumb coffee"></div>
+                      <div class="meta">
+                        <div class="nm">Coffee Shop draft <span class="live-dot" title="active"></span></div>
+                        <div class="sm">WP 6.8 · PHP 8.3<span class="sep">·</span>opened 2m ago</div>
+                      </div>
+                    </div>
+                    <div class="saved">
+                      <div class="thumb gallery"></div>
+                      <div class="meta">
+                        <div class="nm">Art Gallery — Vueo</div>
+                        <div class="sm">WP 6.7 · PHP 8.2<span class="sep">·</span>3 days ago</div>
+                      </div>
+                    </div>
+                    <div class="saved">
+                      <div class="thumb gaming"></div>
+                      <div class="meta">
+                        <div class="nm">Gaming News (Spiel)</div>
+                        <div class="sm">WP 6.8-beta · PHP 8.3<span class="sep">·</span>last week</div>
+                      </div>
+                    </div>
+                    <div class="saved">
+                      <div class="thumb gutenberg"></div>
+                      <div class="meta">
+                        <div class="nm">Dataview experiments</div>
+                        <div class="sm">WP nightly · Gutenberg PR #58291<span class="sep">·</span>last month</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 class="sites-h">Featured blueprints <span class="more">View all 43 →</span></h4>
+                  <div class="bp-grid">
+                    <div class="bp-card">
+                      <div class="bpt art"></div>
+                      <div class="bpb">
+                        <div class="bpn">Art Gallery</div>
+                        <div class="bpd">Gallery built with the Vueo theme.</div>
+                      </div>
+                    </div>
+                    <div class="bp-card">
+                      <div class="bpt coffee"></div>
+                      <div class="bpb">
+                        <div class="bpn">Coffee Shop</div>
+                        <div class="bpd">WooCommerce storefront with products and content.</div>
+                      </div>
+                    </div>
+                    <div class="bp-card">
+                      <div class="bpt friends"></div>
+                      <div class="bpb">
+                        <div class="bpn">Feed Reader · Friends</div>
+                        <div class="bpd">Read RSS / ActivityPub via the Friends plugin.</div>
+                      </div>
+                    </div>
+                    <div class="bp-card">
+                      <div class="bpt gaming"></div>
+                      <div class="bpb">
+                        <div class="bpn">Gaming News</div>
+                        <div class="bpd">News magazine on the Spiel theme.</div>
+                      </div>
+                    </div>
+                    <div class="bp-card">
+                      <div class="bpt nonprofit"></div>
+                      <div class="bpb">
+                        <div class="bpn">Non-profit Org</div>
+                        <div class="bpd">Koinonia theme campaign site.</div>
+                      </div>
+                    </div>
+                    <div class="bp-card">
+                      <div class="bpt blog"></div>
+                      <div class="bpb">
+                        <div class="bpn">Personal Blog</div>
+                        <div class="bpd">Substrata theme — clean blog.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- gauge visualizing split ratio -->
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:50%;"></span><span class="r" style="width:50%;"></span></span> <b>50/50</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- mobile column: rest state, but on mobile the seam is horizontal -->
+    <div class="frame-wrap">
+      <span class="frame-cap">› mobile rest</span>
+      <div class="frame mobile">
+        <div class="inner">
+          <div class="topbar">
+            <div class="wp-mark" style="width:22px;height:22px;border-radius:6px;font-size:10px;"><i data-lucide="refresh-cw" style="width:11px;height:11px;"></i></div>
+            <div class="urlbar">
+              <i data-lucide="lock" class="lock"></i>
+              <div class="path" style="font-size:11px;">slow-bean.local<span class="slash">/</span>shop</div>
+            </div>
+            <span class="name-pill saved" style="height:22px;padding:0 7px 0 6px;font-size:10.5px;"><span class="pip" style="width:5px;height:5px;"></span> Saved</span>
+            <button class="iconbtn" style="width:24px;height:24px;" title="Fullscreen"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button>
+          </div>
+          <div class="body">
+            <div class="split" style="--m-iframe: 50%; --m-pane: calc(50% - 4px);">
+              <div class="iframe-wp" style="overflow:hidden;">
+                <div class="wp-mock coffee">
+                  <div class="wp-nav" style="padding:0 16px;height:42px;">
+                    <div class="brand" style="font-size:14px;">Slow Bean Co.</div>
+                    <div class="links" style="display:none;"></div>
+                  </div>
+                  <div class="wp-hero" style="padding:14px 18px;grid-template-columns:1fr;">
+                    <div>
+                      <h1 style="font-size:26px;margin-bottom:8px;">Made with patience.</h1>
+                      <p style="font-size:12px;margin-bottom:12px;">Beans roasted yesterday.</p>
+                      <a class="cta" style="padding:7px 14px;font-size:12px;">Shop now</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="seam">
+                <div class="shift"><i data-lucide="minimize-2"></i> 50/50</div>
+              </div>
+              <div class="pane">
+                <div class="pane-head">
+                  <div class="seg">
+                    <button class="active" title="Sites"><i data-lucide="layout-grid"></i><span> Sites</span></button>
+                    <button title="Settings"><i data-lucide="sliders-horizontal"></i></button>
+                    <button title="Files"><i data-lucide="folder"></i></button>
+                    <button title="Blueprint"><i data-lucide="file-json-2"></i></button>
+                    <button title="DB"><i data-lucide="database"></i></button>
+                    <button title="Logs"><i data-lucide="scroll-text"></i></button>
+                  </div>
+                  <div class="right"><button class="ph-btn" style="padding:0 4px;"><i data-lucide="more-vertical"></i></button></div>
+                </div>
+                <div class="pane-body">
+                  <div class="sites-tab" style="padding:10px 12px;">
+                    <h4 class="sites-h first">Start new</h4>
+                    <div class="source-grid" style="gap:5px;margin-bottom:14px;">
+                      <div class="source primary" style="padding:7px 8px;">
+                        <div class="sicon" style="width:22px;height:22px;"><i data-lucide="zap" style="width:12px;height:12px;"></i></div>
+                        <div><div class="lbl" style="font-size:11.5px;">Vanilla WP</div></div>
+                      </div>
+                      <div class="source" style="padding:7px 8px;">
+                        <div class="sicon" style="width:22px;height:22px;"><i data-lucide="git-pull-request" style="width:12px;height:12px;"></i></div>
+                        <div><div class="lbl" style="font-size:11.5px;">WP PR</div></div>
+                      </div>
+                      <div class="source" style="padding:7px 8px;">
+                        <div class="sicon" style="width:22px;height:22px;"><i data-lucide="git-branch" style="width:12px;height:12px;"></i></div>
+                        <div><div class="lbl" style="font-size:11.5px;">GB PR</div></div>
+                      </div>
+                      <div class="source" style="padding:7px 8px;">
+                        <div class="sicon" style="width:22px;height:22px;"><i data-lucide="github" style="width:12px;height:12px;"></i></div>
+                        <div><div class="lbl" style="font-size:11.5px;">GitHub</div></div>
+                      </div>
+                      <div class="source" style="padding:7px 8px;">
+                        <div class="sicon" style="width:22px;height:22px;"><i data-lucide="link-2" style="width:12px;height:12px;"></i></div>
+                        <div><div class="lbl" style="font-size:11.5px;">Blueprint URL</div></div>
+                      </div>
+                      <div class="source" style="padding:7px 8px;">
+                        <div class="sicon" style="width:22px;height:22px;"><i data-lucide="upload" style="width:12px;height:12px;"></i></div>
+                        <div><div class="lbl" style="font-size:11.5px;">Import .zip</div></div>
+                      </div>
+                    </div>
+                    <h4 class="sites-h">Your playgrounds</h4>
+                    <div class="saved-grid">
+                      <div class="saved active" style="padding:6px 8px;">
+                        <div class="thumb coffee" style="width:30px;height:22px;"></div>
+                        <div class="meta"><div class="nm" style="font-size:11.5px;">Coffee Shop draft <span class="live-dot"></span></div></div>
+                      </div>
+                      <div class="saved" style="padding:6px 8px;">
+                        <div class="thumb gallery" style="width:30px;height:22px;"></div>
+                        <div class="meta"><div class="nm" style="font-size:11.5px;">Art Gallery</div></div>
+                      </div>
+                      <div class="saved" style="padding:6px 8px;">
+                        <div class="thumb gaming" style="width:30px;height:22px;"></div>
+                        <div class="meta"><div class="nm" style="font-size:11.5px;">Gaming News</div></div>
+                      </div>
+                      <div class="saved" style="padding:6px 8px;">
+                        <div class="thumb gutenberg" style="width:30px;height:22px;"></div>
+                        <div class="meta"><div class="nm" style="font-size:11.5px;">Dataview experiments</div></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== ROW 2: IFRAME FOCUSED (75/25) ============== -->
+  <div class="row">
+    <div class="row-label">
+      <h2>State B · iframe focus 75/25 (More menu open)</h2>
+      <span>User clicks the iframe; layout glides to 75/25 in ~550ms. Pane collapses to icon-only tabs + abbreviated content. More menu opened to show Export &amp; Download .zip + the destructive drawer.</span>
+      <span class="badge">DESKTOP 1440×900</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› user clicks into the WP site, iframe grows</span>
+      <div class="frame desktop">
+        <div class="topbar">
+          <div class="wp-mark"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></div>
+          <div class="urlbar">
+            <i data-lucide="lock" class="lock"></i>
+            <div class="path"><span class="host">playground.wordpress.net</span><span class="slash"> / </span>shop/single-origin-ethiopia</div>
+          </div>
+          <span class="name-pill saved"><span class="pip"></span> Coffee Shop draft</span>
+          <div class="right-chips">
+            <button class="iconbtn" title="Fullscreen iframe (F)"><i data-lucide="maximize-2"></i></button>
+            <button class="iconbtn active"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="split" style="--iframe: 75%; --pane: calc(25% - 8px);">
+            <div class="iframe-wp focused">
+              <div class="wp-mock coffee">
+                <div class="wp-nav">
+                  <div class="brand">Slow Bean Co.</div>
+                  <div class="links"><span>Shop</span><span>Roasters</span><span>About</span><span style="color:#1A1606;font-weight:600;">Cart · 1</span></div>
+                </div>
+                <div class="wp-hero">
+                  <div>
+                    <h1>Single-origin Ethiopia.</h1>
+                    <p style="font-size:17px;line-height:1.5;max-width:560px;">Yirgacheffe natural — washed, sun-dried for 18 days. Bright stone-fruit acidity with notes of bergamot and honey. 250g whole bean.</p>
+                    <div style="display:flex;gap:14px;align-items:center;margin-bottom:24px;">
+                      <span style="font-size:32px;font-weight:700;color:#1A1606;">$22</span>
+                      <span style="font-size:13px;color:#5A523F;">per 250g</span>
+                    </div>
+                    <a class="cta">Add to cart <i data-lucide="shopping-bag" style="width:14px;height:14px;"></i></a>
+                  </div>
+                  <div class="wp-mug"></div>
+                </div>
+              </div>
+            </div>
+            <div class="seam">
+              <div class="shift"><b>↞</b> iframe focus</div>
+            </div>
+            <div class="pane">
+              <div class="pane-head" style="padding:0 6px;">
+                <div class="seg" style="padding:1px;">
+                  <button class="active" title="Sites"><i data-lucide="layout-grid"></i></button>
+                  <button title="Settings"><i data-lucide="sliders-horizontal"></i></button>
+                  <button title="Files"><i data-lucide="folder"></i></button>
+                  <button title="Blueprint"><i data-lucide="file-json-2"></i></button>
+                  <button title="DB"><i data-lucide="database"></i></button>
+                  <button title="Logs"><i data-lucide="scroll-text"></i></button>
+                </div>
+                <div class="right"><button class="ph-btn" style="padding:0 4px;"><i data-lucide="more-vertical"></i></button></div>
+              </div>
+              <div class="pane-body">
+                <div class="sites-tab" style="padding:12px 12px;">
+                  <h4 class="sites-h first">Your playgrounds</h4>
+                  <div class="saved-grid" style="margin-bottom:14px;">
+                    <div class="saved active" style="padding:6px 7px;">
+                      <div class="thumb coffee" style="width:30px;height:22px;"></div>
+                      <div class="meta"><div class="nm" style="font-size:11.5px;">Coffee Shop draft <span class="live-dot"></span></div><div class="sm" style="font-size:9.5px;">2m ago</div></div>
+                    </div>
+                    <div class="saved" style="padding:6px 7px;">
+                      <div class="thumb gallery" style="width:30px;height:22px;"></div>
+                      <div class="meta"><div class="nm" style="font-size:11.5px;">Art Gallery</div><div class="sm" style="font-size:9.5px;">3d</div></div>
+                    </div>
+                    <div class="saved" style="padding:6px 7px;">
+                      <div class="thumb gaming" style="width:30px;height:22px;"></div>
+                      <div class="meta"><div class="nm" style="font-size:11.5px;">Gaming News</div><div class="sm" style="font-size:9.5px;">7d</div></div>
+                    </div>
+                    <div class="saved" style="padding:6px 7px;">
+                      <div class="thumb gutenberg" style="width:30px;height:22px;"></div>
+                      <div class="meta"><div class="nm" style="font-size:11.5px;">Dataview exp.</div><div class="sm" style="font-size:9.5px;">1mo</div></div>
+                    </div>
+                  </div>
+
+                  <h4 class="sites-h">Start new</h4>
+                  <div class="source-grid" style="grid-template-columns:1fr 1fr;gap:5px;margin-bottom:14px;">
+                    <div class="source primary" style="padding:7px 8px;"><div class="sicon" style="width:22px;height:22px;"><i data-lucide="zap" style="width:12px;height:12px;"></i></div><div><div class="lbl" style="font-size:11px;">Vanilla</div></div></div>
+                    <div class="source" style="padding:7px 8px;"><div class="sicon" style="width:22px;height:22px;"><i data-lucide="git-pull-request" style="width:12px;height:12px;"></i></div><div><div class="lbl" style="font-size:11px;">WP PR</div></div></div>
+                    <div class="source" style="padding:7px 8px;"><div class="sicon" style="width:22px;height:22px;"><i data-lucide="github" style="width:12px;height:12px;"></i></div><div><div class="lbl" style="font-size:11px;">GitHub</div></div></div>
+                    <div class="source" style="padding:7px 8px;"><div class="sicon" style="width:22px;height:22px;"><i data-lucide="upload" style="width:12px;height:12px;"></i></div><div><div class="lbl" style="font-size:11px;">Import</div></div></div>
+                  </div>
+
+                  <h4 class="sites-h">Blueprints <span class="more">All 43 →</span></h4>
+                  <div class="bp-grid" style="gap:5px;">
+                    <div class="bp-card"><div class="bpt coffee" style="height:46px;"></div><div class="bpb" style="padding:5px 6px;"><div class="bpn" style="font-size:10.5px;">Coffee Shop</div></div></div>
+                    <div class="bp-card"><div class="bpt art" style="height:46px;"></div><div class="bpb" style="padding:5px 6px;"><div class="bpn" style="font-size:10.5px;">Art Gallery</div></div></div>
+                    <div class="bp-card"><div class="bpt nonprofit" style="height:46px;"></div><div class="bpb" style="padding:5px 6px;"><div class="bpn" style="font-size:10.5px;">Non-profit</div></div></div>
+                    <div class="bp-card"><div class="bpt blog" style="height:46px;"></div><div class="bpb" style="padding:5px 6px;"><div class="bpn" style="font-size:10.5px;">Personal Blog</div></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- More menu opened — shows the IO / destructive drawer -->
+          <div class="more-menu">
+            <div class="mh">This playground</div>
+            <div class="mi"><i data-lucide="edit-3"></i> Rename<span class="sub">R</span></div>
+            <div class="mi"><i data-lucide="copy"></i> Duplicate</div>
+            <div class="mi"><i data-lucide="link"></i> Copy share link</div>
+            <div class="div"></div>
+            <div class="mh">Export</div>
+            <div class="mi"><i data-lucide="github"></i> Export to GitHub PR<span class="sub">↗</span></div>
+            <div class="mi"><i data-lucide="download"></i> Download .zip<span class="sub">⇣</span></div>
+            <div class="div"></div>
+            <div class="mh">Display</div>
+            <div class="mi"><i data-lucide="maximize-2"></i> Fullscreen iframe<span class="sub">F</span></div>
+            <div class="mi"><i data-lucide="keyboard"></i> Keyboard shortcuts<span class="sub">⌘?</span></div>
+            <div class="div"></div>
+            <div class="mi danger"><i data-lucide="trash-2"></i> Delete playground</div>
+          </div>
+
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:75%;"></span><span class="r" style="width:25%;"></span></span> <b>75/25 · More open</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› mobile: tap iframe → 70/30</span>
+      <div class="frame mobile">
+        <div class="inner">
+          <div class="topbar">
+            <div class="wp-mark" style="width:22px;height:22px;border-radius:6px;font-size:10px;"><i data-lucide="refresh-cw" style="width:11px;height:11px;"></i></div>
+            <div class="urlbar">
+              <i data-lucide="lock" class="lock"></i>
+              <div class="path" style="font-size:11px;">slow-bean.local<span class="slash">/</span>shop</div>
+            </div>
+            <span class="name-pill saved" style="height:22px;padding:0 7px 0 6px;font-size:10.5px;"><span class="pip" style="width:5px;height:5px;"></span> Saved</span>
+            <button class="iconbtn" style="width:24px;height:24px;"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button>
+          </div>
+          <div class="body">
+            <div class="split" style="--m-iframe: 70%; --m-pane: calc(30% - 4px);">
+              <div class="iframe-wp focused" style="overflow:hidden;">
+                <div class="wp-mock coffee">
+                  <div class="wp-nav" style="padding:0 16px;height:42px;">
+                    <div class="brand" style="font-size:14px;">Slow Bean Co.</div>
+                  </div>
+                  <div class="wp-hero" style="padding:14px 18px;grid-template-columns:1fr;">
+                    <div>
+                      <h1 style="font-size:24px;margin-bottom:8px;">Single-origin Ethiopia.</h1>
+                      <p style="font-size:12px;margin-bottom:8px;">Yirgacheffe natural · 250g whole bean.</p>
+                      <div style="font-size:24px;font-weight:700;color:#1A1606;margin-bottom:12px;">$22</div>
+                      <a class="cta" style="padding:7px 14px;font-size:12px;">Add to cart</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="seam">
+                <div class="shift"><b>↟</b> iframe</div>
+              </div>
+              <div class="pane">
+                <div class="pane-head">
+                  <div class="seg">
+                    <button class="active" title="Sites"><i data-lucide="layout-grid"></i></button>
+                    <button title="Settings"><i data-lucide="sliders-horizontal"></i></button>
+                    <button title="Files"><i data-lucide="folder"></i></button>
+                    <button title="Blueprint"><i data-lucide="file-json-2"></i></button>
+                    <button title="DB"><i data-lucide="database"></i></button>
+                    <button title="Logs"><i data-lucide="scroll-text"></i></button>
+                  </div>
+                </div>
+                <div class="pane-body">
+                  <div class="sites-tab" style="padding:8px 10px;">
+                    <div class="saved-grid">
+                      <div class="saved active" style="padding:5px 6px;"><div class="thumb coffee" style="width:26px;height:18px;"></div><div class="meta"><div class="nm" style="font-size:11px;">Coffee Shop <span class="live-dot"></span></div></div></div>
+                      <div class="saved" style="padding:5px 6px;"><div class="thumb gallery" style="width:26px;height:18px;"></div><div class="meta"><div class="nm" style="font-size:11px;">Art Gallery</div></div></div>
+                      <div class="saved" style="padding:5px 6px;"><div class="thumb gaming" style="width:26px;height:18px;"></div><div class="meta"><div class="nm" style="font-size:11px;">Gaming News</div></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== ROW 3: PANE FOCUSED (35/65) — SETTINGS ============== -->
+  <div class="row">
+    <div class="row-label">
+      <h2>State C · Pane focus 35/65 · Settings</h2>
+      <span>User opens Settings; pane swells to ~65%. Apply&nbsp;&amp;&nbsp;Reset is destructive — typed-phrase confirm. iframe is dimmed but not hidden (still see the live site).</span>
+      <span class="badge">DESKTOP 1440×900</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› clicking the pane shifts focus; iframe shrinks but stays visible</span>
+      <div class="frame desktop">
+        <div class="topbar">
+          <div class="wp-mark"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></div>
+          <div class="urlbar">
+            <i data-lucide="lock" class="lock"></i>
+            <div class="path"><span class="host">playground.wordpress.net</span><span class="slash"> / </span>?page_id=2</div>
+          </div>
+          <span class="name-pill saved"><span class="pip"></span> Coffee Shop draft</span>
+          <div class="right-chips">
+            <button class="iconbtn"><i data-lucide="maximize-2"></i></button>
+            <button class="iconbtn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="split" style="--iframe: 35%; --pane: calc(65% - 8px);">
+            <div class="iframe-wp dim">
+              <div class="wp-mock coffee">
+                <div class="wp-nav">
+                  <div class="brand">Slow Bean Co.</div>
+                  <div class="links"><span>Shop</span><span>About</span></div>
+                </div>
+                <div class="wp-hero" style="padding:22px 32px;">
+                  <div>
+                    <h1 style="font-size:42px;">Made with patience.</h1>
+                    <p style="font-size:14px;">Beans roasted yesterday.</p>
+                    <a class="cta">Shop now</a>
+                  </div>
+                  <div class="wp-mug"></div>
+                </div>
+              </div>
+            </div>
+            <div class="seam">
+              <div class="shift"><b>↠</b> pane focus</div>
+            </div>
+            <div class="pane focused">
+              <div class="pane-head">
+                <div class="seg">
+                  <button><i data-lucide="layout-grid"></i> Sites</button>
+                  <button class="active"><i data-lucide="sliders-horizontal"></i> Settings</button>
+                  <button><i data-lucide="folder"></i> Files</button>
+                  <button><i data-lucide="file-json-2"></i> Blueprint</button>
+                  <button><i data-lucide="database"></i> DB</button>
+                  <button><i data-lucide="scroll-text"></i> Logs</button>
+                </div>
+                <div class="right">
+                  <button class="ph-btn"><i data-lucide="layout-dashboard"></i> wp-admin</button>
+                  <button class="ph-btn"><i data-lucide="home"></i> Home</button>
+                </div>
+              </div>
+              <div class="pane-body">
+                <div class="settings-body">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="field">
+                      <span class="lab">Playground name</span>
+                      <div class="ctrl">
+                        <div class="ctrl-select" style="font-family:'JetBrains Mono';font-size:12.5px;">
+                          <span>Coffee Shop draft</span>
+                          <i data-lucide="edit-2" style="width:12px;height:12px;color:var(--ink-4);"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <span class="lab">Storage</span>
+                      <div class="ctrl">
+                        <div class="ctrl-select">
+                          <span>Browser (OPFS)</span>
+                          <i data-lucide="chevron-down"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <span class="lab">WordPress version</span>
+                      <div class="ctrl">
+                        <div class="ctrl-select">
+                          <span style="font-family:'JetBrains Mono';font-size:12.5px;">6.8</span>
+                          <i data-lucide="chevron-down"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <span class="lab">PHP version</span>
+                      <div class="ctrl">
+                        <div class="ctrl-select">
+                          <span style="font-family:'JetBrains Mono';font-size:12.5px;">8.3</span>
+                          <i data-lucide="chevron-down"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <span class="lab">Language</span>
+                      <div class="ctrl">
+                        <div class="ctrl-select">
+                          <span>English (US)</span>
+                          <i data-lucide="chevron-down"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <span class="lab">PHP extensions</span>
+                      <div class="ctrl">
+                        <div class="ctrl-select">
+                          <span>Default + GD, mbstring</span>
+                          <i data-lucide="chevron-down"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="display:flex;gap:24px;margin-top:6px;">
+                    <div class="ctrl-toggle">
+                      <span class="switch on"></span>
+                      <span class="lab">Network access</span>
+                    </div>
+                    <div class="ctrl-toggle">
+                      <span class="switch"></span>
+                      <span class="lab">Multisite</span>
+                    </div>
+                  </div>
+
+                  <div class="danger-row">
+                    <div class="dh"><i data-lucide="triangle-alert"></i> Apply &amp; reset</div>
+                    <div class="dd">Changes to WP / PHP / Language / Multisite require a <b>full reset</b> — the SQLite database and uploaded files will be discarded. To proceed, type <code style="font-family:'JetBrains Mono';background:rgba(220,38,38,0.12);padding:1px 4px;border-radius:3px;">reset coffee shop</code> below.</div>
+                    <div class="apply-confirm">
+                      <span class="typed">reset coffee sh<span style="background:#FCE7E7;color:var(--red);padding:0 1px;">▏</span></span>
+                      <button class="danger-btn" disabled>Apply &amp; Reset</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:35%;"></span><span class="r" style="width:65%;"></span></span> <b>35/65</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› mobile pane focus 30/70</span>
+      <div class="frame mobile">
+        <div class="inner">
+          <div class="topbar">
+            <div class="wp-mark" style="width:22px;height:22px;border-radius:6px;font-size:10px;"><i data-lucide="refresh-cw" style="width:11px;height:11px;"></i></div>
+            <div class="urlbar">
+              <i data-lucide="lock" class="lock"></i>
+              <div class="path" style="font-size:11px;">Coffee Shop · settings</div>
+            </div>
+            <span class="name-pill saved" style="height:22px;padding:0 7px 0 6px;font-size:10.5px;"><span class="pip" style="width:5px;height:5px;"></span> Saved</span>
+            <button class="iconbtn" style="width:24px;height:24px;"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button>
+          </div>
+          <div class="body">
+            <div class="split" style="--m-iframe: 30%; --m-pane: calc(70% - 4px);">
+              <div class="iframe-wp dim" style="overflow:hidden;">
+                <div class="wp-mock coffee">
+                  <div class="wp-nav" style="padding:0 14px;height:30px;"><div class="brand" style="font-size:11px;">Slow Bean Co.</div></div>
+                  <div class="wp-hero" style="padding:6px 12px;grid-template-columns:1fr;">
+                    <div><h1 style="font-size:14px;margin-bottom:4px;">Made with patience.</h1><a class="cta" style="padding:4px 8px;font-size:10px;">Shop</a></div>
+                  </div>
+                </div>
+              </div>
+              <div class="seam">
+                <div class="shift"><b>↡</b> pane</div>
+              </div>
+              <div class="pane focused">
+                <div class="pane-head">
+                  <div class="seg">
+                    <button><i data-lucide="layout-grid"></i></button>
+                    <button class="active" title="Settings"><i data-lucide="sliders-horizontal"></i><span> Settings</span></button>
+                    <button><i data-lucide="folder"></i></button>
+                    <button><i data-lucide="file-json-2"></i></button>
+                    <button><i data-lucide="database"></i></button>
+                    <button><i data-lucide="scroll-text"></i></button>
+                  </div>
+                </div>
+                <div class="pane-body">
+                  <div class="settings-body" style="padding:12px 14px;">
+                    <div class="field"><span class="lab">Name</span><div class="ctrl"><div class="ctrl-select" style="height:30px;font-size:12px;"><span>Coffee Shop draft</span><i data-lucide="edit-2" style="width:11px;height:11px;color:var(--ink-4);"></i></div></div></div>
+                    <div class="field"><span class="lab">WordPress</span><div class="ctrl"><div class="ctrl-select" style="height:30px;"><span style="font-family:'JetBrains Mono';">6.8</span><i data-lucide="chevron-down"></i></div></div></div>
+                    <div class="field"><span class="lab">PHP</span><div class="ctrl"><div class="ctrl-select" style="height:30px;"><span style="font-family:'JetBrains Mono';">8.3</span><i data-lucide="chevron-down"></i></div></div></div>
+                    <div class="field"><span class="lab">Language</span><div class="ctrl"><div class="ctrl-select" style="height:30px;"><span>English</span><i data-lucide="chevron-down"></i></div></div></div>
+                    <div style="display:flex;gap:16px;margin:4px 0 8px;">
+                      <div class="ctrl-toggle"><span class="switch on"></span><span class="lab" style="font-size:11.5px;">Network</span></div>
+                      <div class="ctrl-toggle"><span class="switch"></span><span class="lab" style="font-size:11.5px;">Multisite</span></div>
+                    </div>
+                    <div class="danger-row" style="padding:10px;">
+                      <div class="dh"><i data-lucide="triangle-alert"></i> Apply &amp; reset</div>
+                      <div class="dd" style="font-size:11px;">Type <code style="background:rgba(220,38,38,0.12);padding:1px 4px;border-radius:3px;font-family:'JetBrains Mono';">reset coffee shop</code> to proceed.</div>
+                      <div class="apply-confirm">
+                        <span class="typed">reset coffee shop<span style="background:#FCE7E7;color:var(--red);padding:0 1px;">▏</span></span>
+                        <button class="danger-btn">Reset</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== ROW 4: BLUEPRINT TAB (40/60) — Full gallery ============== -->
+  <div class="row-single">
+    <div class="row-label">
+      <h2>State D · Blueprint pane 40/60 · gallery + editor</h2>
+      <span>Full 43-blueprint gallery in one scroll, 10 category chips on top, search. Blueprint pane sits side-by-side with the iframe so authors see their site re-boot live as they change steps.</span>
+      <span class="badge">DESKTOP 1440×900</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› the iframe stays visible while you author</span>
+      <div class="frame desktop">
+        <div class="topbar">
+          <div class="wp-mark"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></div>
+          <div class="urlbar">
+            <i data-lucide="lock" class="lock"></i>
+            <div class="path"><span class="host">playground.wordpress.net</span><span class="slash"> / </span>?page_id=2</div>
+          </div>
+          <span class="name-pill saved"><span class="pip"></span> Coffee Shop draft</span>
+          <div class="right-chips">
+            <button class="iconbtn"><i data-lucide="maximize-2"></i></button>
+            <button class="iconbtn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="split" style="--iframe: 40%; --pane: calc(60% - 8px);">
+            <div class="iframe-wp">
+              <div class="wp-mock coffee">
+                <div class="wp-nav">
+                  <div class="brand">Slow Bean Co.</div>
+                  <div class="links"><span>Shop</span><span>About</span></div>
+                </div>
+                <div class="wp-hero">
+                  <div>
+                    <h1>Made with patience.</h1>
+                    <p>Beans roasted yesterday, brewed the way it ought to be.</p>
+                    <a class="cta">Shop now</a>
+                  </div>
+                  <div class="wp-mug"></div>
+                </div>
+              </div>
+            </div>
+            <div class="seam">
+              <div class="shift"><b>↠</b> pane focus</div>
+            </div>
+            <div class="pane focused">
+              <div class="pane-head">
+                <div class="seg">
+                  <button><i data-lucide="layout-grid"></i> Sites</button>
+                  <button><i data-lucide="sliders-horizontal"></i> Settings</button>
+                  <button><i data-lucide="folder"></i> Files</button>
+                  <button class="active"><i data-lucide="file-json-2"></i> Blueprint</button>
+                  <button><i data-lucide="database"></i> DB</button>
+                  <button><i data-lucide="scroll-text"></i> Logs</button>
+                </div>
+                <div class="right">
+                  <button class="ph-btn"><i data-lucide="link"></i> Copy link</button>
+                  <button class="ph-btn"><i data-lucide="package"></i> Bundle</button>
+                  <button class="ph-btn" style="background:var(--wp);color:white;border-color:var(--wp);padding:0 10px;font-weight:600;"><i data-lucide="play"></i> Run blueprint</button>
+                </div>
+              </div>
+              <div class="pane-body">
+                <div style="padding:12px 16px 0;">
+                  <div class="bp-search">
+                    <i data-lucide="search"></i>
+                    <span class="ph">Search 43 blueprints…</span>
+                    <span class="kbd">⌘K</span>
+                  </div>
+                  <div class="bp-cats">
+                    <span class="bp-cat active">All · 43</span>
+                    <span class="bp-cat">Featured · 5</span>
+                    <span class="bp-cat">Website · 10</span>
+                    <span class="bp-cat">Personal · 6</span>
+                    <span class="bp-cat">Content · 5</span>
+                    <span class="bp-cat">Themes · 8</span>
+                    <span class="bp-cat">Gutenberg · 4</span>
+                    <span class="bp-cat">Experiments · 3</span>
+                    <span class="bp-cat">WooCommerce · 4</span>
+                    <span class="bp-cat">News · 2</span>
+                  </div>
+                </div>
+                <div style="padding:0 16px 16px;">
+                  <div class="bp-grid three">
+                    <div class="bp-card"><div class="bpt art"></div><div class="bpb"><div class="bpn">Art Gallery</div><div class="bpd">A gallery on the Vueo theme.</div><div class="bptags"><span class="bptag">Website</span><span class="bptag">Personal</span></div></div></div>
+                    <div class="bp-card"><div class="bpt coffee"></div><div class="bpb"><div class="bpn">Coffee Shop</div><div class="bpd">WooCommerce coffee storefront.</div><div class="bptags"><span class="bptag">WooCommerce</span></div></div></div>
+                    <div class="bp-card"><div class="bpt friends"></div><div class="bpb"><div class="bpn">Feed Reader · Friends</div><div class="bpd">Read RSS / ActivityPub feeds.</div><div class="bptags"><span class="bptag">social</span></div></div></div>
+                    <div class="bp-card"><div class="bpt gaming"></div><div class="bpb"><div class="bpn">Gaming News</div><div class="bpd">Spiel theme news magazine.</div><div class="bptags"><span class="bptag">News</span></div></div></div>
+                    <div class="bp-card"><div class="bpt nonprofit"></div><div class="bpb"><div class="bpn">Non-profit Org</div><div class="bpd">Koinonia campaign site.</div><div class="bptags"><span class="bptag">Org</span></div></div></div>
+                    <div class="bp-card"><div class="bpt blog"></div><div class="bpb"><div class="bpn">Personal Blog</div><div class="bpd">Substrata theme — clean blog.</div><div class="bptags"><span class="bptag">Blog</span></div></div></div>
+                    <div class="bp-card"><div class="bpt resume"></div><div class="bpb"><div class="bpn">Personal Resume</div><div class="bpd">Readymade theme.</div><div class="bptags"><span class="bptag">Personal</span></div></div></div>
+                    <div class="bp-card"><div class="bpt photo"></div><div class="bpb"><div class="bpn">Photography Portfolio</div><div class="bpd">Grammer theme portfolio.</div><div class="bptags"><span class="bptag">Photo</span></div></div></div>
+                    <div class="bp-card"><div class="bpt skincare"></div><div class="bpb"><div class="bpn">Skincare Blog</div><div class="bpd">Piel theme blog.</div><div class="bptags"><span class="bptag">Blog</span></div></div></div>
+                    <div class="bp-card"><div class="bpt uni"></div><div class="bpb"><div class="bpn">University</div><div class="bpd">Kentwood theme.</div><div class="bptags"><span class="bptag">Education</span></div></div></div>
+                    <div class="bp-card"><div class="bpt cbt"></div><div class="bpb"><div class="bpn">Create Block Theme</div><div class="bpd">Install &amp; edit theme files.</div><div class="bptags"><span class="bptag">Editor</span></div></div></div>
+                    <div class="bp-card"><div class="bpt cpt"></div><div class="bpb"><div class="bpn">Custom Post Type: Books</div><div class="bpd">Add a CPT to playground.</div><div class="bptags"><span class="bptag">CPT</span></div></div></div>
+                    <div class="bp-card"><div class="bpt tt5"></div><div class="bpb"><div class="bpn">Twenty Twenty-Five</div><div class="bpd">TT5 default theme demo.</div><div class="bptags"><span class="bptag">Themes</span></div></div></div>
+                    <div class="bp-card"><div class="bpt dashw"></div><div class="bpb"><div class="bpn">Dashboard Widget</div><div class="bpd">Stats on users / posts / comments.</div><div class="bptags"><span class="bptag">Admin</span></div></div></div>
+                    <div class="bp-card"><div class="bpt gutenberg"></div><div class="bpb"><div class="bpn">Latest Gutenberg</div><div class="bpd">Preview the editor plugin.</div><div class="bptags"><span class="bptag">plugins</span></div></div></div>
+                    <div class="bp-card"><div class="bpt experiment"></div><div class="bpb"><div class="bpn">Dataview Experiments</div><div class="bpd">Enable Gutenberg experiments.</div><div class="bptags"><span class="bptag">Gutenberg</span></div></div></div>
+                    <div class="bp-card"><div class="bpt woo"></div><div class="bpb"><div class="bpn">Minimal WooCommerce</div><div class="bpd">WC + shipping + products + payments.</div><div class="bptags"><span class="bptag">WooCommerce</span></div></div></div>
+                    <div class="bp-card"><div class="bpt graphql"></div><div class="bpb"><div class="bpn">WPGraphQL IDE</div><div class="bpd">Loads WPGraphQL + IDE page.</div><div class="bptags"><span class="bptag">API</span></div></div></div>
+                  </div>
+
+                  <div class="gallery-foot">
+                    Showing <b>18</b> of <b>43</b> · scroll for 25 more — full text-search on title + description + tag.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:40%;"></span><span class="r" style="width:60%;"></span></span> <b>40/60</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== ROW 5: FILES + LOGS demonstration ============== -->
+  <div class="row">
+    <div class="row-label">
+      <h2>State E · Files pane &nbsp;&nbsp;·&nbsp;&nbsp; State F · Logs pane</h2>
+      <span>The other tabs of the same pane. Files shows a real PHP file open in the inline editor. Logs has level filters, search, real PHP error format.</span>
+      <span class="badge">DESKTOP 1440×900 (split into two halves)</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› Files tab — content of secondary pane has changed; layout has not</span>
+      <div class="frame desktop">
+        <div class="topbar">
+          <div class="wp-mark"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></div>
+          <div class="urlbar">
+            <i data-lucide="lock" class="lock"></i>
+            <div class="path"><span class="host">playground.wordpress.net</span><span class="slash"> / </span>wp-admin/themes.php</div>
+          </div>
+          <span class="name-pill saved"><span class="pip"></span> Coffee Shop draft</span>
+          <div class="right-chips">
+            <button class="iconbtn"><i data-lucide="maximize-2"></i></button>
+            <button class="iconbtn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="split" style="--iframe: 38%; --pane: calc(62% - 8px);">
+            <div class="iframe-wp dim">
+              <div class="wp-mock" style="background:#F0F0F1;">
+                <div class="wp-nav" style="background:#1D2327;color:white;border:none;height:32px;padding:0 16px;">
+                  <div class="brand" style="color:white;font-size:13px;font-family:'Inter';font-weight:500;">Slow Bean Co.</div>
+                  <div class="links" style="color:rgba(255,255,255,0.7);font-size:11px;">Howdy, admin</div>
+                </div>
+                <div style="padding:24px;background:#F0F0F1;flex:1;display:flex;flex-direction:column;gap:14px;">
+                  <h1 style="font-size:23px;color:#1D2327;font-family:'Inter';font-weight:400;margin:0;">Themes</h1>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div style="aspect-ratio:4/3;background:linear-gradient(135deg,#B27928,#6B4513);border-radius:3px;border:1px solid #C3C4C7;position:relative;">
+                      <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px;background:rgba(255,255,255,0.95);border-top:1px solid #C3C4C7;font-size:11px;color:#1D2327;font-weight:600;">Slow Bean (active)</div>
+                    </div>
+                    <div style="aspect-ratio:4/3;background:linear-gradient(135deg,#F4F1ED,#DCD3C5);border-radius:3px;border:1px solid #C3C4C7;position:relative;">
+                      <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px;background:rgba(255,255,255,0.95);border-top:1px solid #C3C4C7;font-size:11px;color:#1D2327;">Twenty Twenty-Five</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="seam">
+              <div class="shift"><b>↠</b> pane</div>
+            </div>
+            <div class="pane focused">
+              <div class="pane-head">
+                <div class="seg">
+                  <button><i data-lucide="layout-grid"></i> Sites</button>
+                  <button><i data-lucide="sliders-horizontal"></i> Settings</button>
+                  <button class="active"><i data-lucide="folder"></i> Files</button>
+                  <button><i data-lucide="file-json-2"></i> Blueprint</button>
+                  <button><i data-lucide="database"></i> DB</button>
+                  <button><i data-lucide="scroll-text"></i> Logs</button>
+                </div>
+                <div class="right">
+                  <button class="ph-btn"><i data-lucide="file-plus-2"></i> New file</button>
+                  <button class="ph-btn"><i data-lucide="folder-plus"></i> New folder</button>
+                </div>
+              </div>
+              <div class="pane-body">
+                <div class="files-body">
+                  <div class="files-tree">
+                    <div class="th">/wordpress</div>
+                    <div class="tree-item"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> wp-admin/</div>
+                    <div class="tree-item"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> wp-content/</div>
+                    <div class="tree-item indent-1"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> themes/</div>
+                    <div class="tree-item indent-2"><i data-lucide="folder-open" class="icon" style="color:var(--amber);"></i> slow-bean/</div>
+                    <div class="tree-item indent-2" style="padding-left:54px;"><i data-lucide="file" class="icon"></i> style.css</div>
+                    <div class="tree-item indent-2 active" style="padding-left:54px;"><i data-lucide="file-code" class="icon"></i> functions.php</div>
+                    <div class="tree-item indent-2" style="padding-left:54px;"><i data-lucide="file" class="icon"></i> index.php</div>
+                    <div class="tree-item indent-2" style="padding-left:54px;"><i data-lucide="file" class="icon"></i> header.php</div>
+                    <div class="tree-item indent-1"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> plugins/</div>
+                    <div class="tree-item indent-2"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> woocommerce/</div>
+                    <div class="tree-item indent-2"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> friends/</div>
+                    <div class="tree-item indent-1"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> uploads/</div>
+                    <div class="tree-item"><i data-lucide="folder" class="icon" style="color:var(--amber);"></i> wp-includes/</div>
+                    <div class="tree-item"><i data-lucide="file" class="icon"></i> wp-config.php</div>
+                    <div class="tree-item"><i data-lucide="file" class="icon"></i> .htaccess</div>
+                  </div>
+                  <div class="editor-pane">
+                    <div class="editor-tabs">
+                      <div class="editor-tab active"><i data-lucide="file-code"></i> functions.php <i data-lucide="x" style="opacity:0.6;"></i></div>
+                      <div class="editor-tab"><i data-lucide="file"></i> style.css</div>
+                    </div>
+                    <div class="code-body">
+                      <div class="ln"><span class="lnno">1</span><span><span class="c">&lt;?php</span></span></div>
+                      <div class="ln"><span class="lnno">2</span><span><span class="c">// Slow Bean — theme functions.</span></span></div>
+                      <div class="ln"><span class="lnno">3</span><span></span></div>
+                      <div class="ln"><span class="lnno">4</span><span><span class="kw">add_action</span>(<span class="s">'after_setup_theme'</span>, <span class="s">'slowbean_setup'</span>);</span></div>
+                      <div class="ln"><span class="lnno">5</span><span></span></div>
+                      <div class="ln"><span class="lnno">6</span><span><span class="kw">function</span> <span class="k">slowbean_setup</span>() {</span></div>
+                      <div class="ln curr"><span class="lnno">7</span><span>&nbsp;&nbsp;<span class="kw">add_theme_support</span>(<span class="s">'wp-block-styles'</span>);</span></div>
+                      <div class="ln"><span class="lnno">8</span><span>&nbsp;&nbsp;<span class="kw">add_theme_support</span>(<span class="s">'editor-styles'</span>);</span></div>
+                      <div class="ln"><span class="lnno">9</span><span>&nbsp;&nbsp;<span class="kw">add_theme_support</span>(<span class="s">'post-thumbnails'</span>);</span></div>
+                      <div class="ln"><span class="lnno">10</span><span>&nbsp;&nbsp;<span class="kw">add_theme_support</span>(<span class="s">'menus'</span>);</span></div>
+                      <div class="ln"><span class="lnno">11</span><span>&nbsp;&nbsp;<span class="kw">register_nav_menu</span>(<span class="s">'primary'</span>, <span class="kw">__</span>(<span class="s">'Primary'</span>, <span class="s">'slowbean'</span>));</span></div>
+                      <div class="ln"><span class="lnno">12</span><span>}</span></div>
+                      <div class="ln"><span class="lnno">13</span><span></span></div>
+                      <div class="ln"><span class="lnno">14</span><span><span class="kw">add_filter</span>(<span class="s">'woocommerce_currency_symbol'</span>, <span class="kw">function</span>(<span class="k">$s</span>, <span class="k">$c</span>) {</span></div>
+                      <div class="ln"><span class="lnno">15</span><span>&nbsp;&nbsp;<span class="kw">return</span> <span class="k">$c</span> === <span class="s">'USD'</span> ? <span class="s">'$&nbsp;'</span> : <span class="k">$s</span>;</span></div>
+                      <div class="ln"><span class="lnno">16</span><span>}, <span class="n">10</span>, <span class="n">2</span>);</span></div>
+                      <div class="ln"><span class="lnno">17</span><span></span></div>
+                      <div class="ln"><span class="lnno">18</span><span><span class="c">// Disable comments on products</span></span></div>
+                      <div class="ln"><span class="lnno">19</span><span><span class="kw">add_filter</span>(<span class="s">'comments_open'</span>, <span class="kw">function</span>(<span class="k">$open</span>, <span class="k">$post_id</span>) {</span></div>
+                      <div class="ln"><span class="lnno">20</span><span>&nbsp;&nbsp;<span class="kw">return</span> <span class="kw">get_post_type</span>(<span class="k">$post_id</span>) === <span class="s">'product'</span> ? <span class="kw">false</span> : <span class="k">$open</span>;</span></div>
+                      <div class="ln"><span class="lnno">21</span><span>}, <span class="n">10</span>, <span class="n">2</span>);</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:38%;"></span><span class="r" style="width:62%;"></span></span> <b>38/62</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› mobile: Logs tab</span>
+      <div class="frame mobile">
+        <div class="inner">
+          <div class="topbar">
+            <div class="wp-mark" style="width:22px;height:22px;border-radius:6px;font-size:10px;"><i data-lucide="refresh-cw" style="width:11px;height:11px;"></i></div>
+            <div class="urlbar">
+              <i data-lucide="lock" class="lock"></i>
+              <div class="path" style="font-size:11px;">Coffee Shop · logs</div>
+            </div>
+            <span class="name-pill saved" style="height:22px;padding:0 7px 0 6px;font-size:10.5px;"><span class="pip" style="width:5px;height:5px;"></span> Saved</span>
+            <button class="iconbtn" style="width:24px;height:24px;"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button>
+          </div>
+          <div class="body">
+            <div class="split" style="--m-iframe: 30%; --m-pane: calc(70% - 4px);">
+              <div class="iframe-wp dim" style="overflow:hidden;">
+                <div class="wp-mock coffee">
+                  <div class="wp-nav" style="padding:0 14px;height:28px;"><div class="brand" style="font-size:11px;">Slow Bean</div></div>
+                  <div class="wp-hero" style="padding:6px 12px;grid-template-columns:1fr;"><div><h1 style="font-size:13px;margin-bottom:4px;">Made with patience.</h1></div></div>
+                </div>
+              </div>
+              <div class="seam">
+                <div class="shift"><b>↡</b> pane</div>
+              </div>
+              <div class="pane focused">
+                <div class="pane-head">
+                  <div class="seg">
+                    <button><i data-lucide="layout-grid"></i></button>
+                    <button><i data-lucide="sliders-horizontal"></i></button>
+                    <button><i data-lucide="folder"></i></button>
+                    <button><i data-lucide="file-json-2"></i></button>
+                    <button><i data-lucide="database"></i></button>
+                    <button class="active"><i data-lucide="scroll-text"></i><span> Logs</span></button>
+                  </div>
+                </div>
+                <div class="pane-body">
+                  <div class="logs-body">
+                    <div class="logs-head">
+                      <div class="logs-search">
+                        <i data-lucide="search"></i>
+                        <span class="ph">Search logs…</span>
+                      </div>
+                      <span class="level err">ERR</span>
+                      <span class="level warn">WARN</span>
+                    </div>
+                    <div class="logs-stream">
+                      <div class="log-line"><span class="ts">14:02:11</span><span class="lv notice">NOT</span><span class="src">php</span><span class="msg">Stdout: Coffee shop blueprint mounted in 1284ms</span></div>
+                      <div class="log-line"><span class="ts">14:02:14</span><span class="lv notice">NOT</span><span class="src">wp</span><span class="msg">WooCommerce 8.6 activated</span></div>
+                      <div class="log-line err"><span class="ts">14:02:18</span><span class="lv err">ERR</span><span class="src">php</span><span class="msg">PHP Warning: Undefined array key "wcs_pre" in /wp-content/plugins/woocommerce/templates/cart.php on line 142</span></div>
+                      <div class="log-line"><span class="ts">14:02:18</span><span class="lv warn">WRN</span><span class="src">php</span><span class="msg">PHP Deprecated: strftime() deprecated in functions.php on line 88</span></div>
+                      <div class="log-line"><span class="ts">14:02:22</span><span class="lv notice">NOT</span><span class="src">sql</span><span class="msg">UPDATE wp_options · 4 rows · 0.6ms</span></div>
+                      <div class="log-line"><span class="ts">14:02:24</span><span class="lv notice">NOT</span><span class="src">wp</span><span class="msg">User 1 logged in (admin)</span></div>
+                      <div class="log-line err"><span class="ts">14:02:31</span><span class="lv err">ERR</span><span class="src">php</span><span class="msg">PHP Fatal: Call to undefined function wc_get_price() in functions.php:24</span></div>
+                      <div class="log-line"><span class="ts">14:02:32</span><span class="lv notice">NOT</span><span class="src">sys</span><span class="msg">Reverted to prior revision (Δ functions.php)</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== ROW 6: BOOTING + DATABASE ============== -->
+  <div class="row">
+    <div class="row-label">
+      <h2>State G · Boot &nbsp;·&nbsp; State H · Database</h2>
+      <span>Boot shows the iframe area becoming busy while the pane keeps the launcher / blueprint context. Database tab uses the same surface, no extra modal.</span>
+      <span class="badge">DESKTOP 1440×900 (boot) + 390 (db)</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› booting "Coffee Shop" from blueprint — pane retains launcher context</span>
+      <div class="frame desktop">
+        <div class="topbar">
+          <div class="wp-mark"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></div>
+          <div class="urlbar">
+            <i data-lucide="lock" class="lock"></i>
+            <div class="path" style="color:var(--mute);"><span class="host">playground.wordpress.net</span><span class="slash"> / </span><span style="opacity:0.5;">booting…</span></div>
+          </div>
+          <span class="name-pill saving"><span class="pip"></span> Booting · Unsaved</span>
+          <button class="save-btn" disabled style="opacity:0.5;cursor:default;"><i data-lucide="save"></i> Save</button>
+          <div class="right-chips">
+            <button class="iconbtn"><i data-lucide="maximize-2"></i></button>
+            <button class="iconbtn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+        </div>
+
+        <div class="body">
+          <div class="split" style="--iframe: 60%; --pane: calc(40% - 8px);">
+            <div class="iframe-wp">
+              <div class="boot-screen">
+                <div class="boot-mark">W</div>
+                <div class="boot-title">Booting <b>Coffee Shop</b></div>
+                <div class="boot-sub">WP 6.8 · PHP 8.3 · WooCommerce 8.6</div>
+                <div class="boot-progress"><div style="width:62%;"></div></div>
+                <div class="boot-steps">
+                  <div class="ok">✓ Mount SQLite (1.2 ms)</div>
+                  <div class="ok">✓ Boot PHP 8.3 wasm runtime (412 ms)</div>
+                  <div class="ok">✓ Install theme "slow-bean.zip" (388 ms)</div>
+                  <div class="now">▸ Installing WooCommerce 8.6 from wp.org/plugins…</div>
+                  <div style="opacity:0.4;">· Import products.xml (WXR)</div>
+                  <div style="opacity:0.4;">· Run seed.sql</div>
+                  <div style="opacity:0.4;">· Set options + login as admin</div>
+                </div>
+              </div>
+            </div>
+            <div class="seam">
+              <div class="shift"><i data-lucide="loader"></i> boot · 62%</div>
+            </div>
+            <div class="pane">
+              <div class="pane-head">
+                <div class="seg">
+                  <button class="active"><i data-lucide="layout-grid"></i> Sites</button>
+                  <button><i data-lucide="sliders-horizontal"></i> Settings</button>
+                  <button><i data-lucide="folder"></i> Files</button>
+                  <button><i data-lucide="file-json-2"></i> Blueprint</button>
+                  <button><i data-lucide="database"></i> DB</button>
+                  <button><i data-lucide="scroll-text"></i> Logs</button>
+                </div>
+                <div class="right">
+                  <button class="ph-btn" style="background:var(--paper-2);"><i data-lucide="square"></i> Cancel boot</button>
+                </div>
+              </div>
+              <div class="pane-body">
+                <div class="sites-tab">
+                  <h4 class="sites-h first">Booting from blueprint</h4>
+                  <div style="border:1px solid rgba(56,88,233,0.25);background:var(--wp-soft);border-radius:11px;padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:18px;">
+                    <div class="bpt coffee" style="width:54px;height:54px;border-radius:9px;flex-shrink:0;"></div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:14px;font-weight:600;color:var(--ink);">Coffee Shop</div>
+                      <div style="font-size:11.5px;color:var(--ink-3);margin:2px 0 6px;">WooCommerce storefront with products, theme &amp; seed data.</div>
+                      <div style="font-size:10.5px;font-family:'JetBrains Mono';color:var(--wp-deep);">7 blueprint steps · ~2.4 s</div>
+                    </div>
+                  </div>
+                  <h4 class="sites-h">Recent activity</h4>
+                  <div class="saved-grid">
+                    <div class="saved" style="opacity:0.6;"><div class="thumb gallery"></div><div class="meta"><div class="nm">Art Gallery</div><div class="sm">paused</div></div></div>
+                    <div class="saved" style="opacity:0.6;"><div class="thumb gaming"></div><div class="meta"><div class="nm">Gaming News</div><div class="sm">paused</div></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:60%;"></span><span class="r" style="width:40%;"></span></span> <b>60/40 · boot</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› DB tab</span>
+      <div class="frame mobile">
+        <div class="inner">
+          <div class="topbar">
+            <div class="wp-mark" style="width:22px;height:22px;border-radius:6px;font-size:10px;"><i data-lucide="refresh-cw" style="width:11px;height:11px;"></i></div>
+            <div class="urlbar">
+              <i data-lucide="lock" class="lock"></i>
+              <div class="path" style="font-size:11px;">Coffee Shop · db</div>
+            </div>
+            <span class="name-pill saved" style="height:22px;padding:0 7px 0 6px;font-size:10.5px;"><span class="pip" style="width:5px;height:5px;"></span> Saved</span>
+            <button class="iconbtn" style="width:24px;height:24px;"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button>
+          </div>
+          <div class="body">
+            <div class="split" style="--m-iframe: 28%; --m-pane: calc(72% - 4px);">
+              <div class="iframe-wp dim" style="overflow:hidden;">
+                <div class="wp-mock coffee">
+                  <div class="wp-nav" style="padding:0 14px;height:26px;"><div class="brand" style="font-size:10px;">Slow Bean</div></div>
+                  <div class="wp-hero" style="padding:4px 10px;grid-template-columns:1fr;"><div><h1 style="font-size:12px;margin-bottom:2px;">Made with patience.</h1></div></div>
+                </div>
+              </div>
+              <div class="seam">
+                <div class="shift"><b>↡</b> pane</div>
+              </div>
+              <div class="pane focused">
+                <div class="pane-head">
+                  <div class="seg">
+                    <button><i data-lucide="layout-grid"></i></button>
+                    <button><i data-lucide="sliders-horizontal"></i></button>
+                    <button><i data-lucide="folder"></i></button>
+                    <button><i data-lucide="file-json-2"></i></button>
+                    <button class="active" title="DB"><i data-lucide="database"></i><span> DB</span></button>
+                    <button><i data-lucide="scroll-text"></i></button>
+                  </div>
+                </div>
+                <div class="pane-body">
+                  <div class="db-body" style="grid-template-columns:90px 1fr;">
+                    <div class="db-tables">
+                      <div class="grp-head">wp_</div>
+                      <div class="t-item" style="font-size:10.5px;padding:3px 6px;"><span>options</span><span class="ct">182</span></div>
+                      <div class="t-item active" style="font-size:10.5px;padding:3px 6px;"><span>posts</span><span class="ct">27</span></div>
+                      <div class="t-item" style="font-size:10.5px;padding:3px 6px;"><span>users</span><span class="ct">2</span></div>
+                      <div class="t-item" style="font-size:10.5px;padding:3px 6px;"><span>terms</span><span class="ct">14</span></div>
+                      <div class="grp-head">woo</div>
+                      <div class="t-item" style="font-size:10.5px;padding:3px 6px;"><span>products</span><span class="ct">24</span></div>
+                      <div class="t-item" style="font-size:10.5px;padding:3px 6px;"><span>orders</span><span class="ct">3</span></div>
+                    </div>
+                    <div class="db-view">
+                      <div class="db-notice" style="margin:6px 8px;padding:6px 8px;font-size:10px;">
+                        <i data-lucide="info"></i><span>Early-access DB. <a>Report issues</a></span>
+                      </div>
+                      <div class="db-q" style="margin:0 8px 6px;font-size:10px;"><span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="ti">wp_posts</span> <span class="meta">27 · 0.04ms</span></div>
+                      <div class="db-rows" style="margin:0 8px 8px;">
+                        <table>
+                          <thead><tr><th>ID</th><th>title</th><th>status</th></tr></thead>
+                          <tbody>
+                            <tr><td>1</td><td>Hello world!</td><td>publish</td></tr>
+                            <tr><td>2</td><td>Sample Page</td><td>publish</td></tr>
+                            <tr><td>4</td><td>Shop</td><td>publish</td></tr>
+                            <tr><td>5</td><td>Cart</td><td>publish</td></tr>
+                            <tr><td>8</td><td>Ethiopia</td><td>publish</td></tr>
+                            <tr><td>9</td><td>Espresso N7</td><td>publish</td></tr>
+                            <tr><td>10</td><td>Cold brew</td><td>publish</td></tr>
+                            <tr><td>11</td><td>Decaf Col.</td><td>publish</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== ROW 7: FULLSCREEN + UNSAVED→SAVED transition ============== -->
+  <div class="row">
+    <div class="row-label">
+      <h2>State I · Fullscreen iframe &nbsp;·&nbsp; State J · Save transition</h2>
+      <span><kbd>F</kbd> takes the iframe to 100% (chrome auto-hides). <kbd>Esc</kbd> returns to last split ratio. Save state morphs: <b>Unsaved</b> → <b>Saving…</b> → <b>Saved</b>, with toast.</span>
+      <span class="badge">DESKTOP 1440×900 (fullscreen) + 390 (save)</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› press F — chrome disappears, iframe takes the whole window</span>
+      <div class="frame desktop fullscreen">
+        <div class="body">
+          <div class="split">
+            <div class="iframe-wp">
+              <div class="wp-mock coffee">
+                <div class="wp-nav">
+                  <div class="brand">Slow Bean Co.</div>
+                  <div class="links"><span>Shop</span><span>Roasters</span><span>About</span><span>Contact</span><span style="color:#1A1606;font-weight:600;">Cart · 2</span></div>
+                </div>
+                <div class="wp-hero" style="padding:64px 96px;">
+                  <div>
+                    <h1 style="font-size:84px;">Made with patience.</h1>
+                    <p style="font-size:20px;line-height:1.55;max-width:540px;">Beans roasted yesterday, brewed the way it ought to be. Free shipping on orders over $40. Subscribe and save 20% on every monthly delivery.</p>
+                    <a class="cta" style="font-size:16px;padding:14px 24px;">Shop coffee <i data-lucide="arrow-right" style="width:16px;height:16px;"></i></a>
+                  </div>
+                  <div class="wp-mug" style="max-width:460px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="fs-hint"><span>Fullscreen iframe</span><span class="kbd">Esc</span> to return</div>
+          <div class="gauge"><span>Smart split</span> <span class="bar"><span class="l" style="width:100%;"></span></span> <b>100/0 · fullscreen</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-cap">› unsaved → saving → saved (with toast)</span>
+      <div class="frame mobile">
+        <div class="inner">
+          <div class="topbar">
+            <div class="wp-mark" style="width:22px;height:22px;border-radius:6px;font-size:10px;"><i data-lucide="refresh-cw" style="width:11px;height:11px;"></i></div>
+            <div class="urlbar">
+              <i data-lucide="lock" class="lock"></i>
+              <div class="path" style="font-size:11px;">Coffee Shop · home</div>
+            </div>
+            <span class="name-pill saving" style="height:22px;padding:0 7px 0 6px;font-size:10.5px;"><span class="pip" style="width:5px;height:5px;"></span> Saving…</span>
+            <button class="iconbtn" style="width:24px;height:24px;"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button>
+          </div>
+          <div class="body">
+            <div class="split" style="--m-iframe: 50%; --m-pane: calc(50% - 4px);">
+              <div class="iframe-wp" style="overflow:hidden;">
+                <div class="wp-mock coffee">
+                  <div class="wp-nav" style="padding:0 14px;height:42px;"><div class="brand" style="font-size:14px;">Slow Bean Co.</div></div>
+                  <div class="wp-hero" style="padding:14px 18px;grid-template-columns:1fr;">
+                    <div><h1 style="font-size:24px;margin-bottom:6px;">Made with patience.</h1><p style="font-size:12px;margin-bottom:10px;">Beans roasted yesterday.</p><a class="cta" style="padding:7px 14px;font-size:12px;">Shop</a></div>
+                  </div>
+                </div>
+              </div>
+              <div class="seam">
+                <div class="shift"><i data-lucide="save"></i> saving</div>
+              </div>
+              <div class="pane">
+                <div class="pane-head">
+                  <div class="seg">
+                    <button class="active"><i data-lucide="layout-grid"></i></button>
+                    <button><i data-lucide="sliders-horizontal"></i></button>
+                    <button><i data-lucide="folder"></i></button>
+                    <button><i data-lucide="file-json-2"></i></button>
+                    <button><i data-lucide="database"></i></button>
+                    <button><i data-lucide="scroll-text"></i></button>
+                  </div>
+                </div>
+                <div class="pane-body">
+                  <div class="sites-tab" style="padding:10px 12px;">
+                    <h4 class="sites-h first">Your playgrounds</h4>
+                    <div class="saved-grid">
+                      <div class="saved active" style="padding:6px 7px;">
+                        <div class="thumb coffee" style="width:30px;height:22px;"></div>
+                        <div class="meta">
+                          <div class="nm" style="font-size:11.5px;">Coffee Shop draft <span class="live-dot"></span></div>
+                          <div class="sm" style="font-size:9.5px;color:var(--wp);">writing to OPFS · 64%</div>
+                        </div>
+                      </div>
+                      <div class="saved" style="padding:6px 7px;"><div class="thumb gallery" style="width:30px;height:22px;"></div><div class="meta"><div class="nm" style="font-size:11.5px;">Art Gallery</div></div></div>
+                      <div class="saved" style="padding:6px 7px;"><div class="thumb gaming" style="width:30px;height:22px;"></div><div class="meta"><div class="nm" style="font-size:11.5px;">Gaming News</div></div></div>
+                      <div class="saved" style="padding:6px 7px;"><div class="thumb gutenberg" style="width:30px;height:22px;"></div><div class="meta"><div class="nm" style="font-size:11.5px;">Dataview</div></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="toast"><i data-lucide="check-circle-2"></i><span><b>Saving to browser…</b> · ~1.4MB in OPFS</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============== FOOTER SPEC ============== -->
+<div class="footer-note">
+  <h3>How the IA collapses · why Smart Resize earns its keep</h3>
+  <p><b>Old chrome:</b> top toolbar (7 affordances) + left Site-Manager sidebar (5 tabs + 3 header buttons + modals) + right Saved-Playgrounds drawer (3 sections + 43-blueprint sub-screen) + popovers. Settings has <b>three doors</b> — popover, sidebar tab, info-notice button.</p>
+  <p><b>New chrome:</b> a 44px top bar with <b>5 chrome chips</b> (WP/Refresh · URL · Name pill · Fullscreen · More) and a single <b>secondary pane</b> with <b>6 swap-tabs</b> (Sites · Settings · Files · Blueprint · DB · Logs). One door per feature. The launcher is the Sites tab. WP Admin / Homepage live as right-anchored chips inside the pane head (contextual to the current playground, not global housekeeping). Apply &amp; Reset requires a typed phrase. Save state is a status pill; Save the action is a separate dark button that only appears when unsaved (see State G/J).</p>
+  <p><b>The momentum-based split is the whole IA.</b> The pane is never closed. Whichever surface you interact with grows; the other shrinks. No drag handle to hunt for — focus IS the layout. The seam between panes carries a tiny gauge so users see the ratio shift before they have to think about it. <kbd>F</kbd> takes the iframe to 100% (fullscreen, Esc to exit) — this is the explicit toggle the brief asks for. Both 1440 and 390 share the same primitive: at 390 the seam is horizontal (top/bottom) instead of vertical, but every other element is identical. Mobile is a wider mobile of itself.</p>
+</div>
+
+<script>
+  if (window.lucide) { window.lucide.createIcons(); }
+</script>
+</body>
+</html>
