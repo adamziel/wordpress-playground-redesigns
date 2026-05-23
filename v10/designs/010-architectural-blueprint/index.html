@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1480" />
+<title>WordPress Playground — 010 · Architectural Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-900: #0A1322;
+    --navy-800: #0F1B2D;
+    --navy-700: #142339;
+    --navy-600: #1B2D47;
+    --navy-500: #233857;
+    --navy-400: #2F4A6E;
+    --cyan: #5FB3E0;
+    --cyan-2: #8FCDEC;
+    --cyan-3: #B9DFF1;
+    --cyan-soft: rgba(95,179,224,.22);
+    --cyan-line: rgba(95,179,224,.40);
+    --cyan-hair: rgba(95,179,224,.20);
+    --ink-100: #F2F7FB;
+    --ink-200: #C7D6E2;
+    --ink-300: #8FA3B8;
+    --ink-400: #5F7892;
+    --warn: #F2B14B;
+    --warn-soft: rgba(242,177,75,.20);
+    --ok: #6FCF8E;
+    --ok-soft: rgba(111,207,142,.18);
+    --danger: #E26B6B;
+    --danger-soft: rgba(226,107,107,.18);
+    --paper: #DDEAF3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#060B14;color:var(--ink-100);font-family:'Inter Tight','Inter',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.45;letter-spacing:-0.005em}
+  body{padding:32px 28px 96px}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:500}
+  h1,h2,h3,h4,h5{margin:0;font-weight:600;letter-spacing:-.01em}
+
+  /* === HERO === */
+  .hero{max-width:1440px;margin:0 auto 36px;padding:0 4px;display:grid;grid-template-columns:1fr 320px;gap:32px;align-items:flex-end}
+  .hero .stamp{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;margin-bottom:8px}
+  .hero h1{font-size:32px;font-weight:700;letter-spacing:-.02em;color:#fff}
+  .hero p{margin:8px 0 0;color:var(--ink-300);max-width:760px;font-size:13.5px}
+  .hero .meta{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan-2);border:1px solid var(--cyan-line);padding:14px 14px;position:relative;background:rgba(15,27,45,.5)}
+  .hero .meta::before,.hero .meta::after,.hero .meta .c1,.hero .meta .c2{content:"";position:absolute;width:10px;height:10px;border:2px solid var(--cyan);}
+  .hero .meta::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .hero .meta::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .hero .meta .c1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .hero .meta .c2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .hero .meta b{color:#fff;font-weight:600}
+  .hero .meta .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--cyan-hair)}
+  .hero .meta .row:last-child{border-bottom:0}
+
+  /* === PANEL FRAME === */
+  .grid{max-width:1440px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:60px}
+  .panel{position:relative;background:#0A1322;border:1px solid var(--cyan-hair);padding:0;overflow:hidden}
+  .panel::before,.panel::after,.panel .ctl,.panel .ctr,.panel .cbl,.panel .cbr{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cyan);z-index:6;pointer-events:none}
+  .panel .ctl{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .panel .ctr{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .panel .cbl{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .panel .cbr{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .panel-label{position:absolute;top:18px;left:24px;z-index:60;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan);padding:6px 10px;background:rgba(10,19,34,.85);border:1px solid var(--cyan-line);letter-spacing:.10em;text-transform:uppercase}
+  .panel-label b{color:#fff}
+  .panel-note{position:absolute;top:18px;right:24px;z-index:60;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan-2);padding:6px 10px;background:rgba(10,19,34,.7);border:1px solid var(--cyan-hair);letter-spacing:.04em}
+  .panel-cap{padding:22px 28px;border-top:1px solid var(--cyan-hair);background:rgba(6,11,20,.5);display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:flex-start;font-size:12.5px;color:var(--ink-300)}
+  .panel-cap b{color:#fff}
+  .panel-cap .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .panel-cap .t{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan-2);padding:4px 9px;background:rgba(95,179,224,.10);border:1px solid var(--cyan-line)}
+
+  /* === DESKTOP CANVAS (1440 x 900) === */
+  .desktop{width:1440px;height:900px;position:relative;background:var(--navy-800);overflow:hidden;font-size:13px;color:var(--ink-100)}
+
+  /* The omnipresent blueprint grid imprint */
+  .gridfield{position:absolute;inset:0;background-image:
+    linear-gradient(rgba(95,179,224,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95,179,224,.07) 1px, transparent 1px),
+    linear-gradient(rgba(95,179,224,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95,179,224,.04) 1px, transparent 1px);
+    background-size:96px 96px, 96px 96px, 16px 16px, 16px 16px;
+    background-position:0 0, 0 0, 0 0, 0 0;
+    pointer-events:none}
+
+  /* IFRAME — the sharp surface */
+  .ifr{position:absolute;left:88px;right:24px;top:62px;bottom:24px;background:#0A1322;border:1px solid var(--cyan-line);overflow:hidden}
+  .ifr::before,.ifr::after,.ifr .l1,.ifr .l2{content:"";position:absolute;width:10px;height:10px;border:2px solid var(--cyan);z-index:3}
+  .ifr::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .ifr::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .ifr .l1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .ifr .l2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  /* Dimension strip across iframe top */
+  .ifr .dim{position:absolute;top:-22px;left:0;right:0;height:20px;display:flex;align-items:center;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan-2);letter-spacing:.04em;padding:0 6px;z-index:4}
+  .ifr .dim .span{flex:1;height:1px;background:var(--cyan-hair);margin:0 8px;position:relative}
+  .ifr .dim .span::before,.ifr .dim .span::after{content:"";position:absolute;top:-4px;width:1px;height:8px;background:var(--cyan)}
+  .ifr .dim .span::before{left:0}
+  .ifr .dim .span::after{right:0}
+
+  iframe.wp{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
+
+  /* TOP CAPSULE — annotation strip (slim) */
+  .capsule{position:absolute;top:24px;left:112px;right:48px;height:36px;background:rgba(20,35,57,.78);border:1px solid var(--cyan-line);display:flex;align-items:center;gap:10px;padding:0 12px;z-index:35;font-size:12px}
+  .capsule::before{content:"";position:absolute;left:-32px;top:50%;width:30px;height:1px;background:var(--cyan-line)}
+  .capsule::after{content:"";position:absolute;left:-34px;top:calc(50% - 3px);width:6px;height:6px;background:var(--cyan)}
+  .capsule .btn{height:24px;min-width:24px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;color:var(--ink-200);cursor:pointer;background:transparent;border:1px solid transparent}
+  .capsule .btn:hover{border-color:var(--cyan-line);background:rgba(95,179,224,.08)}
+  .capsule .btn svg{width:13px;height:13px;stroke-width:1.7}
+  .capsule .addr{flex:1;height:24px;display:flex;align-items:center;padding:0 10px;background:rgba(10,19,34,.6);border:1px solid var(--cyan-hair);font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--cyan-2);gap:8px;min-width:240px}
+  .capsule .addr .lk{color:var(--ok)}
+  .capsule .addr .pth{color:var(--ink-100)}
+  .capsule .pgtitle{display:inline-flex;align-items:center;gap:6px;padding:0 8px;color:#fff;font-weight:500;font-size:12px}
+  .capsule .pgtitle .blip{width:6px;height:6px;background:var(--ok);box-shadow:0 0 0 3px rgba(111,207,142,.16)}
+  .capsule .savepill{display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:22px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.10em;font-weight:600;text-transform:uppercase;border:1px solid}
+  .savepill.unsaved{background:var(--warn-soft);color:#F8D69A;border-color:rgba(242,177,75,.55)}
+  .savepill.saved{background:var(--ok-soft);color:#B9EBC8;border-color:rgba(111,207,142,.5)}
+  .savepill.saving{background:rgba(95,179,224,.16);color:var(--cyan-3);border-color:var(--cyan-line)}
+  .savepill.stale{background:rgba(226,107,107,.12);color:#F0B3B3;border-color:rgba(226,107,107,.45)}
+  .capsule .fs{display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:24px;background:rgba(95,179,224,.16);color:#fff;border:1px solid var(--cyan-line);cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .ksw{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan-3);background:rgba(95,179,224,.10);padding:1px 5px;border:1px solid var(--cyan-hair)}
+
+  /* RAIL (z1) — quiet vertical strip */
+  .rail{position:absolute;top:24px;left:24px;bottom:24px;width:56px;background:rgba(15,27,45,.75);border:1px solid var(--cyan-hair);display:flex;flex-direction:column;align-items:center;padding:12px 0;z-index:38}
+  .rail::before,.rail::after,.rail .rl1,.rail .rl2{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);z-index:2}
+  .rail::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .rail::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .rail .rl1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .rail .rl2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .rail .logo{width:34px;height:34px;background:var(--navy-700);border:1px solid var(--cyan-line);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.02em;margin-bottom:14px}
+  .rail .sheet-num{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--cyan);letter-spacing:.1em;margin-bottom:10px;text-align:center;line-height:1.2}
+  .rail .docks{display:flex;flex-direction:column;gap:10px;flex:1;align-items:center;padding-top:4px}
+  .rail .dock{position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--ink-200);cursor:pointer;background:transparent;border:1px solid transparent}
+  .rail .dock svg{width:18px;height:18px;stroke-width:1.5}
+  .rail .dock:hover{color:#fff;border-color:var(--cyan-hair);background:rgba(95,179,224,.06)}
+  .rail .dock.active{color:#fff;background:rgba(95,179,224,.18);border:1px solid var(--cyan)}
+  .rail .dock.active::after{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+  .rail .dock .num{position:absolute;top:-3px;right:-3px;font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--cyan);background:var(--navy-800);padding:0 3px;border:1px solid var(--cyan-hair)}
+  .rail .dock .badge{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--warn);border:1px solid var(--navy-800);font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--navy-900);display:flex;align-items:center;justify-content:center;font-weight:700}
+  .rail .bottom{display:flex;flex-direction:column;gap:8px;align-items:center}
+  .rail .avatar{width:30px;height:30px;background:var(--navy-700);border:1px solid var(--cyan-line);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600}
+
+  /* PANE (z2) — callout window */
+  .pane{position:absolute;top:24px;left:88px;bottom:24px;width:416px;background:rgba(15,27,45,.88);border:1px solid var(--cyan);z-index:36;display:flex;flex-direction:column;color:#fff}
+  .pane::before,.pane::after,.pane .pcl1,.pane .pcl2{content:"";position:absolute;width:12px;height:12px;border:2px solid var(--cyan);z-index:3}
+  .pane::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .pane::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .pane .pcl1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .pane .pcl2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .pane-dim{position:absolute;left:0;right:0;top:-18px;height:16px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--cyan-2);letter-spacing:.04em}
+  .pane-dim .ln{flex:1;height:1px;background:var(--cyan-hair);margin:0 8px;position:relative}
+  .pane-dim .ln::before,.pane-dim .ln::after{content:"";position:absolute;top:-3px;width:1px;height:6px;background:var(--cyan)}
+  .pane-dim .ln::before{left:0}
+  .pane-dim .ln::after{right:0}
+  .pane-head{padding:14px 16px 12px;border-bottom:1px solid var(--cyan-hair);display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .pane-head .ttl{display:flex;flex-direction:column;gap:2px}
+  .pane-head .stamp{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase}
+  .pane-head h3{font-size:16.5px;color:#fff;letter-spacing:-.005em;display:flex;align-items:center;gap:8px}
+  .pane-head h3 .dimnote{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--cyan-2);background:rgba(95,179,224,.08);padding:1px 6px;border:1px solid var(--cyan-hair);font-weight:500}
+  .pane-head .sub{font-size:11px;color:var(--ink-300);margin-top:2px;font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+  .pane-head .closex{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--cyan-hair);color:var(--ink-200);cursor:pointer;background:transparent;font-family:'JetBrains Mono',monospace}
+  .pane-body{flex:1;overflow:auto;padding:14px 16px}
+  .pane-foot{padding:10px 14px;border-top:1px solid var(--cyan-hair);display:flex;gap:8px;align-items:center;font-size:11px;color:var(--ink-300);font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+
+  /* Tabs (drafting sheet style) */
+  .sheettabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:0;border:1px solid var(--cyan-hair);background:rgba(10,19,34,.5);margin-bottom:14px}
+  .sheettabs button{padding:8px 6px;font-size:11px;letter-spacing:.06em;background:transparent;border:0;color:var(--ink-200);cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:500;text-transform:uppercase;border-right:1px solid var(--cyan-hair)}
+  .sheettabs button:last-child{border-right:0}
+  .sheettabs button.on{background:rgba(95,179,224,.22);color:#fff;box-shadow:inset 0 -2px 0 var(--cyan)}
+
+  /* Section header — leader line */
+  .sect-h{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:.16em;margin:6px 0 8px}
+  .sect-h::after{content:"";flex:1;height:1px;background:var(--cyan-hair)}
+  .sect-h .nm{display:flex;align-items:center;gap:6px}
+  .sect-h .callout{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cyan-2);border:1px solid var(--cyan-hair);padding:1px 4px}
+
+  /* Row */
+  .row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--cyan-hair);font-size:12px;gap:8px}
+  .row:last-child{border-bottom:0}
+  .row .label{color:var(--ink-200);display:flex;align-items:center;gap:6px}
+  .row .label .lc{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cyan);border:1px solid var(--cyan-hair);padding:0 4px}
+  .row .value{color:#fff;font-weight:500;display:flex;align-items:center;gap:6px}
+  select.mini,input.mini{background:rgba(10,19,34,.6);border:1px solid var(--cyan-hair);color:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 8px}
+  select.mini:focus,input.mini:focus{outline:none;border-color:var(--cyan)}
+  .toggle{width:34px;height:18px;background:var(--navy-600);border:1px solid var(--cyan-hair);position:relative;cursor:pointer}
+  .toggle.on{background:var(--cyan-soft);border-color:var(--cyan)}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--ink-200);transition:.15s}
+  .toggle.on::after{left:18px;background:var(--cyan-2)}
+  .checkbox{width:14px;height:14px;border:1px solid var(--cyan);background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1}
+  .checkbox.on{background:var(--cyan-soft)}
+
+  /* Sources cards (start routes) */
+  .src-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .src-card{padding:10px;background:rgba(10,19,34,.4);border:1px solid var(--cyan-hair);display:flex;align-items:flex-start;gap:8px;cursor:pointer;position:relative}
+  .src-card:hover{border-color:var(--cyan);background:rgba(95,179,224,.07)}
+  .src-card .num{position:absolute;top:-1px;left:-1px;font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--cyan);padding:1px 4px;background:var(--navy-800);border:1px solid var(--cyan-hair)}
+  .src-card .ic{width:24px;height:24px;background:rgba(95,179,224,.12);color:var(--cyan-2);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;border:1px solid var(--cyan-hair);flex-shrink:0;margin-top:8px}
+  .src-card .tx{flex:1;padding-top:6px}
+  .src-card .tx .nm{color:#fff;font-size:12px;font-weight:600}
+  .src-card .tx .dx{color:var(--ink-300);font-size:10.5px;margin-top:2px;font-family:'JetBrains Mono',monospace}
+
+  /* Saved sites list */
+  .saved{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .saved .s{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 10px;background:rgba(10,19,34,.4);border:1px solid var(--cyan-hair);cursor:pointer;position:relative}
+  .saved .s:hover{border-color:var(--cyan);background:rgba(95,179,224,.06)}
+  .saved .s.active{border-color:var(--cyan);background:rgba(95,179,224,.10)}
+  .saved .s .sw{width:28px;height:28px;background:var(--navy-700);border:1px solid var(--cyan-line);color:var(--cyan-2);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600}
+  .saved .s .info{min-width:0}
+  .saved .s .info .nm{color:#fff;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .saved .s .info .nm.unsaved{color:#F8D69A}
+  .saved .s .info .sub{color:var(--ink-300);font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
+  .saved .s .dim{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--cyan-2);text-align:right}
+
+  /* File tree */
+  .ftree{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--ink-200);line-height:1.75}
+  .ftree .f{padding-left:14px;position:relative}
+  .ftree .f::before{content:"+";position:absolute;left:0;color:var(--cyan)}
+  .ftree .f.open::before{content:"−"}
+  .ftree .f .ch{padding-left:14px;color:var(--ink-300);position:relative}
+  .ftree .f .ch::before{content:"·";position:absolute;left:4px;color:var(--cyan)}
+  .ftree .pick{color:#fff;background:rgba(95,179,224,.16);padding:1px 5px;border:1px solid var(--cyan-line);display:inline-block}
+  .ftree .sz{color:var(--cyan-2);float:right;font-size:10px}
+
+  /* Blueprint JSON viewer */
+  .json-viewer{background:rgba(6,11,20,.7);border:1px solid var(--cyan-hair);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.55;color:var(--ink-200);overflow:auto;position:relative}
+  .json-viewer .k{color:var(--cyan-2)}
+  .json-viewer .s{color:#F8D69A}
+  .json-viewer .n{color:#B9EBC8}
+  .json-viewer .b{color:#E26B6B}
+  .json-viewer .c{color:var(--ink-400);font-style:italic}
+  .json-viewer .gutter{color:var(--cyan);user-select:none;margin-right:10px;display:inline-block;width:18px;text-align:right}
+
+  /* Action buttons */
+  .btnrow{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .btn-blue{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;background:rgba(95,179,224,.16);color:#fff;border:1px solid var(--cyan);cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+  .btn-ghost{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;background:transparent;color:var(--ink-100);border:1px solid var(--cyan-hair);cursor:pointer;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+  .btn-danger{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;background:var(--danger-soft);color:#F8C8C8;border:1px solid rgba(226,107,107,.5);cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+
+  /* Database */
+  .db-meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-200);background:rgba(6,11,20,.5);border:1px solid var(--cyan-hair);padding:10px 12px;margin-bottom:10px}
+  .db-meta .row-flat{display:flex;justify-content:space-between;padding:3px 0}
+  .db-meta .row-flat .k{color:var(--cyan)}
+  .db-meta .row-flat .v{color:#fff}
+  .dbt{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-200)}
+  .dbt th{font-size:9.5px;text-transform:uppercase;letter-spacing:.10em;color:var(--cyan);text-align:left;padding:7px 8px;border-bottom:1px solid var(--cyan-line);font-weight:600}
+  .dbt td{padding:6px 8px;border-bottom:1px dashed var(--cyan-hair)}
+  .dbt td.r{color:var(--cyan-2)}
+
+  /* Logs */
+  .logs-wrap{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-200);line-height:1.65;background:rgba(6,11,20,.65);border:1px solid var(--cyan-hair);padding:10px 12px;max-height:340px;overflow:auto}
+  .logs-wrap .ln{display:flex;gap:8px;padding:2px 0;border-bottom:1px dashed rgba(95,179,224,.08)}
+  .logs-wrap .ts{color:var(--ink-400);flex-shrink:0}
+  .logs-wrap .lvl{width:46px;flex-shrink:0;font-weight:700;letter-spacing:.04em}
+  .logs-wrap .l-info{color:var(--cyan-2)}
+  .logs-wrap .l-warn{color:#F8D69A}
+  .logs-wrap .l-err{color:#F0B3B3}
+  .logs-wrap .l-debug{color:#B9EBC8}
+  .logs-wrap .msg{flex:1;word-break:break-word}
+
+  /* Corner site widget — dimension callout */
+  .corner-widget{position:absolute;left:108px;bottom:48px;display:flex;align-items:stretch;z-index:33;cursor:pointer}
+  .corner-widget .lead{width:36px;border-top:1px dashed var(--cyan-line);position:relative;align-self:center;height:1px}
+  .corner-widget .lead::before{content:"";position:absolute;left:0;top:-3px;width:6px;height:6px;background:var(--cyan)}
+  .corner-widget .lead::after{content:"";position:absolute;right:0;top:-1px;width:0;height:0;border-top:3px solid transparent;border-bottom:3px solid transparent;border-left:5px solid var(--cyan)}
+  .corner-widget .box{background:rgba(15,27,45,.92);border:1px solid var(--cyan);padding:8px 12px;display:flex;align-items:center;gap:10px;min-width:260px;position:relative}
+  .corner-widget .box::before,.corner-widget .box::after,.corner-widget .box .x1,.corner-widget .box .x2{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);z-index:3}
+  .corner-widget .box::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .corner-widget .box::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .corner-widget .box .x1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .corner-widget .box .x2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .corner-widget .pulse{width:8px;height:8px;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+  .corner-widget .nm{font-size:12px;color:#fff;font-weight:600}
+  .corner-widget .st{font-size:10px;color:var(--cyan-2);font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+
+  /* Annotations on the panel */
+  .anno{position:absolute;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan);background:rgba(10,19,34,.85);padding:4px 9px;border:1px solid var(--cyan-line);z-index:80;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase}
+  .anno .num{color:#fff;background:var(--cyan-soft);padding:0 5px;margin-right:6px;border:1px solid var(--cyan)}
+  .anno.has-lead::before{content:"";position:absolute;background:var(--cyan-line)}
+  .anno-lead{position:absolute;background:var(--cyan-line);z-index:78}
+  .anno-dot{position:absolute;width:6px;height:6px;background:var(--cyan);z-index:79}
+
+  /* ===== IFRAME inner mock content (srcdoc-style) ===== */
+  .wp-inner{position:absolute;inset:0;background:#fff;color:#1d2327;font-family:'Inter Tight','Inter',sans-serif;overflow:hidden}
+  .wp-inner .wpbar{height:32px;background:#1d2327;color:#fff;display:flex;align-items:center;padding:0 16px;font-size:12.5px;gap:16px}
+  .wp-inner .wpbar .it{color:#cfd6e2}
+  .wp-inner .wpbar .right{margin-left:auto;color:#cfd6e2}
+  .wp-inner main{padding:48px 64px 32px;max-width:920px}
+  .wp-inner .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#2271b1;font-weight:700}
+  .wp-inner h1.hero{font-size:48px;font-weight:700;line-height:1.05;margin:10px 0 0;letter-spacing:-.02em;color:#0A1322}
+  .wp-inner p{color:#3c434a;font-size:16px;line-height:1.6;margin:14px 0 0;max-width:640px}
+  .wp-inner .meta-row{display:flex;gap:14px;margin-top:18px;color:#646970;font-size:13px}
+  .wp-inner .pdgrid{margin-top:32px;display:grid;grid-template-columns:repeat(3, 190px);gap:14px}
+  .wp-inner .pdgrid .pd{aspect-ratio:4/3;background:#F0F5F9;border:1px solid #D6E0E8;padding:12px;display:flex;flex-direction:column;justify-content:flex-end}
+  .wp-inner .pdgrid .pd .ti{font-weight:600;font-size:13px;color:#0A1322}
+  .wp-inner .pdgrid .pd .pr{font-size:11.5px;color:#646970;margin-top:2px}
+
+  /* Recede mode for iframe behind pane */
+  .recede iframe.wp{opacity:.42;filter:saturate(.55) brightness(.9)}
+  .recede .ifr{border-color:var(--cyan-hair)}
+  .recede::after{content:"";position:absolute;inset:0;background:rgba(10,19,34,.32);pointer-events:none;z-index:2}
+
+  /* ============ LIBRARY OVERLAY (z3) ============ */
+  .libwrap{position:absolute;inset:0;background:rgba(6,11,20,.74);backdrop-filter:blur(6px);z-index:90;display:flex;align-items:center;justify-content:center;padding:34px}
+  .libwrap .gridfield-lib{position:absolute;inset:0;background-image:linear-gradient(rgba(95,179,224,.06) 1px, transparent 1px),linear-gradient(90deg, rgba(95,179,224,.06) 1px, transparent 1px);background-size:24px 24px;pointer-events:none}
+  .libcard{width:100%;max-width:1280px;height:780px;background:#0F1B2D;border:1px solid var(--cyan);position:relative;display:flex;flex-direction:column;overflow:hidden}
+  .libcard::before,.libcard::after,.libcard .lc1,.libcard .lc2{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--cyan);z-index:3}
+  .libcard::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .libcard::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .libcard .lc1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .libcard .lc2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .lib-titlebar{padding:18px 24px;border-bottom:1px solid var(--cyan-hair);display:flex;align-items:center;gap:18px}
+  .lib-titlebar .titleblock{flex:1}
+  .lib-titlebar .stamp{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase}
+  .lib-titlebar h2{font-size:20px;color:#fff;margin-top:2px}
+  .lib-titlebar .sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan-2);margin-top:2px}
+  .lib-titlebar .search{flex:1;display:flex;align-items:center;gap:8px;height:34px;background:rgba(6,11,20,.6);border:1px solid var(--cyan-hair);padding:0 12px;font-size:12px;color:var(--ink-200);max-width:380px;font-family:'JetBrains Mono',monospace}
+  .lib-titlebar .search input{background:transparent;border:0;outline:0;color:#fff;flex:1;font-family:inherit;font-size:12px}
+  .lib-titlebar .close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--cyan-hair);color:var(--ink-200);cursor:pointer;font-family:'JetBrains Mono',monospace}
+  /* sheets tabs (categories) */
+  .lib-sheets{display:flex;gap:0;border-bottom:1px solid var(--cyan-hair);overflow:auto}
+  .lib-sheets .sh{padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-200);cursor:pointer;border-right:1px solid var(--cyan-hair);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+  .lib-sheets .sh .ct{font-size:9.5px;color:var(--cyan-2);background:rgba(95,179,224,.10);padding:1px 5px;border:1px solid var(--cyan-hair)}
+  .lib-sheets .sh.on{background:rgba(95,179,224,.16);color:#fff;box-shadow:inset 0 -2px 0 var(--cyan)}
+  .lib-grid{padding:18px 24px;flex:1;overflow:auto;display:grid;grid-template-columns:repeat(4, 1fr);gap:14px;align-content:start}
+  .bp{padding:12px;background:rgba(6,11,20,.55);border:1px solid var(--cyan-hair);cursor:pointer;display:flex;flex-direction:column;gap:8px;min-height:130px;position:relative}
+  .bp:hover{border-color:var(--cyan);background:rgba(95,179,224,.07)}
+  .bp .bp-num{position:absolute;top:-1px;right:-1px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cyan);padding:1px 5px;background:var(--navy-800);border:1px solid var(--cyan-hair)}
+  .bp .sw{height:44px;background:linear-gradient(135deg, rgba(95,179,224,.12), rgba(95,179,224,.02));border:1px solid var(--cyan-hair);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--cyan-2);letter-spacing:.04em}
+  .bp h5{color:#fff;font-size:12.5px;font-weight:600;line-height:1.25}
+  .bp p{color:var(--ink-300);font-size:10.5px;margin:0;line-height:1.4;flex:1;font-family:'JetBrains Mono',monospace}
+  .bp .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:auto}
+  .bp .tag{font-family:'JetBrains Mono',monospace;font-size:8.5px;padding:1px 5px;background:rgba(95,179,224,.10);color:var(--cyan-2);border:1px solid var(--cyan-hair);text-transform:uppercase;letter-spacing:.06em}
+
+  /* ===== BOOTING STATE ===== */
+  .boot-stage{position:absolute;inset:0;background:var(--navy-800);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;z-index:35}
+  .boot-frame{width:540px;background:rgba(15,27,45,.85);border:1px solid var(--cyan);padding:32px 28px;position:relative}
+  .boot-frame::before,.boot-frame::after,.boot-frame .b1,.boot-frame .b2{content:"";position:absolute;width:12px;height:12px;border:2px solid var(--cyan);z-index:3}
+  .boot-frame::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .boot-frame::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .boot-frame .b1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .boot-frame .b2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .boot-frame .stamp{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px}
+  .boot-frame h3{font-size:18px;color:#fff;margin-bottom:12px}
+  .boot-spin{width:56px;height:56px;border:2px solid rgba(95,179,224,.15);border-top-color:var(--cyan);border-right-color:var(--cyan-2);animation:spin 1.2s linear infinite;margin:8px 0 18px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .boot-steps{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-200)}
+  .boot-steps .s{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px dashed var(--cyan-hair)}
+  .boot-steps .s:last-child{border-bottom:0}
+  .boot-steps .s .ok{color:var(--ok)}
+  .boot-steps .s .now{color:var(--cyan-2)}
+  .boot-steps .s .pending{color:var(--ink-400)}
+  .boot-steps .s .ts{color:var(--ink-400);margin-left:auto;font-size:9.5px}
+
+  /* ====== DESTRUCTIVE MODAL ====== */
+  .danger-overlay{position:absolute;inset:0;background:rgba(6,11,20,.78);z-index:95;display:flex;align-items:center;justify-content:center}
+  .danger-card{width:540px;background:#0F1B2D;border:1px solid var(--danger);padding:24px;position:relative}
+  .danger-card::before,.danger-card::after,.danger-card .d1,.danger-card .d2{content:"";position:absolute;width:12px;height:12px;border:2px solid var(--danger);z-index:3}
+  .danger-card::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+  .danger-card::after{top:-2px;right:-2px;border-left:0;border-bottom:0}
+  .danger-card .d1{bottom:-2px;left:-2px;border-right:0;border-top:0}
+  .danger-card .d2{bottom:-2px;right:-2px;border-left:0;border-top:0}
+  .danger-card .stamp{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:var(--danger);text-transform:uppercase;margin-bottom:6px}
+  .danger-card h3{font-size:18px;color:#fff;margin-bottom:6px}
+  .danger-card p{color:var(--ink-200);font-size:12.5px;line-height:1.55;margin:6px 0 0}
+  .danger-card .diff{background:rgba(6,11,20,.6);border:1px solid var(--cyan-hair);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-200);margin:12px 0;line-height:1.65}
+  .danger-card .diff .add{color:#B9EBC8}
+  .danger-card .diff .del{color:#F0B3B3;text-decoration:line-through}
+  .danger-card .diff .ctx{color:var(--ink-400)}
+  .danger-card .typed{margin-top:10px}
+  .danger-card .typed label{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan);text-transform:uppercase;letter-spacing:.10em;display:block;margin-bottom:4px}
+  .danger-card .typed .ph{font-family:'JetBrains Mono',monospace;font-size:12px;color:#F8D69A;background:rgba(242,177,75,.10);padding:1px 6px;border:1px solid rgba(242,177,75,.4)}
+  .danger-card .typed input{width:100%;height:34px;background:rgba(6,11,20,.7);border:1px solid var(--cyan-hair);color:#fff;font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:0 10px;margin-top:6px}
+  .danger-card .typed input:focus{outline:none;border-color:var(--cyan)}
+  .danger-card .snap{margin-top:10px;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan-2);padding:8px 10px;background:rgba(95,179,224,.08);border:1px solid var(--cyan-hair)}
+  .danger-card .snap .ic{width:18px;height:18px;background:var(--cyan-soft);border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;color:var(--cyan-2)}
+  .danger-card .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+
+  /* ============ MOBILE FRAME (390x844) ============ */
+  .mobile{width:390px;height:844px;position:relative;background:var(--navy-800);overflow:hidden;border:1px solid var(--cyan-line)}
+  .mobile .gridfield{background-size:48px 48px, 48px 48px, 12px 12px, 12px 12px}
+  .m-ifr{position:absolute;left:14px;right:14px;top:62px;bottom:184px;background:#fff;border:1px solid var(--cyan-line)}
+  .m-cap{position:absolute;top:14px;left:14px;right:14px;height:36px;background:rgba(20,35,57,.88);border:1px solid var(--cyan-line);display:flex;align-items:center;gap:8px;padding:0 8px;z-index:36;font-size:11.5px}
+  .m-cap .btn{height:24px;min-width:24px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-200)}
+  .m-cap .btn svg{width:13px;height:13px;stroke-width:1.7}
+  .m-cap .addr{flex:1;height:24px;background:rgba(10,19,34,.6);border:1px solid var(--cyan-hair);display:flex;align-items:center;padding:0 8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--cyan-2);min-width:0;overflow:hidden;white-space:nowrap}
+  .m-cap .savepill{display:inline-flex;align-items:center;padding:0 6px;height:22px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;font-weight:600;text-transform:uppercase;border:1px solid;background:var(--ok-soft);color:#B9EBC8;border-color:rgba(111,207,142,.5)}
+  /* mobile bottom-bar rail */
+  .m-rail{position:absolute;bottom:0;left:0;right:0;height:78px;background:rgba(15,27,45,.92);border-top:1px solid var(--cyan-line);display:flex;justify-content:space-around;align-items:center;padding:0 4px 16px;z-index:42}
+  .m-rail .d{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-200);font-size:9.5px;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;border:1px solid transparent;position:relative}
+  .m-rail .d svg{width:18px;height:18px;stroke-width:1.6}
+  .m-rail .d.on{color:#fff;background:rgba(95,179,224,.18);border-color:var(--cyan)}
+  .m-rail .d.on::before{content:"";position:absolute;top:-1px;left:8px;right:8px;height:2px;background:var(--cyan)}
+  /* mobile corner widget — thin capsule above rail */
+  .m-corner{position:absolute;left:14px;right:14px;bottom:88px;height:36px;background:rgba(15,27,45,.92);border:1px solid var(--cyan);display:flex;align-items:center;gap:10px;padding:0 12px;z-index:42;font-size:11px}
+  .m-corner .pulse{width:7px;height:7px;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+  .m-corner .nm{color:#fff;font-weight:600}
+  .m-corner .st{color:var(--cyan-2);font-family:'JetBrains Mono',monospace;font-size:10px;margin-left:auto}
+  /* mobile sheet (pane equivalent) */
+  .m-sheet{position:absolute;bottom:78px;left:0;right:0;height:62%;background:rgba(15,27,45,.95);border-top:1px solid var(--cyan);z-index:44;padding:16px 14px;overflow:auto}
+  .m-sheet .grab{width:48px;height:3px;background:var(--cyan-hair);margin:-8px auto 14px;}
+  .m-sheet .stamp{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase}
+  .m-sheet h4{font-size:15px;color:#fff;margin-top:2px;display:flex;align-items:center;gap:8px}
+  .m-sheet h4 .dim{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--cyan-2);background:rgba(95,179,224,.08);padding:1px 6px;border:1px solid var(--cyan-hair);font-weight:500}
+
+  /* ============ LAYOUT GRIDS ============ */
+  .pair2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .pair3{display:grid;grid-template-columns:1fr 1fr 390px;gap:24px}
+  .with-mobile{display:grid;grid-template-columns:1fr 390px;gap:24px}
+
+  /* === Mini blueprint cards === */
+  .bp-small{padding:8px 10px;background:rgba(10,19,34,.4);border:1px solid var(--cyan-hair);display:flex;gap:8px;align-items:flex-start;margin-bottom:5px;cursor:pointer}
+  .bp-small:hover{border-color:var(--cyan);background:rgba(95,179,224,.06)}
+  .bp-small .sw{width:28px;height:28px;background:linear-gradient(135deg, rgba(95,179,224,.12), rgba(95,179,224,.02));border:1px solid var(--cyan-hair);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan-2)}
+  .bp-small .meta{flex:1;min-width:0}
+  .bp-small .meta .nm{color:#fff;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bp-small .meta .dx{color:var(--ink-300);font-size:10px;margin-top:1px;font-family:'JetBrains Mono',monospace;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+  /* Footer */
+  .footnote{max-width:1440px;margin:32px auto 0;padding:0 4px;color:var(--ink-400);font-size:11.5px;line-height:1.7;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;border-top:1px solid var(--cyan-hair);padding-top:18px}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div>
+    <div class="stamp">Sheet 010 / 020 · Architectural Blueprint</div>
+    <h1>WordPress Playground — Drafting Board Edition</h1>
+    <p>The v7 #010 Quiet Rail interaction model rendered as a technical drawing: dark navy ground, faint cyan grid imprint, leader-line annotations and dimension callouts. Three dock icons — <b>Sites</b>, <b>Inspector</b>, <b>Telemetry</b> — open one swap pane built like a callout window on a blueprint. Nothing rounds. Everything notes a measurement.</p>
+  </div>
+  <div class="meta">
+    <span class="c1"></span><span class="c2"></span>
+    <div class="row"><span>SHEET</span><b>WP-010/20-A</b></div>
+    <div class="row"><span>SCALE</span><b>1:1 @ 1440px</b></div>
+    <div class="row"><span>DRAWN</span><b>2026.05.23</b></div>
+    <div class="row"><span>PANE</span><b>3-DOCK · GROUPED</b></div>
+    <div class="row"><span>RAIL Ø</span><b>56px / 5 ICONS</b></div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- ============== PANEL A: WORKING SESSION (idle, rail quiet, no pane) ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">A · <b>WORKING SESSION</b> · 1440 × 900 · iframe primary</div>
+    <div class="panel-note">DET-01 · Rail quiet · No pane open · Save state: UNSAVED</div>
+
+    <div class="desktop">
+      <div class="gridfield"></div>
+
+      <!-- Iframe -->
+      <div class="ifr">
+        <span class="l1"></span><span class="l2"></span>
+        <div class="dim"><span>X=88</span><span class="span"></span><span>W=1328</span><span class="span"></span><span>X1=1416</span></div>
+        <iframe class="wp" title="Coffee Shop preview" srcdoc='<!doctype html><html><head><meta charset=&quot;utf-8&quot;><title>Coffee Shop</title><style>body{margin:0;background:#fff;color:#1d2327;font-family:Inter,system-ui,sans-serif}.wpbar{height:32px;background:#1d2327;color:#fff;display:flex;align-items:center;padding:0 16px;font-size:12.5px;gap:16px}main{padding:54px 64px 32px;max-width:920px}.eb{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#2271b1;font-weight:700}h1{font-size:48px;font-weight:700;line-height:1.05;margin:10px 0 0;letter-spacing:-.02em;color:#0A1322}p{color:#3c434a;font-size:16px;line-height:1.6;margin:14px 0 0;max-width:640px}.meta{display:flex;gap:14px;margin-top:18px;color:#646970;font-size:13px}.grid{margin-top:28px;display:grid;grid-template-columns:repeat(3,180px);gap:14px}.pd{aspect-ratio:4/3;background:#F0F5F9;border:1px solid #D6E0E8;padding:12px;display:flex;flex-direction:column;justify-content:flex-end}.ti{font-weight:600;font-size:13px;color:#0A1322}.pr{font-size:11.5px;color:#646970;margin-top:2px}</style></head><body><div class=&quot;wpbar&quot;><span>◐ My Coffee Shop</span><span>+ New</span><span>View Posts</span><span style=&quot;margin-left:auto&quot;>Howdy, admin</span></div><main><div class=&quot;eb&quot;>FEATURED · ESPRESSO BAR</div><h1>Single-origin pour-overs, slow mornings, and the people who love them.</h1><p>The Coffee Shop blueprint ships with a Woo storefront, twelve sample products and three theme variations. This is what your homepage looks like before you change a single line.</p><div class=&quot;meta&quot;><span>By Editor · 2 min read</span><span>· Espresso</span><span>· WooCommerce 9.6</span></div><div class=&quot;grid&quot;><div class=&quot;pd&quot;><div class=&quot;ti&quot;>Single-origin El Salvador</div><div class=&quot;pr&quot;>$18.00 · 12oz bag</div></div><div class=&quot;pd&quot;><div class=&quot;ti&quot;>House Espresso Blend</div><div class=&quot;pr&quot;>$15.00 · 12oz bag</div></div><div class=&quot;pd&quot;><div class=&quot;ti&quot;>Cold-brew concentrate</div><div class=&quot;pr&quot;>$12.00 · 32 oz</div></div></div></main></body></html>'></iframe>
+      </div>
+
+      <!-- Top capsule -->
+      <div class="capsule">
+        <span class="btn" title="Refresh iframe (R)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+        </span>
+        <span class="btn" title="WP Admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg>
+        </span>
+        <span class="btn" title="Homepage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </span>
+        <span class="addr"><span class="lk">◉</span><span class="mono" style="color:var(--ink-300)">https://playground.local</span><span class="pth">/wp-admin/post.php?post=14&action=edit</span></span>
+        <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+        <span class="savepill unsaved">● Unsaved</span>
+        <span class="btn" title="More · Export to GitHub PR · Download .zip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+        </span>
+        <span class="fs" title="Toggle fullscreen / focus mode">
+          <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5V2h3"/><path d="M11 5V2H8"/><path d="M2 8v3h3"/><path d="M11 8v3H8"/></svg>
+          Fullscreen <span class="ksw">F</span>
+        </span>
+      </div>
+
+      <!-- Rail -->
+      <div class="rail">
+        <span class="rl1"></span><span class="rl2"></span>
+        <div class="logo">WP</div>
+        <div class="sheet-num">DOCK<br>3/3</div>
+        <div class="docks">
+          <div class="dock" title="Sites">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span class="num">01</span>
+          </div>
+          <div class="dock" title="Inspector — Files + Blueprint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg>
+            <span class="num">02</span>
+          </div>
+          <div class="dock" title="Telemetry — Database + Logs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+            <span class="num">03</span>
+            <span class="badge">!</span>
+          </div>
+        </div>
+        <div class="bottom">
+          <div class="dock" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg>
+          </div>
+          <div class="dock" title="Help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>
+          </div>
+          <div class="avatar">AZ</div>
+        </div>
+      </div>
+
+      <!-- Corner widget -->
+      <div class="corner-widget">
+        <div class="box">
+          <span class="x1"></span><span class="x2"></span>
+          <span class="pulse"></span>
+          <div>
+            <div class="nm">Coffee Shop</div>
+            <div class="st">RUNNING · WP 6.7 · PHP 8.2 · Δ 14.2 MB</div>
+          </div>
+        </div>
+        <div class="lead"></div>
+      </div>
+
+      <!-- Annotations -->
+      <div class="anno" style="left:96px;top:140px"><span class="num">01</span>Rail · 56px · 3 docks max</div>
+      <div class="anno-lead" style="left:80px;top:152px;width:24px;height:1px"></div>
+      <div class="anno-dot" style="left:78px;top:149px"></div>
+
+      <div class="anno" style="left:480px;top:74px"><span class="num">02</span>Top capsule · 36px slim · save-pill = source of truth</div>
+      <div class="anno-lead" style="left:480px;top:88px;width:1px;height:14px"></div>
+
+      <div class="anno" style="left:430px;bottom:48px"><span class="num">03</span>Corner widget · dimension callout</div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Idle state.</b> The iframe is the only sharp surface — the WordPress homepage of the Coffee Shop blueprint sits at full opacity inside a 1px cyan-hairline frame with 2px corner ticks. The rail is at left as a thin column of three numbered docks. No pane is open. The dimension strip above the iframe spells out <span class="mono" style="color:var(--cyan-2)">X=88 / W=1328 / X1=1416</span> like an architect's measure across the drawing.</div>
+      <div class="tags"><span class="t">QUIET-RAIL</span><span class="t">3-DOCK</span><span class="t">GROUPED</span><span class="t">DRAFTING</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL B: SITES PANE OPEN ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">B · <b>SITES PANE · YOUR PLAYGROUNDS + 6 START ROUTES</b></div>
+    <div class="panel-note">DET-02 · Dock 01/03 active · iframe recedes</div>
+
+    <div class="desktop recede">
+      <div class="gridfield"></div>
+      <div class="ifr">
+        <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+      </div>
+
+      <!-- Capsule -->
+      <div class="capsule">
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06"/></svg></span>
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <span class="addr"><span class="lk">◉</span><span style="color:var(--ink-300)">https://playground.local</span><span class="pth">/wp-admin/post.php?post=14&action=edit</span></span>
+        <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+        <span class="savepill saving">○ Saving…</span>
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></span>
+        <span class="fs">Fullscreen <span class="ksw">F</span></span>
+      </div>
+
+      <!-- Rail with Sites active -->
+      <div class="rail">
+        <span class="rl1"></span><span class="rl2"></span>
+        <div class="logo">WP</div>
+        <div class="sheet-num">DOCK<br>1/3</div>
+        <div class="docks">
+          <div class="dock active" title="Sites">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span class="num">01</span>
+          </div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+        </div>
+        <div class="bottom">
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06"/></svg></div>
+          <div class="avatar">AZ</div>
+        </div>
+      </div>
+
+      <!-- PANE: Sites -->
+      <div class="pane" style="width:432px">
+        <span class="pcl1"></span><span class="pcl2"></span>
+        <div class="pane-dim"><span>X=88</span><span class="ln"></span><span>W=432</span><span class="ln"></span><span>X1=520</span></div>
+        <div class="pane-head">
+          <div class="ttl">
+            <div class="stamp">Detail 02 / Section A</div>
+            <h3>Sites <span class="dimnote">3 SAVED · 6 ROUTES</span></h3>
+            <div class="sub">drawer.sites · pane.swap</div>
+          </div>
+          <div class="closex">×</div>
+        </div>
+        <div class="pane-body">
+          <div class="sheettabs" style="grid-template-columns:repeat(3,1fr)">
+            <button class="on">Your Playgrounds</button>
+            <button>New</button>
+            <button>Settings</button>
+          </div>
+
+          <div class="sect-h"><span class="nm"><span class="callout">A·1</span>Your Playgrounds</span></div>
+          <div class="saved">
+            <div class="s active">
+              <div class="sw">☕</div>
+              <div class="info">
+                <div class="nm">Coffee Shop</div>
+                <div class="sub">WP 6.7 · PHP 8.2 · today 14:32</div>
+              </div>
+              <div class="dim">14.2 MB<br>OPFS</div>
+            </div>
+            <div class="s">
+              <div class="sw">🎨</div>
+              <div class="info">
+                <div class="nm">Vueo theme dev</div>
+                <div class="sub">WP 6.7 · PHP 8.3 · yesterday</div>
+              </div>
+              <div class="dim">8.6 MB<br>OPFS</div>
+            </div>
+            <div class="s">
+              <div class="sw">🎮</div>
+              <div class="info">
+                <div class="nm">Gaming News</div>
+                <div class="sub">WP 6.6 · PHP 8.2 · May 18</div>
+              </div>
+              <div class="dim">11.1 MB<br>OPFS</div>
+            </div>
+            <div class="s">
+              <div class="sw">○</div>
+              <div class="info">
+                <div class="nm unsaved">Unsaved Playground</div>
+                <div class="sub">draft · created 9:14</div>
+              </div>
+              <div class="dim">2.4 MB<br>memory</div>
+            </div>
+          </div>
+
+          <div class="sect-h" style="margin-top:14px"><span class="nm"><span class="callout">A·2</span>Start a new Playground</span></div>
+          <div class="src-grid">
+            <div class="src-card"><span class="num">01</span><div class="ic">◐</div><div class="tx"><div class="nm">Vanilla WordPress</div><div class="dx">Latest stable · WP 6.7 / PHP 8.2</div></div></div>
+            <div class="src-card"><span class="num">02</span><div class="ic">⎇</div><div class="tx"><div class="nm">WordPress PR</div><div class="dx">Boot from a core PR #</div></div></div>
+            <div class="src-card"><span class="num">03</span><div class="ic">G</div><div class="tx"><div class="nm">Gutenberg PR</div><div class="dx">Latest editor PR builds</div></div></div>
+            <div class="src-card"><span class="num">04</span><div class="ic">⌥</div><div class="tx"><div class="nm">From GitHub</div><div class="dx">theme · plugin · wp-content repo</div></div></div>
+            <div class="src-card"><span class="num">05</span><div class="ic">⟁</div><div class="tx"><div class="nm">Blueprint URL</div><div class="dx">Paste any blueprint.json URL</div></div></div>
+            <div class="src-card"><span class="num">06</span><div class="ic">↑</div><div class="tx"><div class="nm">Import .zip</div><div class="dx">Restore an exported site (zip upload)</div></div></div>
+          </div>
+
+          <div class="sect-h" style="margin-top:14px"><span class="nm"><span class="callout">A·3</span>Browse the Library</span><span class="callout" style="color:var(--cyan-2);margin-left:auto">43 BLUEPRINTS</span></div>
+          <button class="btn-blue" style="width:100%;justify-content:center;padding:10px">⌘K · Open Blueprint Library</button>
+        </div>
+        <div class="pane-foot">
+          <span>ESC · close</span>
+          <span style="margin-left:auto;color:var(--cyan-2)">⌘K · palette</span>
+        </div>
+      </div>
+
+      <!-- Corner widget -->
+      <div class="corner-widget">
+        <div class="box">
+          <span class="x1"></span><span class="x2"></span>
+          <span class="pulse"></span>
+          <div>
+            <div class="nm">Coffee Shop</div>
+            <div class="st">RUNNING · WP 6.7 · PHP 8.2 · Δ 14.2 MB</div>
+          </div>
+        </div>
+        <div class="lead"></div>
+      </div>
+
+      <div class="anno" style="left:556px;top:74px"><span class="num">04</span>Pane · 432px · callout window</div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Sites pane.</b> One swap surface holds <b>Your Playgrounds</b> (4 saved sites with realistic dates and OPFS sizes), the <b>6 start routes</b> as numbered drafting cards, and a one-click handoff into the Blueprint Library overlay. The pane head wears a "Detail 02 / Section A" stamp like a drafting drawing.</div>
+      <div class="tags"><span class="t">SITES</span><span class="t">6-ROUTES</span><span class="t">4-SAVED</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL C+D: INSPECTOR (Files + Blueprint tabs) ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">C · D · <b>INSPECTOR PANE</b> · FILES tab / BLUEPRINT tab</div>
+    <div class="panel-note">DET-03 · Dock 02/03 active · 2 tabs grouped (Files · Blueprint)</div>
+
+    <div class="pair2" style="padding:60px 24px 24px">
+      <!-- C: Files tab -->
+      <div class="desktop recede" style="width:auto;height:780px">
+        <div class="gridfield"></div>
+        <div class="ifr" style="left:80px;right:20px;top:60px;bottom:20px">
+          <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+        </div>
+        <div class="capsule" style="left:104px;right:44px">
+          <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+          <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/edit.php?post_type=page</span></span>
+          <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+          <span class="savepill saved">✓ Saved</span>
+          <span class="fs">Fullscreen <span class="ksw">F</span></span>
+        </div>
+        <div class="rail" style="top:20px;left:20px;bottom:20px">
+          <span class="rl1"></span><span class="rl2"></span>
+          <div class="logo">WP</div>
+          <div class="sheet-num">DOCK<br>2/3</div>
+          <div class="docks">
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+            <div class="dock active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+          </div>
+          <div class="bottom"><div class="avatar">AZ</div></div>
+        </div>
+        <div class="pane" style="top:20px;left:80px;bottom:20px;width:calc(100% - 100px)">
+          <span class="pcl1"></span><span class="pcl2"></span>
+          <div class="pane-dim"><span>X=80</span><span class="ln"></span><span>W=auto</span><span class="ln"></span><span>X1=R</span></div>
+          <div class="pane-head">
+            <div class="ttl">
+              <div class="stamp">Detail 03 / Section B · Sheet C</div>
+              <h3>Inspector <span class="dimnote">FILES · /wordpress</span></h3>
+              <div class="sub">drawer.inspect · tree · 11.4 MB used</div>
+            </div>
+            <div class="closex">×</div>
+          </div>
+          <div class="pane-body">
+            <div class="sheettabs" style="grid-template-columns:1fr 1fr">
+              <button class="on">Files</button>
+              <button>Blueprint</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <input class="mini" placeholder="Filter path…" style="flex:1" />
+              <button class="btn-ghost">Upload</button>
+              <button class="btn-ghost">New file</button>
+            </div>
+            <div class="ftree">
+              <div class="f open">/wordpress<span class="sz">11.4 MB</span>
+                <div class="ch">.htaccess<span class="sz">242 B</span></div>
+                <div class="ch">wp-config.php<span class="sz">3.1 KB</span></div>
+                <div class="ch">index.php<span class="sz">405 B</span></div>
+                <div class="f open">wp-content<span class="sz">8.2 MB</span>
+                  <div class="f open">plugins<span class="sz">5.8 MB</span>
+                    <div class="ch">akismet/<span class="sz">182 KB</span></div>
+                    <div class="ch">hello.php<span class="sz">2.6 KB</span></div>
+                    <div class="ch">woocommerce/<span class="sz">5.5 MB</span></div>
+                  </div>
+                  <div class="f open">themes<span class="sz">2.1 MB</span>
+                    <div class="ch"><span class="pick">storefront-child/</span><span class="sz">340 KB</span></div>
+                    <div class="ch">twentytwentyfour/<span class="sz">1.7 MB</span></div>
+                  </div>
+                  <div class="f">uploads/<span class="sz">312 KB</span></div>
+                  <div class="ch">db.php<span class="sz">2 KB</span></div>
+                </div>
+                <div class="f">wp-admin/<span class="sz">1.4 MB</span></div>
+                <div class="f">wp-includes/<span class="sz">1.7 MB</span></div>
+              </div>
+            </div>
+            <div class="sect-h" style="margin-top:14px"><span class="nm"><span class="callout">C·1</span>Selection · storefront-child/style.css</span></div>
+            <div class="json-viewer" style="font-size:11px">
+              <div><span class="gutter">01</span><span class="c">/**</span></div>
+              <div><span class="gutter">02</span><span class="c"> * Theme Name: Storefront Child</span></div>
+              <div><span class="gutter">03</span><span class="c"> * Template: storefront</span></div>
+              <div><span class="gutter">04</span><span class="c"> */</span></div>
+              <div><span class="gutter">05</span><span class="k">.site-header</span> { <span class="k">background</span>: <span class="s">#0F1B2D</span>; }</div>
+              <div><span class="gutter">06</span><span class="k">.shop-grid</span> { <span class="k">grid-template-columns</span>: <span class="s">repeat(3,1fr)</span>; }</div>
+            </div>
+            <div class="btnrow">
+              <button class="btn-blue">Save file</button>
+              <button class="btn-ghost">Revert</button>
+              <button class="btn-ghost">Download .zip</button>
+              <button class="btn-ghost">Open in editor</button>
+            </div>
+          </div>
+          <div class="pane-foot"><span>ESC · close</span><span style="margin-left:auto">/wordpress/wp-content/themes/storefront-child/style.css</span></div>
+        </div>
+        <div class="corner-widget" style="left:104px"><div class="box"><span class="x1"></span><span class="x2"></span><span class="pulse"></span><div><div class="nm">Coffee Shop</div><div class="st">SAVED · 14.2 MB</div></div></div><div class="lead"></div></div>
+      </div>
+
+      <!-- D: Blueprint tab -->
+      <div class="desktop recede" style="width:auto;height:780px">
+        <div class="gridfield"></div>
+        <div class="ifr" style="left:80px;right:20px;top:60px;bottom:20px">
+          <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+        </div>
+        <div class="capsule" style="left:104px;right:44px">
+          <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+          <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/edit.php?post_type=page</span></span>
+          <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+          <span class="savepill stale">⚠ Stale</span>
+          <span class="fs">Fullscreen <span class="ksw">F</span></span>
+        </div>
+        <div class="rail" style="top:20px;left:20px;bottom:20px">
+          <span class="rl1"></span><span class="rl2"></span>
+          <div class="logo">WP</div>
+          <div class="sheet-num">DOCK<br>2/3</div>
+          <div class="docks">
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+            <div class="dock active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+          </div>
+          <div class="bottom"><div class="avatar">AZ</div></div>
+        </div>
+        <div class="pane" style="top:20px;left:80px;bottom:20px;width:calc(100% - 100px)">
+          <span class="pcl1"></span><span class="pcl2"></span>
+          <div class="pane-dim"><span>X=80</span><span class="ln"></span><span>W=auto</span><span class="ln"></span><span>X1=R</span></div>
+          <div class="pane-head">
+            <div class="ttl">
+              <div class="stamp">Detail 03 / Section B · Sheet D</div>
+              <h3>Inspector <span class="dimnote">BLUEPRINT · v1</span></h3>
+              <div class="sub">drawer.inspect · blueprint.json</div>
+            </div>
+            <div class="closex">×</div>
+          </div>
+          <div class="pane-body">
+            <div class="sheettabs" style="grid-template-columns:1fr 1fr">
+              <button>Files</button>
+              <button class="on">Blueprint</button>
+            </div>
+            <div class="json-viewer">
+              <div><span class="gutter">01</span>{</div>
+              <div><span class="gutter">02</span>  <span class="k">"$schema"</span>: <span class="s">"https://playground.wordpress.net/blueprint-schema.json"</span>,</div>
+              <div><span class="gutter">03</span>  <span class="k">"preferredVersions"</span>: {</div>
+              <div><span class="gutter">04</span>    <span class="k">"php"</span>: <span class="s">"8.2"</span>,</div>
+              <div><span class="gutter">05</span>    <span class="k">"wp"</span>:  <span class="s">"6.7"</span></div>
+              <div><span class="gutter">06</span>  },</div>
+              <div><span class="gutter">07</span>  <span class="k">"landingPage"</span>: <span class="s">"/shop/"</span>,</div>
+              <div><span class="gutter">08</span>  <span class="k">"steps"</span>: [</div>
+              <div><span class="gutter">09</span>    { <span class="k">"step"</span>: <span class="s">"login"</span>, <span class="k">"username"</span>: <span class="s">"admin"</span> },</div>
+              <div><span class="gutter">10</span>    { <span class="k">"step"</span>: <span class="s">"installPlugin"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> },</div>
+              <div><span class="gutter">11</span>    { <span class="k">"step"</span>: <span class="s">"installTheme"</span>, <span class="k">"slug"</span>: <span class="s">"storefront"</span> },</div>
+              <div><span class="gutter">12</span>    { <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="k">"options"</span>: {</div>
+              <div><span class="gutter">13</span>        <span class="k">"blogname"</span>: <span class="s">"Coffee Shop"</span>,</div>
+              <div><span class="gutter">14</span>        <span class="k">"permalink_structure"</span>: <span class="s">"/%postname%/"</span></div>
+              <div><span class="gutter">15</span>      }</div>
+              <div><span class="gutter">16</span>    },</div>
+              <div><span class="gutter">17</span>    { <span class="k">"step"</span>: <span class="s">"importWxr"</span>, <span class="k">"url"</span>: <span class="s">"./coffee-content.xml"</span> },</div>
+              <div><span class="gutter">18</span>    { <span class="k">"step"</span>: <span class="s">"runWP_CLI"</span>, <span class="k">"command"</span>: <span class="s">"wc product create ..."</span> }</div>
+              <div><span class="gutter">19</span>  ]</div>
+              <div><span class="gutter">20</span>}</div>
+            </div>
+            <div class="btnrow">
+              <button class="btn-blue">▶ Run Blueprint</button>
+              <button class="btn-ghost">Copy JSON</button>
+              <button class="btn-ghost">Download bundle (.zip)</button>
+              <button class="btn-ghost">Export to GitHub PR</button>
+            </div>
+            <div class="sect-h" style="margin-top:14px"><span class="nm"><span class="callout">D·1</span>Step log</span></div>
+            <div class="logs-wrap" style="max-height:120px">
+              <div class="ln"><span class="ts">14:32:11</span><span class="lvl l-info">OK</span><span class="msg">step 1/6 · login · admin (0.02s)</span></div>
+              <div class="ln"><span class="ts">14:32:11</span><span class="lvl l-info">OK</span><span class="msg">step 2/6 · installPlugin woocommerce (2.40s)</span></div>
+              <div class="ln"><span class="ts">14:32:14</span><span class="lvl l-info">OK</span><span class="msg">step 3/6 · installTheme storefront (0.88s)</span></div>
+              <div class="ln"><span class="ts">14:32:15</span><span class="lvl l-debug">RUN</span><span class="msg">step 4/6 · setSiteOptions (current)</span></div>
+            </div>
+          </div>
+          <div class="pane-foot"><span>blueprint.json · 14 lines</span><span style="margin-left:auto">⌘S · save</span></div>
+        </div>
+        <div class="corner-widget" style="left:104px"><div class="box"><span class="x1"></span><span class="x2"></span><span class="pulse"></span><div><div class="nm">Coffee Shop</div><div class="st">STALE · WP 6.7</div></div></div><div class="lead"></div></div>
+      </div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Inspector pane</b> groups <b>Files</b> and <b>Blueprint</b> as two sheet-tabs inside a single pane. Files (C) shows a real tree with selection and a Save / Revert / Download .zip toolbar; Blueprint (D) shows the JSON with line-gutters, a Run button, Copy JSON, Download bundle, and Export to GitHub PR. The step log streams below.</div>
+      <div class="tags"><span class="t">INSPECTOR</span><span class="t">2-TABS</span><span class="t">JSON</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL E+F: TELEMETRY (Database + Logs tabs) ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">E · F · <b>TELEMETRY PANE</b> · DATABASE tab / LOGS tab</div>
+    <div class="panel-note">DET-04 · Dock 03/03 active · 2 tabs grouped (Database · Logs) · 1 warning</div>
+
+    <div class="pair2" style="padding:60px 24px 24px">
+      <!-- E: Database -->
+      <div class="desktop recede" style="width:auto;height:780px">
+        <div class="gridfield"></div>
+        <div class="ifr" style="left:80px;right:20px;top:60px;bottom:20px">
+          <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+        </div>
+        <div class="capsule" style="left:104px;right:44px">
+          <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+          <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/admin.php?page=wc-orders</span></span>
+          <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+          <span class="savepill saved">✓ Saved</span>
+          <span class="fs">Fullscreen <span class="ksw">F</span></span>
+        </div>
+        <div class="rail" style="top:20px;left:20px;bottom:20px">
+          <span class="rl1"></span><span class="rl2"></span>
+          <div class="logo">WP</div>
+          <div class="sheet-num">DOCK<br>3/3</div>
+          <div class="docks">
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+            <div class="dock active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+          </div>
+          <div class="bottom"><div class="avatar">AZ</div></div>
+        </div>
+        <div class="pane" style="top:20px;left:80px;bottom:20px;width:calc(100% - 100px)">
+          <span class="pcl1"></span><span class="pcl2"></span>
+          <div class="pane-dim"><span>X=80</span><span class="ln"></span><span>W=auto</span><span class="ln"></span><span>X1=R</span></div>
+          <div class="pane-head">
+            <div class="ttl">
+              <div class="stamp">Detail 04 / Section C · Sheet E</div>
+              <h3>Telemetry <span class="dimnote">DATABASE · SQLite</span></h3>
+              <div class="sub">drawer.telemetry · /wordpress/wp-content/database/.ht.sqlite</div>
+            </div>
+            <div class="closex">×</div>
+          </div>
+          <div class="pane-body">
+            <div class="sheettabs" style="grid-template-columns:1fr 1fr">
+              <button class="on">Database</button>
+              <button>Logs</button>
+            </div>
+            <div class="db-meta">
+              <div class="row-flat"><span class="k">PATH</span><span class="v">/wordpress/wp-content/database/.ht.sqlite</span></div>
+              <div class="row-flat"><span class="k">SIZE</span><span class="v">4.62 MB</span></div>
+              <div class="row-flat"><span class="k">ENGINE</span><span class="v">SQLite 3.45 · sqlite-database-integration</span></div>
+              <div class="row-flat"><span class="k">TABLES</span><span class="v">22 · 14,402 rows total</span></div>
+            </div>
+            <div class="btnrow" style="margin-top:0;margin-bottom:10px">
+              <button class="btn-blue">⇣ Download SQLite</button>
+              <button class="btn-ghost">Open Adminer</button>
+              <button class="btn-ghost">Open phpMyAdmin</button>
+              <button class="btn-ghost">SQL Console</button>
+            </div>
+            <div class="sect-h"><span class="nm"><span class="callout">E·1</span>Tables</span><span class="callout" style="margin-left:auto;color:var(--cyan-2)">22 rows</span></div>
+            <table class="dbt">
+              <thead><tr><th>name</th><th>rows</th><th>size</th></tr></thead>
+              <tbody>
+                <tr><td>wp_posts</td><td class="r">342</td><td class="r">214 KB</td></tr>
+                <tr><td>wp_postmeta</td><td class="r">1,288</td><td class="r">312 KB</td></tr>
+                <tr><td>wp_options</td><td class="r">486</td><td class="r">182 KB</td></tr>
+                <tr><td>wp_users</td><td class="r">3</td><td class="r">2 KB</td></tr>
+                <tr><td>wp_wc_orders</td><td class="r">42</td><td class="r">88 KB</td></tr>
+                <tr><td>wp_wc_products</td><td class="r">12</td><td class="r">22 KB</td></tr>
+                <tr><td>wp_wc_order_addresses</td><td class="r">84</td><td class="r">38 KB</td></tr>
+                <tr><td>wp_woocommerce_sessions</td><td class="r">7</td><td class="r">14 KB</td></tr>
+                <tr><td>wp_termmeta</td><td class="r">28</td><td class="r">5 KB</td></tr>
+                <tr><td>wp_terms</td><td class="r">31</td><td class="r">3 KB</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pane-foot"><span>SQLite · .ht.sqlite</span><span style="margin-left:auto">22 tables</span></div>
+        </div>
+        <div class="corner-widget" style="left:104px"><div class="box"><span class="x1"></span><span class="x2"></span><span class="pulse"></span><div><div class="nm">Coffee Shop</div><div class="st">DB 4.62 MB · 22 tables</div></div></div><div class="lead"></div></div>
+      </div>
+
+      <!-- F: Logs -->
+      <div class="desktop recede" style="width:auto;height:780px">
+        <div class="gridfield"></div>
+        <div class="ifr" style="left:80px;right:20px;top:60px;bottom:20px">
+          <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+        </div>
+        <div class="capsule" style="left:104px;right:44px">
+          <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+          <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/admin.php?page=wc-orders</span></span>
+          <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+          <span class="savepill saved">✓ Saved</span>
+          <span class="fs">Fullscreen <span class="ksw">F</span></span>
+        </div>
+        <div class="rail" style="top:20px;left:20px;bottom:20px">
+          <span class="rl1"></span><span class="rl2"></span>
+          <div class="logo">WP</div>
+          <div class="sheet-num">DOCK<br>3/3</div>
+          <div class="docks">
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+            <div class="dock active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+          </div>
+          <div class="bottom"><div class="avatar">AZ</div></div>
+        </div>
+        <div class="pane" style="top:20px;left:80px;bottom:20px;width:calc(100% - 100px)">
+          <span class="pcl1"></span><span class="pcl2"></span>
+          <div class="pane-dim"><span>X=80</span><span class="ln"></span><span>W=auto</span><span class="ln"></span><span>X1=R</span></div>
+          <div class="pane-head">
+            <div class="ttl">
+              <div class="stamp">Detail 04 / Section C · Sheet F</div>
+              <h3>Telemetry <span class="dimnote">LOGS · PHP · tail</span></h3>
+              <div class="sub">drawer.telemetry · WP_DEBUG=true</div>
+            </div>
+            <div class="closex">×</div>
+          </div>
+          <div class="pane-body">
+            <div class="sheettabs" style="grid-template-columns:1fr 1fr">
+              <button>Database</button>
+              <button class="on">Logs</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <input class="mini" placeholder="grep logs…" style="flex:1" />
+              <select class="mini"><option>ALL</option><option>ERROR</option><option>WARN</option><option>NOTICE</option><option>DEBUG</option></select>
+              <span class="ksw">tail</span>
+              <button class="btn-ghost">Clear</button>
+            </div>
+            <div class="logs-wrap">
+              <div class="ln"><span class="ts">14:32:11.204</span><span class="lvl l-info">INFO </span><span class="msg">Starting WordPress 6.7 with PHP 8.2 (WASM)</span></div>
+              <div class="ln"><span class="ts">14:32:11.418</span><span class="lvl l-info">INFO </span><span class="msg">OPFS mounted at /wordpress · 11.4 MB free</span></div>
+              <div class="ln"><span class="ts">14:32:11.612</span><span class="lvl l-info">INFO </span><span class="msg">Activating plugin: woocommerce/woocommerce.php</span></div>
+              <div class="ln"><span class="ts">14:32:11.844</span><span class="lvl l-warn">WARN </span><span class="msg">PHP Deprecated: strftime() is deprecated in /wordpress/wp-content/plugins/woocommerce/includes/wc-date-functions.php on line 142</span></div>
+              <div class="ln"><span class="ts">14:32:12.011</span><span class="lvl l-info">INFO </span><span class="msg">Loaded theme: storefront-child (v 1.4.0)</span></div>
+              <div class="ln"><span class="ts">14:32:12.342</span><span class="lvl l-err">ERROR</span><span class="msg">PHP Warning: include(/wordpress/wp-content/plugins/wc-payments/legacy.php): Failed to open stream: No such file or directory</span></div>
+              <div class="ln"><span class="ts">14:32:12.343</span><span class="lvl l-err">ERROR</span><span class="msg">PHP Warning: include(): Failed opening '/wordpress/wp-content/plugins/wc-payments/legacy.php' for inclusion</span></div>
+              <div class="ln"><span class="ts">14:32:12.519</span><span class="lvl l-info">INFO </span><span class="msg">POST /wp-admin/admin-ajax.php → 200 (104 ms)</span></div>
+              <div class="ln"><span class="ts">14:32:13.012</span><span class="lvl l-info">INFO </span><span class="msg">GET /shop/ → 200 (212 ms · 41 queries · 18 MB peak)</span></div>
+              <div class="ln"><span class="ts">14:32:13.430</span><span class="lvl l-warn">WARN </span><span class="msg">WP_DEBUG is enabled — verbose output included in response</span></div>
+              <div class="ln"><span class="ts">14:32:14.108</span><span class="lvl l-debug">DEBUG</span><span class="msg">SQLite integration: switched 14 queries to SQLite syntax</span></div>
+              <div class="ln"><span class="ts">14:32:14.290</span><span class="lvl l-info">INFO </span><span class="msg">POST /wp-admin/admin-ajax.php?action=woocommerce_load_variations → 200 (88 ms)</span></div>
+            </div>
+            <div class="btnrow">
+              <button class="btn-ghost">Download log .txt</button>
+              <button class="btn-ghost">Export to GitHub PR (incl. logs)</button>
+              <button class="btn-ghost">Pause tail</button>
+            </div>
+          </div>
+          <div class="pane-foot"><span>error_log · 12 lines · tail-on</span><span style="margin-left:auto">2 errors · 2 warnings</span></div>
+        </div>
+        <div class="corner-widget" style="left:104px"><div class="box"><span class="x1"></span><span class="x2"></span><span class="pulse"></span><div><div class="nm">Coffee Shop</div><div class="st">2 ERR · 2 WARN</div></div></div><div class="lead"></div></div>
+      </div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Telemetry pane.</b> Database (E) shows SQLite path, size, engine, table count, with Download / Adminer / phpMyAdmin actions and a tables list including <span class="mono">wp_posts · wp_postmeta · wp_options · wp_wc_orders</span>. Logs (F) prints 12 realistic PHP log lines with INFO / WARN / ERROR / DEBUG, plus a filter / level / tail / Clear toolbar.</div>
+      <div class="tags"><span class="t">TELEMETRY</span><span class="t">SQLITE</span><span class="t">PHP-LOGS</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL G: SETTINGS (5 fields) ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">G · <b>SETTINGS</b> · 5 fields · inside Sites pane head</div>
+    <div class="panel-note">DET-05 · Sites pane / Settings sheet · No tabs above</div>
+
+    <div class="desktop recede">
+      <div class="gridfield"></div>
+      <div class="ifr">
+        <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+      </div>
+      <div class="capsule">
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06"/></svg></span>
+        <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/options-general.php</span></span>
+        <span class="pgtitle"><span class="blip"></span>Coffee Shop</span>
+        <span class="savepill unsaved">● Unsaved</span>
+        <span class="fs">Fullscreen <span class="ksw">F</span></span>
+      </div>
+      <div class="rail">
+        <span class="rl1"></span><span class="rl2"></span>
+        <div class="logo">WP</div>
+        <div class="sheet-num">DOCK<br>1/3</div>
+        <div class="docks">
+          <div class="dock active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+        </div>
+        <div class="bottom"><div class="avatar">AZ</div></div>
+      </div>
+
+      <div class="pane" style="width:520px">
+        <span class="pcl1"></span><span class="pcl2"></span>
+        <div class="pane-dim"><span>X=88</span><span class="ln"></span><span>W=520</span><span class="ln"></span><span>X1=608</span></div>
+        <div class="pane-head">
+          <div class="ttl">
+            <div class="stamp">Detail 05 / Section A · Sheet G</div>
+            <h3>Sites — Settings <span class="dimnote">5 FIELDS</span></h3>
+            <div class="sub">Apply requires snapshot · destructive</div>
+          </div>
+          <div class="closex">×</div>
+        </div>
+        <div class="pane-body">
+          <div class="sheettabs" style="grid-template-columns:repeat(3,1fr)">
+            <button>Your Playgrounds</button>
+            <button>New</button>
+            <button class="on">Settings</button>
+          </div>
+
+          <div class="sect-h"><span class="nm"><span class="callout">G·1</span>Runtime</span></div>
+          <div class="row">
+            <div class="label"><span class="lc">01</span>WordPress version</div>
+            <div class="value">
+              <select class="mini">
+                <option>6.7 (latest)</option><option>6.6.2</option><option>6.5.4</option><option>6.4.4</option><option>nightly</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="label" style="padding-left:18px;color:var(--ink-300);font-size:11.5px">Include older versions (back to 5.9)</div>
+            <div class="value"><div class="checkbox on">✓</div></div>
+          </div>
+          <div class="row">
+            <div class="label"><span class="lc">02</span>PHP version</div>
+            <div class="value">
+              <select class="mini">
+                <option>8.2 (default)</option><option>8.3</option><option>8.1</option><option>8.0</option><option>7.4</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="label"><span class="lc">03</span>Language</div>
+            <div class="value">
+              <select class="mini">
+                <option>en_US — English (US)</option><option>en_GB — English (UK)</option><option>ja — 日本語</option><option>pl_PL — Polski</option><option>de_DE — Deutsch</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="label"><span class="lc">04</span>Allow network access</div>
+            <div class="value"><div class="toggle on"></div></div>
+          </div>
+          <div class="row">
+            <div class="label"><span class="lc">05</span>Create a multisite network</div>
+            <div class="value"><div class="toggle"></div></div>
+          </div>
+
+          <div class="sect-h" style="margin-top:14px"><span class="nm"><span class="callout">G·2</span>Export</span></div>
+          <div class="btnrow">
+            <button class="btn-blue">⇣ Download .zip</button>
+            <button class="btn-blue">⎇ Export to GitHub PR</button>
+            <button class="btn-ghost">Copy blueprint</button>
+          </div>
+
+          <div class="sect-h" style="margin-top:14px"><span class="nm"><span class="callout">G·3</span>Danger zone</span></div>
+          <div class="btnrow">
+            <button class="btn-danger">Apply + Reset Playground</button>
+            <button class="btn-ghost">Snapshot now</button>
+          </div>
+          <div style="font-size:11px;color:var(--ink-300);margin-top:6px;font-family:'JetBrains Mono',monospace">Apply settings = wipes /wordpress and re-runs the blueprint. Type the phrase to confirm. Auto-snapshot will run first.</div>
+        </div>
+        <div class="pane-foot"><span>5 fields edited</span><span style="margin-left:auto">⌘S · save preset</span></div>
+      </div>
+
+      <div class="corner-widget"><div class="box"><span class="x1"></span><span class="x2"></span><span class="pulse"></span><div><div class="nm">Coffee Shop</div><div class="st">UNSAVED · 5 changes</div></div></div><div class="lead"></div></div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Settings sheet</b> lives as the third tab inside the Sites pane head — keeping the rail at three docks. All five required fields visible: <span class="mono">WP version + older-versions toggle · PHP · language · network · multisite</span>. Export actions (Download .zip, Export to GitHub PR) and the destructive Apply + Reset live in their own sections.</div>
+      <div class="tags"><span class="t">SETTINGS</span><span class="t">5-FIELDS</span><span class="t">EXPORT</span><span class="t">DANGER</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL H: LIBRARY OVERLAY ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">H · <b>BLUEPRINT LIBRARY OVERLAY</b> · 10 sheets · 18 cards visible</div>
+    <div class="panel-note">DET-06 · z3 modal · drafting-board · reachable from Sites or ⌘K</div>
+
+    <div class="desktop">
+      <div class="gridfield"></div>
+      <div class="ifr" style="opacity:.35">
+        <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+      </div>
+      <div class="capsule" style="opacity:.55">
+        <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/</span></span>
+        <span class="pgtitle">Coffee Shop</span>
+        <span class="savepill saved">✓ Saved</span>
+        <span class="fs">Fullscreen <span class="ksw">F</span></span>
+      </div>
+      <div class="rail" style="opacity:.55">
+        <span class="rl1"></span><span class="rl2"></span>
+        <div class="logo">WP</div>
+        <div class="sheet-num">DOCK<br>1/3</div>
+        <div class="docks">
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+        </div>
+        <div class="bottom"><div class="avatar">AZ</div></div>
+      </div>
+
+      <!-- Library modal -->
+      <div class="libwrap">
+        <div class="gridfield-lib"></div>
+        <div class="libcard">
+          <span class="lc1"></span><span class="lc2"></span>
+          <div class="lib-titlebar">
+            <div class="titleblock">
+              <div class="stamp">Sheet H · Drafting board · Library 010-A</div>
+              <h2>Blueprint Library — Blueprint gallery</h2>
+              <div class="sub">43 BLUEPRINTS · 10 CATEGORIES · scale 1:1</div>
+            </div>
+            <div class="search">
+              <span style="color:var(--cyan)">⌕</span>
+              <input placeholder="Search blueprints, themes, tags…" />
+              <span class="ksw">⌘K</span>
+            </div>
+            <div class="close">×</div>
+          </div>
+          <div class="lib-sheets">
+            <div class="sh on">All <span class="ct">43</span></div>
+            <div class="sh">Featured <span class="ct">8</span></div>
+            <div class="sh">Website <span class="ct">10</span></div>
+            <div class="sh">Personal <span class="ct">5</span></div>
+            <div class="sh">Content <span class="ct">6</span></div>
+            <div class="sh">Themes <span class="ct">7</span></div>
+            <div class="sh">Gutenberg <span class="ct">5</span></div>
+            <div class="sh">Experiments <span class="ct">3</span></div>
+            <div class="sh">WooCommerce <span class="ct">4</span></div>
+            <div class="sh">News <span class="ct">2</span></div>
+          </div>
+          <div class="lib-grid">
+            <div class="bp"><span class="bp-num">01</span><div class="sw">ART</div><h5>Art Gallery</h5><p>An art gallery created with the Vueo theme.</p><div class="tags"><span class="tag">Website</span><span class="tag">Personal</span></div></div>
+            <div class="bp"><span class="bp-num">02</span><div class="sw">CAFE</div><h5>Coffee Shop</h5><p>A stylish WooCommerce coffee shop storefront with custom theme, products, and content.</p><div class="tags"><span class="tag">WooCommerce</span><span class="tag">Store</span></div></div>
+            <div class="bp"><span class="bp-num">03</span><div class="sw">RSS</div><h5>Feed Reader (Friends)</h5><p>Read feeds (incl. ActivityPub) in Playground via the Friends plugin.</p><div class="tags"><span class="tag">RSS</span><span class="tag">Social</span></div></div>
+            <div class="bp"><span class="bp-num">04</span><div class="sw">NEWS</div><h5>Gaming News</h5><p>A gaming news site created with the Spiel theme.</p><div class="tags"><span class="tag">Website</span><span class="tag">News</span></div></div>
+            <div class="bp"><span class="bp-num">05</span><div class="sw">NPO</div><h5>Non-profit Organization</h5><p>A non-profit organization site created with the Koinonia theme.</p><div class="tags"><span class="tag">Website</span><span class="tag">Org</span></div></div>
+            <div class="bp"><span class="bp-num">06</span><div class="sw">BLOG</div><h5>Personal Blog</h5><p>A personal blog created with the Substrata theme.</p><div class="tags"><span class="tag">Personal</span><span class="tag">Blog</span></div></div>
+            <div class="bp"><span class="bp-num">07</span><div class="sw">CV</div><h5>Personal Resume</h5><p>A resume site created with the Readymade theme.</p><div class="tags"><span class="tag">Personal</span></div></div>
+            <div class="bp"><span class="bp-num">08</span><div class="sw">PHOTO</div><h5>Photography Portfolio</h5><p>A photography portfolio created with the Grammer theme.</p><div class="tags"><span class="tag">Personal</span></div></div>
+            <div class="bp"><span class="bp-num">09</span><div class="sw">SKIN</div><h5>Skincare Blog</h5><p>A skincare blog created with the Piel theme.</p><div class="tags"><span class="tag">Blog</span><span class="tag">News</span></div></div>
+            <div class="bp"><span class="bp-num">10</span><div class="sw">UNI</div><h5>University Website</h5><p>A university site created with the Kentwood theme.</p><div class="tags"><span class="tag">Education</span></div></div>
+            <div class="bp"><span class="bp-num">11</span><div class="sw">THM</div><h5>Create Block Theme</h5><p>Install Create Block Theme and start editing right away.</p><div class="tags"><span class="tag">Themes</span></div></div>
+            <div class="bp"><span class="bp-num">12</span><div class="sw">USR</div><h5>Creating a new user</h5><p>Update user meta data via blueprint step.</p><div class="tags"><span class="tag">Content</span></div></div>
+            <div class="bp"><span class="bp-num">13</span><div class="sw">CPT</div><h5>Custom Post Type: Books</h5><p>Add a custom post type to playground.</p><div class="tags"><span class="tag">Content</span></div></div>
+            <div class="bp"><span class="bp-num">14</span><div class="sw">2025</div><h5>Twenty-Twenty-Five demo</h5><p>Demo content for the Twenty-Twenty-Five default theme.</p><div class="tags"><span class="tag">Themes</span></div></div>
+            <div class="bp"><span class="bp-num">16</span><div class="sw">EXP</div><h5>Dataview Experiments (Gutenberg)</h5><p>Enable multiple Experiments within the Gutenberg plugin.</p><div class="tags"><span class="tag">Gutenberg</span><span class="tag">Experiments</span></div></div>
+            <div class="bp"><span class="bp-num">24</span><div class="sw">GUT</div><h5>Latest Gutenberg plugin</h5><p>A preview of the latest Gutenberg plugin.</p><div class="tags"><span class="tag">Gutenberg</span></div></div>
+            <div class="bp"><span class="bp-num">28</span><div class="sw">WOO</div><h5>Minimal WooCommerce Setup</h5><p>Custom flat-rate shipping + sample products + bank transfer.</p><div class="tags"><span class="tag">WooCommerce</span></div></div>
+            <div class="bp"><span class="bp-num">43</span><div class="sw">BETA</div><h5>WordPress Beta</h5><p>Test the latest WordPress Beta/RC with theme test data.</p><div class="tags"><span class="tag">Testing</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Library overlay (z3)</b> stages all 43 blueprints as a drafting board: title block at the top, 10 category sheets across the strip, 4-column card grid. Numbered like a sheet index. Every card has a 3–4 letter title block, two-line description, and category tags. Reachable from the Sites pane "Library" button or the ⌘K palette.</div>
+      <div class="tags"><span class="t">LIBRARY</span><span class="t">10-CATS</span><span class="t">18-VISIBLE</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL I: APPLY+RESET DESTRUCTIVE ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">I · <b>APPLY + RESET</b> · typed phrase + diff + auto-snapshot</div>
+    <div class="panel-note">DET-07 · Destructive · 3 confirmation mechanics layered</div>
+
+    <div class="desktop recede">
+      <div class="gridfield"></div>
+      <div class="ifr">
+        <iframe class="wp" title="recede" srcdoc='<html><body style="background:#fff;margin:0"></body></html>'></iframe>
+      </div>
+      <div class="capsule" style="opacity:.65">
+        <span class="addr"><span class="lk">◉</span><span class="pth">/wp-admin/options-general.php</span></span>
+        <span class="pgtitle">Coffee Shop</span>
+        <span class="savepill unsaved">● Unsaved</span>
+        <span class="fs">Fullscreen <span class="ksw">F</span></span>
+      </div>
+      <div class="rail" style="opacity:.65">
+        <span class="rl1"></span><span class="rl2"></span>
+        <div class="logo">WP</div>
+        <div class="sheet-num">DOCK<br>1/3</div>
+        <div class="docks">
+          <div class="dock active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+          <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span><span class="badge">!</span></div>
+        </div>
+        <div class="bottom"><div class="avatar">AZ</div></div>
+      </div>
+
+      <div class="danger-overlay">
+        <div class="danger-card">
+          <span class="d1"></span><span class="d2"></span>
+          <div class="stamp">Sheet I · Destructive · DET-07</div>
+          <h3>Apply settings & reset Playground</h3>
+          <p>This wipes <span class="mono">/wordpress</span> and re-runs the blueprint with your new settings. Your saved pages, posts, plugins state, and uploads will be discarded. <b>An auto-snapshot will run first</b> so you can undo within 24 h.</p>
+
+          <div class="sect-h" style="margin-top:14px;color:var(--cyan)"><span class="nm"><span class="callout">I·1</span>Diff</span></div>
+          <div class="diff">
+            <div><span class="ctx">  preferredVersions.php:</span> <span class="del">"8.2"</span> → <span class="add">"8.3"</span></div>
+            <div><span class="ctx">  preferredVersions.wp:</span>  <span class="del">"6.7"</span> → <span class="add">"6.6.2"</span></div>
+            <div><span class="ctx">  language:</span> <span class="del">"en_US"</span> → <span class="add">"ja"</span></div>
+            <div><span class="ctx">  network:</span> <span class="add">true</span> <span class="ctx">(was unset)</span></div>
+            <div><span class="ctx">  steps[]:</span> <span class="add">+ runWP_CLI: wc product create</span></div>
+          </div>
+
+          <div class="snap">
+            <div class="ic">⊙</div>
+            <div>
+              <div style="color:#fff;font-weight:600">Auto-snapshot before apply</div>
+              <div style="color:var(--cyan-2);font-size:10px">coffee-shop · pre-apply-20260523-1431 · 14.2 MB</div>
+            </div>
+          </div>
+
+          <div class="typed">
+            <label>Type the phrase to confirm · <span class="ph">reset coffee-shop</span></label>
+            <input value="reset coffee-shop" />
+          </div>
+
+          <div class="actions">
+            <button class="btn-ghost">Cancel</button>
+            <button class="btn-blue" style="background:var(--cyan-soft);border-color:var(--cyan)">Apply + reset (Enter)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Apply + Reset</b> stacks three confirmation mechanics: a <b>diff</b> of the changes, an <b>auto-snapshot</b> stamp guaranteeing 24 h undo, and a <b>typed-phrase</b> input that must match before the destructive Apply button enables.</div>
+      <div class="tags"><span class="t">DESTRUCTIVE</span><span class="t">DIFF</span><span class="t">SNAPSHOT</span><span class="t">TYPED</span></div>
+    </div>
+  </div>
+
+  <!-- ============== PANEL J + K: BOOTING + MOBILE ============== -->
+  <div class="panel">
+    <span class="ctl"></span><span class="ctr"></span><span class="cbl"></span><span class="cbr"></span>
+    <div class="panel-label">J · K · <b>BOOTING STATE + MOBILE MIRROR (390 × 844)</b></div>
+    <div class="panel-note">DET-08 / 09 · cold boot · responsive mirror</div>
+
+    <div class="with-mobile" style="padding:60px 24px 24px">
+      <!-- J: Booting -->
+      <div class="desktop" style="width:auto;height:780px;background:var(--navy-800)">
+        <div class="gridfield"></div>
+        <div class="ifr" style="left:80px;right:20px;top:60px;bottom:20px">
+          <iframe class="wp" title="boot blank" srcdoc='<html><body style="background:#0F1B2D;margin:0"></body></html>'></iframe>
+        </div>
+        <div class="capsule" style="left:104px;right:44px;opacity:.7">
+          <span class="addr"><span class="lk" style="color:var(--cyan-2)">◉</span><span class="pth">booting playground.local…</span></span>
+          <span class="pgtitle">Coffee Shop</span>
+          <span class="savepill saving">○ Saving…</span>
+          <span class="fs">Fullscreen <span class="ksw">F</span></span>
+        </div>
+        <div class="rail" style="top:20px;left:20px;bottom:20px;opacity:.55">
+          <span class="rl1"></span><span class="rl2"></span>
+          <div class="logo">WP</div>
+          <div class="sheet-num">DOCK<br>3/3</div>
+          <div class="docks">
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="num">01</span></div>
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg><span class="num">02</span></div>
+            <div class="dock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg><span class="num">03</span></div>
+          </div>
+          <div class="bottom"><div class="avatar">AZ</div></div>
+        </div>
+
+        <div class="boot-stage">
+          <div class="boot-frame">
+            <span class="b1"></span><span class="b2"></span>
+            <div class="stamp">Sheet J · DET-08 · cold boot</div>
+            <h3>Booting Coffee Shop · loading…</h3>
+            <div class="boot-spin"></div>
+            <div class="boot-steps">
+              <div class="s"><span class="ok">[✓]</span><span>Fetched playground bundle (3.4 MB)</span><span class="ts">0.41s</span></div>
+              <div class="s"><span class="ok">[✓]</span><span>Mounted OPFS at /wordpress</span><span class="ts">0.12s</span></div>
+              <div class="s"><span class="ok">[✓]</span><span>Started PHP 8.2 (WASM)</span><span class="ts">0.32s</span></div>
+              <div class="s"><span class="now">[↻]</span><span>Activating WooCommerce + Storefront child theme…</span><span class="ts">…</span></div>
+              <div class="s"><span class="pending">[ ]</span><span>Importing WXR (coffee-content.xml)</span><span class="ts">—</span></div>
+              <div class="s"><span class="pending">[ ]</span><span>Running wp-cli (wc product create)</span><span class="ts">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- K: Mobile -->
+      <div class="mobile">
+        <div class="gridfield"></div>
+        <!-- top capsule -->
+        <div class="m-cap">
+          <span class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg></span>
+          <span class="addr"><span class="lk" style="color:var(--ok)">◉</span> /wp-admin/post.php?post=14</span>
+          <span class="savepill">✓ Saved</span>
+        </div>
+        <!-- iframe -->
+        <div class="m-ifr">
+          <iframe class="wp" title="mobile" srcdoc='<html><body style="margin:0;font-family:Inter,system-ui;background:#fff;color:#1d2327"><div style="height:28px;background:#1d2327;color:#fff;display:flex;align-items:center;padding:0 12px;font-size:11px">◐ My Coffee Shop · Howdy admin</div><main style="padding:24px 20px"><div style="font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#2271b1;font-weight:700">Featured · Espresso</div><h1 style="font-size:24px;line-height:1.1;margin:6px 0 0;letter-spacing:-.02em;color:#0A1322">Single-origin pour-overs, slow mornings, and the people who love them.</h1><p style="color:#3c434a;font-size:12.5px;line-height:1.55;margin:10px 0 0">The Coffee Shop blueprint ships with a Woo storefront…</p></main></body></html>'></iframe>
+        </div>
+        <!-- corner widget -->
+        <div class="m-corner">
+          <span class="pulse"></span>
+          <span class="nm">Coffee Shop</span>
+          <span class="st">WP 6.7 · 14.2 MB</span>
+        </div>
+        <!-- bottom-bar rail (mobile mirror) -->
+        <div class="m-rail">
+          <div class="d on">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Sites
+          </div>
+          <div class="d">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18"/><path d="M9 9v12"/></svg>
+            Inspect
+          </div>
+          <div class="d">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+            Telem
+          </div>
+          <div class="d">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+            More
+          </div>
+        </div>
+        <!-- bottom sheet (pane equivalent) -->
+        <div class="m-sheet">
+          <div class="grab"></div>
+          <div class="stamp">Detail K · Sheet 010 mobile · bottom sheet</div>
+          <h4>Sites <span class="dim">3 SAVED · 6 ROUTES</span></h4>
+          <div class="sheettabs" style="grid-template-columns:repeat(3,1fr);margin-top:10px">
+            <button class="on">Yours</button>
+            <button>New</button>
+            <button>Settings</button>
+          </div>
+          <div class="sect-h"><span class="nm"><span class="callout">K·1</span>Your Playgrounds</span></div>
+          <div class="saved">
+            <div class="s active"><div class="sw">☕</div><div class="info"><div class="nm">Coffee Shop</div><div class="sub">WP 6.7 · 14.2 MB</div></div><div class="dim">today</div></div>
+            <div class="s"><div class="sw">🎨</div><div class="info"><div class="nm">Vueo theme dev</div><div class="sub">WP 6.7 · 8.6 MB</div></div><div class="dim">yest.</div></div>
+            <div class="s"><div class="sw">🎮</div><div class="info"><div class="nm">Gaming News</div><div class="sub">WP 6.6 · 11.1 MB</div></div><div class="dim">May 18</div></div>
+            <div class="s"><div class="sw">○</div><div class="info"><div class="nm unsaved">Unsaved Playground</div><div class="sub">draft · memory</div></div><div class="dim">9:14</div></div>
+          </div>
+          <div class="sect-h" style="margin-top:12px"><span class="nm"><span class="callout">K·2</span>Quick start</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div class="src-card" style="padding:8px"><div class="ic" style="margin-top:2px">◐</div><div class="tx" style="padding-top:0"><div class="nm">Vanilla WordPress</div></div></div>
+            <div class="src-card" style="padding:8px"><div class="ic" style="margin-top:2px">⎇</div><div class="tx" style="padding-top:0"><div class="nm">WordPress PR</div></div></div>
+            <div class="src-card" style="padding:8px"><div class="ic" style="margin-top:2px">G</div><div class="tx" style="padding-top:0"><div class="nm">Gutenberg PR</div></div></div>
+            <div class="src-card" style="padding:8px"><div class="ic" style="margin-top:2px">⌥</div><div class="tx" style="padding-top:0"><div class="nm">From GitHub</div></div></div>
+            <div class="src-card" style="padding:8px"><div class="ic" style="margin-top:2px">⟁</div><div class="tx" style="padding-top:0"><div class="nm">Blueprint URL</div></div></div>
+            <div class="src-card" style="padding:8px"><div class="ic" style="margin-top:2px">↑</div><div class="tx" style="padding-top:0"><div class="nm">Import .zip</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-cap">
+      <div><b>Booting (J)</b> is a centered drafting frame with a spinner and a step list — 3 OK steps, 1 running, 2 pending. <b>Mobile mirror (K)</b> at 390×844 rotates the rail to a bottom bar with 4 tabs, drops the pane down to a 62%-tall bottom sheet, shrinks the corner widget to a thin capsule above the rail, and keeps the slim 36px capsule at top.</div>
+      <div class="tags"><span class="t">BOOTING</span><span class="t">MOBILE-390</span><span class="t">BOTTOM-SHEET</span><span class="t">BOTTOM-BAR</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footnote">
+SHEET 010 of 020 · WP-PLAYGROUND · ARCHITECTURAL BLUEPRINT · v10 ROUND · DRAWN 2026.05.23 · SCALE 1:1 @ 1440px · ALL ANNOTATIONS DRAFTED IN JETBRAINS MONO · ALL CHROME WEARS 2px CORNER TICKS · NO BORDER-RADIUS ON ANY SURFACE
+</div>
+
+</body>
+</html>
