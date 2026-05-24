@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1480" />
+<title>WordPress Playground — Punchcard (v12 #003)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cutive&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --rail:#0C0E10;
+    --pane:#121519;
+    --iframe-bg:#070A0C;
+    --ink:#D5D2C5;
+    --ink-mid:#888272;
+    --ink-dim:#56524A;
+    --rule:#1E2126;
+    --rule-soft:#171A1F;
+    --signal:#E2C44A;
+    --signal-bright:#F6DC6E;
+    --ok:#5C8A4F;
+    --warn:#C99B3F;
+    --err:#C25C4C;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#06080A;color:var(--ink);font-family:'DM Sans',sans-serif;font-feature-settings:'tnum';line-height:1.45;-webkit-font-smoothing:antialiased}
+  body{padding:40px 28px 96px}
+  h1,h2,h3,h4{margin:0;font-weight:500}
+
+  .strip{max-width:1480px;margin:0 auto 12px;padding:0 4px;display:flex;justify-content:space-between;align-items:baseline;gap:24px}
+  .strip h1{font-family:'Cutive',serif;font-size:30px;color:#F0EDDA;letter-spacing:.02em}
+  .strip h1 em{font-style:normal;color:var(--signal)}
+  .strip p{margin:0;color:var(--ink-mid);font-size:13px;max-width:660px}
+  .strip .id{font-family:'Cutive',serif;font-size:11px;letter-spacing:.18em;color:var(--ink-dim);text-align:right;flex-shrink:0;text-transform:uppercase}
+
+  .caption{max-width:1480px;margin:0 auto 14px;padding:8px 12px;font-family:'Cutive',serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-mid);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline}
+  .caption .sub{font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:0;text-transform:none;color:var(--ink-mid)}
+
+  .grid{max-width:1480px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:56px}
+
+  .frame{position:relative;background:var(--iframe-bg);border:1px solid var(--rule);overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.7)}
+
+  .desktop{width:1440px;height:900px;position:relative;background:#06080A;overflow:hidden;font-size:13px}
+
+  .iframe-area{position:absolute;top:0;left:72px;right:0;bottom:0;background:var(--iframe-bg)}
+  .iframe-area iframe{position:absolute;inset:50px 0 0 0;width:100%;height:calc(100% - 50px);border:0;background:#F6F4ED}
+
+  .topcap{position:absolute;top:0;left:72px;right:0;height:50px;background:#0A0C0E;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;padding:0 14px;z-index:20}
+  .topcap .ibtn{height:28px;min-width:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-mid);cursor:pointer;background:transparent;border:0;font-family:inherit}
+  .topcap .ibtn:hover{color:var(--ink)}
+  .topcap .ibtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6}
+  .topcap .addr{flex:1;height:28px;background:#0F1216;border:1px solid var(--rule);display:flex;align-items:center;padding:0 12px;color:var(--ink);font-size:12px;gap:8px}
+  .topcap .addr .lock{color:var(--ok);font-size:9px}
+  .topcap .pgname{font-family:'Cutive',serif;font-size:14px;color:#F0EDDA;padding:0 12px}
+  .topcap .save{font-family:'Cutive',serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;color:var(--signal);background:rgba(226,196,74,.08);border:1px solid var(--signal);border-radius:0}
+  .topcap .fs{margin-left:auto;font-family:'Cutive',serif;font-size:12px;letter-spacing:.06em;color:var(--ink-mid);padding:0 10px;cursor:pointer}
+
+  /* RAIL — unframed perforation patterns, dots are the silhouette */
+  .rail{position:absolute;top:0;left:0;bottom:0;width:72px;background:var(--rail);border-right:1px solid var(--rule);display:flex;flex-direction:column;align-items:center;padding:18px 0 14px;z-index:25}
+  .rail .mast{width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-family:'Cutive',serif;font-size:22px;color:var(--signal);border:1px solid var(--rule);margin-bottom:22px;background:#070A0C}
+  .rail .docks{display:flex;flex-direction:column;align-items:center;gap:20px;flex:1;width:100%;padding:0 8px}
+  .rail .dock{position:relative;width:100%;min-height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .rail .dock:hover .punches span{box-shadow:inset 0 0 0 1.5px var(--ink-mid)}
+  .rail .dock.active::before{content:"";position:absolute;left:-7px;top:50%;transform:translateY(-50%);height:34px;width:3px;background:var(--signal)}
+  /* per-dock perforation pattern — silhouettes vary in count, shape, spread */
+  .rail .dock .punches{display:grid;gap:5px;align-items:center;justify-content:center}
+  .rail .dock .punches span{width:13px;height:13px;border-radius:50%;background:#040608;box-shadow:inset 0 0 0 1.5px var(--ink-dim);display:block}
+  .rail .dock.active .punches span{box-shadow:inset 0 0 0 1.5px var(--signal);background:rgba(226,196,74,.08)}
+  /* p1 — single big hole */
+  .rail .dock.p1 .punches{grid-template-columns:1fr}
+  .rail .dock.p1 .punches span{width:22px;height:22px}
+  /* p2 — vertical pair */
+  .rail .dock.p2 .punches{grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:6px}
+  .rail .dock.p2 .punches span{width:14px;height:14px}
+  /* p3 — horizontal triple, slim */
+  .rail .dock.p3 .punches{grid-template-columns:repeat(3,1fr);grid-template-rows:1fr;gap:5px}
+  .rail .dock.p3 .punches span{width:9px;height:9px}
+  /* p4 — 2x2 grid with bottom-left missing */
+  .rail .dock.p4 .punches{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px}
+  .rail .dock.p4 .punches span{width:11px;height:11px}
+  .rail .dock.p4 .punches span:nth-child(3){visibility:hidden}
+  /* p5 — solid 2x2 grid */
+  .rail .dock.p5 .punches{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px}
+  .rail .dock.p5 .punches span{width:11px;height:11px}
+  .rail .ser{font-family:'Cutive',serif;font-size:10px;color:var(--ink-dim);letter-spacing:.14em;padding:6px 0;text-transform:uppercase}
+
+  /* PANE */
+  .pane{position:absolute;top:0;left:72px;bottom:0;width:440px;background:var(--pane);border-right:1px solid var(--rule);z-index:18;color:var(--ink);display:flex;flex-direction:column;box-shadow:18px 0 50px -24px rgba(0,0,0,.7)}
+  .pane-mast{padding:20px 24px 16px;border-bottom:1px solid var(--rule)}
+  .pane-mast .id{font-family:'Cutive',serif;font-size:11px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase}
+  .pane-mast h3{font-family:'Cutive',serif;font-size:24px;color:#F0EDDA;margin-top:4px;letter-spacing:.01em}
+  .pane-mast h3 em{font-style:normal;color:var(--signal)}
+  .pane-mast .sub{font-family:'DM Sans',sans-serif;font-size:12px;color:var(--ink-mid);margin-top:4px}
+  .pane-body{flex:1;overflow:auto;padding:20px 24px}
+  .pane-foot{padding:12px 24px;border-top:1px solid var(--rule);font-family:'Cutive',serif;font-size:11px;color:var(--ink-dim);letter-spacing:.16em;text-transform:uppercase;display:flex;justify-content:space-between}
+
+  /* THE PUNCHCARD ROWS — list pattern */
+  .card-row{position:relative;padding:16px 0 12px;border-bottom:1px solid var(--rule)}
+  .card-row:first-child{border-top:1px solid var(--rule)}
+  .card-row .title{font-family:'Cutive',serif;font-size:16px;color:#F0EDDA;margin-bottom:12px}
+  .card-row.active .title{color:var(--signal-bright)}
+  .card-row.active::before{content:"";position:absolute;left:-24px;top:14px;bottom:10px;width:3px;background:var(--signal)}
+  .card-row .axes{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:center;padding:3px 0}
+  .card-row .axes .lbl{font-family:'Cutive',serif;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase}
+  .card-row .axes .dots{display:flex;gap:5px;align-items:center}
+  .card-row .axes .dots span{width:10px;height:10px;border-radius:50%;background:#040608;box-shadow:inset 0 0 0 1px var(--rule)}
+  .card-row .axes .dots span.on{background:var(--signal);box-shadow:inset 0 0 0 1px var(--signal-bright),0 0 3px rgba(226,196,74,.2)}
+  .card-row .axes .dots span.cur{background:var(--signal-bright)}
+  .card-row .axes .dots .gap{width:6px;height:1px;background:transparent}
+  .card-row .axes .dots .scale{display:none}
+
+  .section-band{margin:18px 0 6px;font-family:'Cutive',serif;font-size:11px;letter-spacing:.22em;color:var(--signal);text-transform:uppercase;padding-top:14px;border-top:1px solid var(--rule)}
+
+  /* Widget — typewriter single line, perforation glyph as status */
+  .widget{position:absolute;bottom:18px;left:90px;background:#0A0C0E;border:1px solid var(--rule);padding:7px 14px;display:flex;align-items:center;gap:10px;z-index:30;font-family:'Cutive',serif;font-size:13px;color:#F0EDDA}
+  .widget .dot{width:7px;height:7px;border-radius:50%;background:var(--signal);box-shadow:0 0 6px rgba(226,196,74,.4)}
+
+  /* Booting */
+  .booting{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:120px 80px;text-align:center;height:100%;color:var(--ink)}
+  .booting .title{font-family:'Cutive',serif;font-size:42px;color:#F0EDDA;letter-spacing:.02em}
+  .booting .title em{font-style:normal;color:var(--signal)}
+  .booting .punches-big{margin-top:36px;display:grid;grid-template-columns:repeat(6,1fr);gap:14px;width:380px}
+  .booting .punches-big span{width:36px;height:36px;border-radius:50%;background:#0A0C0E;border:1px solid var(--rule)}
+  .booting .punches-big span.on{background:var(--signal);box-shadow:0 0 16px rgba(226,196,74,.5);border-color:var(--signal-bright)}
+  .booting .pct{margin-top:24px;font-family:'Cutive',serif;font-size:14px;color:var(--ink-mid);letter-spacing:.16em;text-transform:uppercase}
+  .booting .stages{margin-top:36px;text-align:left;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);min-width:480px}
+  .booting .stages .stage{display:grid;grid-template-columns:28px 1fr 70px;align-items:center;padding:10px 22px;border-bottom:1px solid var(--rule-soft);font-family:'Cutive',serif;font-size:13px;color:var(--ink-mid)}
+  .booting .stages .stage:last-child{border:0}
+  .booting .stages .stage.done{color:var(--ink)}
+  .booting .stages .stage.now{color:var(--signal-bright);background:rgba(226,196,74,.05)}
+  .booting .stages .stage .t{font-size:11px;color:var(--ink-dim);text-align:right}
+
+  /* Library overlay */
+  .lib{position:absolute;inset:0;background:rgba(6,8,10,.86);backdrop-filter:blur(8px);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:30px}
+  .lib-deck{width:100%;max-width:1320px;background:#0A0C0E;border:1px solid var(--rule);display:flex;flex-direction:column;max-height:840px;overflow:hidden}
+  .lib-mast{display:flex;align-items:baseline;justify-content:space-between;padding:22px 30px 16px;border-bottom:1px solid var(--rule)}
+  .lib-mast h2{font-family:'Cutive',serif;font-size:30px;color:#F0EDDA;letter-spacing:.01em}
+  .lib-mast h2 em{font-style:normal;color:var(--signal)}
+  .lib-mast .cnt{font-family:'Cutive',serif;font-size:12px;color:var(--ink-mid);letter-spacing:.16em;text-transform:uppercase}
+  .lib-toolbar{display:flex;align-items:center;gap:16px;padding:12px 30px;border-bottom:1px solid var(--rule);background:#08090B}
+  .lib-toolbar .search{flex:1;display:flex;align-items:center;gap:10px;background:#0F1216;border:1px solid var(--rule);padding:0 14px;height:32px;font-family:'Cutive',serif;font-size:13px;color:var(--ink)}
+  .lib-toolbar .search::before{content:"⌕";color:var(--ink-mid)}
+  .lib-toolbar .filters{display:flex;gap:0;font-family:'Cutive',serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+  .lib-toolbar .filters a{padding:6px 14px;color:var(--ink-mid);cursor:pointer;border-right:1px solid var(--rule)}
+  .lib-toolbar .filters a:last-child{border:0}
+  .lib-toolbar .filters a.on{color:var(--signal-bright);border-bottom:2px solid var(--signal);margin-bottom:-2px}
+  .lib-toolbar .close{font-family:'Cutive',serif;font-size:13px;color:var(--ink-mid);cursor:pointer}
+  .lib-body{flex:1;overflow:auto;padding:24px 30px}
+  .deck{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .deck .card{position:relative;background:#0E1115;border:1px solid var(--rule);padding:18px 18px 14px;min-height:130px}
+  .deck .card::before{content:"";position:absolute;left:18px;right:18px;top:8px;height:6px;display:flex;background-image:radial-gradient(circle,#040608 0,#040608 3px,transparent 3.5px);background-size:14px 6px;background-repeat:repeat-x}
+  .deck .card .name{font-family:'Cutive',serif;font-size:14px;color:#F0EDDA;margin-top:14px;line-height:1.25}
+  .deck .card .tag{font-family:'Cutive',serif;font-size:10px;color:var(--signal);letter-spacing:.18em;text-transform:uppercase;margin-top:8px}
+  .deck .card .dots{margin-top:10px;display:flex;gap:4px}
+  .deck .card .dots span{width:6px;height:6px;border-radius:50%;background:#040608;box-shadow:inset 0 0 0 1px var(--rule)}
+  .deck .card .dots span.on{background:var(--signal);box-shadow:none}
+
+  /* Site Manager */
+  .sm{padding:18px 24px;overflow:auto;flex:1}
+  .sm-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule);margin-bottom:18px;font-family:'Cutive',serif;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .sm-tabs a{padding:10px 16px;color:var(--ink-mid);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .sm-tabs a.on{color:var(--signal-bright);border-bottom-color:var(--signal)}
+  .field{display:grid;grid-template-columns:1fr 160px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--rule-soft);gap:14px}
+  .field:last-child{border:0}
+  .field label{font-family:'Cutive',serif;font-size:14px;color:var(--ink)}
+  .field .meta{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em}
+  .field .ctl{font-size:12px;color:var(--ink);text-align:right}
+  .field select{background:#0F1216;border:1px solid var(--rule);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:12px;padding:5px 8px}
+  .field .toggle{display:inline-block;width:48px;height:22px;background:#0F1216;border:1px solid var(--rule);position:relative;cursor:pointer}
+  .field .toggle::after{content:"";position:absolute;top:1px;left:1px;width:18px;height:18px;background:var(--ink-mid);transition:.2s;border-radius:50%}
+  .field .toggle.on{background:rgba(226,196,74,.15);border-color:var(--signal)}
+  .field .toggle.on::after{left:27px;background:var(--signal-bright)}
+  .field .older{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--ink-mid);margin-top:5px;display:flex;align-items:center;gap:6px}
+  .field .older::before{content:"☐";color:var(--ink-dim)}
+
+  /* Apply Reset */
+  .apply-reset{margin-top:24px;padding:20px 0;border-top:1px solid var(--rule)}
+  .apply-reset .h{font-family:'Cutive',serif;font-size:18px;color:#F0EDDA;margin-bottom:8px}
+  .apply-reset .p{font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--ink-mid);line-height:1.5}
+  .apply-reset .diff{margin-top:14px;background:#0A0C0E;border:1px solid var(--rule)}
+  .apply-reset .diff .row{display:grid;grid-template-columns:120px 1fr 1fr;gap:14px;padding:8px 14px;font-size:12px;border-bottom:1px solid var(--rule-soft);align-items:center}
+  .apply-reset .diff .row:last-child{border:0}
+  .apply-reset .diff .row .k{font-family:'Cutive',serif;color:var(--ink-mid);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+  .apply-reset .diff .row .old{color:var(--ink-dim);text-decoration:line-through;font-family:'DM Sans',sans-serif}
+  .apply-reset .diff .row .new{color:var(--signal-bright);font-family:'DM Sans',sans-serif}
+  .apply-reset .confirm{margin-top:14px;font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--ink-mid);line-height:1.55}
+  .apply-reset .confirm em{font-style:normal;color:var(--signal-bright);font-family:'Cutive',serif;letter-spacing:.04em;padding:0 4px;border-bottom:1px solid var(--signal)}
+  .apply-reset .phrase{margin-top:8px;background:#0F1216;border:1px solid var(--rule);padding:8px 12px;font-family:'Cutive',serif;font-size:14px;color:var(--ink)}
+  .apply-reset .phrase::before{content:"reset coffee shop";color:var(--ink-mid)}
+  .apply-reset .actions{margin-top:14px;display:flex;gap:14px;align-items:center}
+  .apply-reset .btn-apply{font-family:'Cutive',serif;font-size:14px;color:var(--signal-bright);background:transparent;border:1px solid var(--signal);padding:9px 18px;cursor:pointer}
+  .apply-reset .btn-reset{font-family:'Cutive',serif;font-size:14px;color:var(--ink-mid);background:transparent;border:1px solid var(--rule);padding:9px 18px;cursor:pointer}
+  .apply-reset .snap{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--ink-dim);margin-left:auto}
+
+  /* Files / Blueprint / Database / Logs */
+  .files-tree{font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--ink-mid);line-height:1.75;border-left:1px solid var(--rule);padding-left:14px;margin-top:6px}
+  .files-tree .d{color:var(--ink);font-family:'Cutive',serif;font-size:13px}
+  .files-tree .f{color:var(--ink-mid)}
+  .files-tree .f.on{color:var(--signal-bright)}
+  .files-tree .sz{font-size:10.5px;color:var(--ink-dim);float:right}
+  .file-editor{margin-top:14px;background:#0A0C0E;border:1px solid var(--rule);padding:14px;font-family:'Courier New',ui-monospace,monospace;font-size:12px;color:var(--ink-mid);line-height:1.6;max-height:160px;overflow:auto}
+  .file-editor .ln{color:var(--ink-dim);display:inline-block;width:24px;text-align:right;margin-right:14px}
+  .file-editor .kw{color:var(--signal-bright)}
+  .file-editor .str{color:var(--ok)}
+
+  .bp-head{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:10px}
+  .bp-head h4{font-family:'Cutive',serif;font-size:18px;color:#F0EDDA}
+  .bp-head .src{font-family:'Cutive',serif;font-size:11px;color:var(--ink-dim);letter-spacing:.12em}
+  .blueprint-json{background:#0A0C0E;border:1px solid var(--rule);padding:14px;font-family:'Courier New',ui-monospace,monospace;font-size:12px;color:var(--ink-mid);line-height:1.55;max-height:260px;overflow:auto}
+  .blueprint-json .k{color:var(--ink)}
+  .blueprint-json .s{color:var(--ok)}
+  .blueprint-json .n{color:var(--signal-bright)}
+  .bp-actions{display:flex;gap:14px;margin-top:14px;font-family:'Cutive',serif;font-size:13px}
+  .bp-actions a{color:var(--ink);cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:2px}
+  .bp-actions a.primary{color:var(--signal-bright);border-bottom-color:var(--signal)}
+
+  .db-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  .db-tbl th{text-align:left;padding:8px 0;font-family:'Cutive',serif;font-size:11px;letter-spacing:.14em;color:var(--ink-dim);text-transform:uppercase;border-bottom:1px solid var(--rule);font-weight:400}
+  .db-tbl td{padding:9px 0;border-bottom:1px solid var(--rule-soft);color:var(--ink-mid)}
+  .db-tbl td.t{color:var(--ink);font-family:'Cutive',serif;font-size:13px}
+  .db-tbl td.num{font-variant-numeric:tabular-nums;text-align:right}
+  .db-path{margin-top:14px;padding:10px 14px;background:#0A0C0E;border:1px solid var(--rule);font-size:12px;color:var(--ink-mid);display:flex;justify-content:space-between;align-items:baseline}
+  .db-path .code-block{font-family:'Courier New',ui-monospace,monospace;color:var(--ink)}
+  .db-tools{margin-top:14px;display:flex;gap:14px;font-family:'Cutive',serif;font-size:13px}
+  .db-tools a{color:var(--ink);cursor:pointer;border-bottom:1px solid var(--rule);padding-bottom:2px}
+
+  .logs{margin-top:6px;border-top:1px solid var(--rule)}
+  .logs .row{display:grid;grid-template-columns:72px 60px 1fr;gap:14px;padding:10px 0;border-bottom:1px solid var(--rule-soft);font-size:12px;align-items:baseline}
+  .logs .row .t{font-family:'DM Sans',sans-serif;font-variant-numeric:tabular-nums;color:var(--ink-dim);font-size:11px}
+  .logs .row .lv{font-family:'Cutive',serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mid)}
+  .logs .row .lv.E{color:var(--err)}
+  .logs .row .lv.W{color:var(--warn)}
+  .logs .row .lv.I{color:var(--ok)}
+  .logs .row .msg{font-family:'DM Sans',sans-serif;color:var(--ink);line-height:1.45}
+
+  /* Mobile */
+  .mobile{width:390px;height:844px;position:relative;background:#06080A;overflow:hidden;border:1px solid var(--rule);border-radius:0}
+  .m-iframe{position:absolute;top:46px;left:0;right:0;bottom:78px;background:#F6F4ED}
+  .m-iframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .m-top{position:absolute;top:0;left:0;right:0;height:46px;background:#0A0C0E;border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 12px;gap:8px;z-index:20}
+  .m-top .addr{flex:1;height:28px;background:#0F1216;border:1px solid var(--rule);display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:var(--ink);gap:6px}
+  .m-top .addr .lock{color:var(--ok);font-size:9px}
+  .m-top .pill{font-family:'Cutive',serif;padding:4px 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--signal);border:1px solid var(--signal)}
+  .m-rail{position:absolute;bottom:0;left:0;right:0;height:78px;background:var(--rail);border-top:1px solid var(--rule);display:flex;justify-content:space-around;align-items:center;padding-bottom:14px;z-index:30}
+  .m-rail .d{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:'Cutive',serif;font-size:10px;color:var(--ink-mid);text-transform:uppercase;position:relative;padding:4px}
+  .m-rail .d.on{color:var(--signal-bright)}
+  .m-rail .d.on::before{content:"";position:absolute;top:-8px;left:0;right:0;height:2px;background:var(--signal)}
+  .m-rail .d .punches{display:flex;gap:3px}
+  .m-rail .d .punches span{width:6px;height:6px;border-radius:50%;background:#040608;box-shadow:inset 0 0 0 1px var(--ink-dim)}
+  .m-rail .d.on .punches span{box-shadow:inset 0 0 0 1px var(--signal)}
+  .m-widget{position:absolute;bottom:88px;left:14px;right:14px;background:#0A0C0E;border:1px solid var(--rule);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:25;font-family:'Cutive',serif;font-size:13px;color:#F0EDDA}
+  .m-widget .dot{width:7px;height:7px;border-radius:50%;background:var(--signal)}
+  .m-sheet{position:absolute;left:0;right:0;bottom:78px;background:var(--pane);border-top:1px solid var(--rule);padding:14px 22px 18px;z-index:28;max-height:60%;overflow:auto}
+  .m-sheet .grab{width:36px;height:3px;background:var(--rule);margin:0 auto 14px}
+  .m-sheet h4{font-family:'Cutive',serif;font-size:16px;color:#F0EDDA;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<div class="strip">
+  <div>
+    <h1>WordPress Playground · <em>Punchcard</em></h1>
+    <p>A 1965 IBM machine room — graphite, gridded, mechanical. Each saved site is a card; perforated dots encode the meta where most designs would put a second text row.</p>
+  </div>
+  <div class="id">v12 · 003 · CARD 7B-04-22</div>
+</div>
+
+<div class="grid">
+
+  <!-- ====================== PANEL 1: Working session ====================== -->
+  <div class="caption"><span>Plate I — Working Session</span><span class="sub">Saved playgrounds rendered as punchcards: title, then dots-per-axis (WP / PHP / Size). The dots ARE the meta.</span></div>
+  <div class="frame">
+    <div class="desktop">
+      <div class="iframe-area">
+        <iframe srcdoc='<!doctype html><html><head><meta charset=&quot;utf-8&quot;><title>Coffee Shop</title><style>
+          body{margin:0;font-family:Georgia,serif;background:#F6F4ED;color:#2A2620}
+          header{background:#1d2327;color:#fff;padding:6px 18px;font-size:12px;font-family:sans-serif;display:flex;gap:18px;align-items:center}
+          header .wp{color:#9ec2e6}
+          .hero{padding:50px 80px 36px;border-bottom:1px solid #DAD3C0}
+          .eyebrow{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#A86B45;font-weight:600;font-family:sans-serif}
+          h1{font-size:52px;margin:14px 0 0;font-family:serif;font-weight:500;line-height:1.05;color:#1F1B16}
+          .lede{margin-top:18px;color:#5C544A;font-size:17px;line-height:1.55;max-width:580px}
+          .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;padding:36px 80px}
+          .prod{padding:16px;border-top:1px solid #1F1B16}
+          h3{font-weight:500;font-size:18px;margin:6px 0}
+          .pr{font-family:sans-serif;font-size:13px;color:#A86B45;font-weight:700;letter-spacing:.05em}
+          .img{aspect-ratio:4/3;background:linear-gradient(135deg,#D9C9A8,#A8845E);margin-bottom:10px}
+          .img.b{background:linear-gradient(135deg,#7A5C42,#3D2B1F)}
+          .img.c{background:linear-gradient(135deg,#C9A87E,#7A5C3A)}
+        </style></head><body>
+        <header><span class=&quot;wp&quot;>⌂ My Sites</span><span>+ New</span><span style=&quot;margin-left:auto&quot;>Howdy, Admin</span></header>
+        <div class=&quot;hero&quot;>
+          <div class=&quot;eyebrow&quot;>Slow-Roasted</div>
+          <h1>A Morning of Quiet Mountain Coffee</h1>
+          <div class=&quot;lede&quot;>Single-origin, hand-poured. Twelve hours of low-flame roasting.</div>
+        </div>
+        <div class=&quot;grid&quot;>
+          <div class=&quot;prod&quot;><div class=&quot;img&quot;></div><h3>Ethiopian Yirgacheffe</h3><div class=&quot;pr&quot;>$18 / 12 OZ</div></div>
+          <div class=&quot;prod&quot;><div class=&quot;img b&quot;></div><h3>Colombian Huila</h3><div class=&quot;pr&quot;>$16 / 12 OZ</div></div>
+          <div class=&quot;prod&quot;><div class=&quot;img c&quot;></div><h3>Sumatra Mandheling</h3><div class=&quot;pr&quot;>$17 / 12 OZ</div></div>
+        </div>
+        </body></html>'></iframe>
+      </div>
+
+      <div class="topcap">
+        <button class="ibtn" title="back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ibtn" title="forward"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ibtn" title="refresh"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 9"/><path d="M4 4v5h5"/></svg></button>
+        <div class="addr"><span class="lock">●</span> /coffee-shop / index.php</div>
+        <div class="pgname">Coffee Shop</div>
+        <div class="save">Saving</div>
+        <button class="ibtn" title="WP Admin">WP Admin</button>
+        <button class="ibtn" title="Homepage">Homepage</button>
+        <div class="fs">Focus mode ⤢</div>
+        <button class="ibtn">⋯</button>
+      </div>
+
+      <div class="rail">
+        <div class="mast">WP</div>
+        <div class="docks">
+          <div class="dock p1 active"><div class="punches"><span></span></div></div>
+          <div class="dock p2"><div class="punches"><span></span><span></span></div></div>
+          <div class="dock p3"><div class="punches"><span></span><span></span><span></span></div></div>
+          <div class="dock p4"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+          <div class="dock p5"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+        </div>
+        <div class="ser">SER 04</div>
+      </div>
+
+      <div class="pane">
+        <div class="pane-mast">
+          <div class="id">DECK 7B · YOUR PLAYGROUNDS</div>
+          <h3>The <em>Card Stack</em></h3>
+          <div class="sub">Each card encodes WP / PHP / Size as perforations. Read by counting.</div>
+        </div>
+        <div class="pane-body">
+          <div class="card-row active">
+            <div class="title">Coffee Shop</div>
+            <div class="axes">
+              <div class="lbl">WP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span>
+                <span class="scale">6.7 of 10</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">PHP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span>
+                <span class="scale">8.2 of 10</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">SIZE</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span><span></span><span></span>
+                <span class="scale">14.2 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-row">
+            <div class="title">Vueo theme dev</div>
+            <div class="axes">
+              <div class="lbl">WP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span>
+                <span class="scale">6.7</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">PHP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span>
+                <span class="scale">8.3</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">SIZE</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span class="scale">9.8 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-row">
+            <div class="title">Gaming News</div>
+            <div class="axes">
+              <div class="lbl">WP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span>
+                <span class="scale">6.7</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">PHP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span>
+                <span class="scale">8.2</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">SIZE</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span>
+                <span class="scale">22.1 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-row">
+            <div class="title">Unsaved Playground</div>
+            <div class="axes">
+              <div class="lbl">WP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span>
+                <span class="scale">6.7</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">PHP</div>
+              <div class="dots">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span>
+                <span class="scale">8.2</span>
+              </div>
+            </div>
+            <div class="axes">
+              <div class="lbl">SIZE</div>
+              <div class="dots">
+                <span class="on"></span><span class="on cur"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span class="scale">4.1 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-band">— Start a New Card —</div>
+
+          <div class="card-row">
+            <div class="title">Vanilla WordPress</div>
+            <div class="axes"><div class="lbl">SRC</div><div class="dots"><span class="on"></span><span class="on cur"></span><span></span><span></span><span class="scale">Stable</span></div></div>
+          </div>
+          <div class="card-row">
+            <div class="title">WordPress PR · trunk</div>
+            <div class="axes"><div class="lbl">SRC</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span class="scale">GitHub #7124</span></div></div>
+          </div>
+          <div class="card-row">
+            <div class="title">Gutenberg PR · #62004</div>
+            <div class="axes"><div class="lbl">SRC</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span class="scale">GitHub</span></div></div>
+          </div>
+          <div class="card-row">
+            <div class="title">From GitHub repo</div>
+            <div class="axes"><div class="lbl">SRC</div><div class="dots"><span class="on"></span><span class="on cur"></span><span></span><span></span><span class="scale">URL</span></div></div>
+          </div>
+          <div class="card-row">
+            <div class="title">Blueprint URL</div>
+            <div class="axes"><div class="lbl">SRC</div><div class="dots"><span class="on"></span><span class="on cur"></span><span></span><span></span><span class="scale">JSON</span></div></div>
+          </div>
+          <div class="card-row">
+            <div class="title">Import .zip upload</div>
+            <div class="axes"><div class="lbl">SRC</div><div class="dots"><span class="on cur"></span><span></span><span></span><span></span><span class="scale">Local archive</span></div></div>
+          </div>
+        </div>
+        <div class="pane-foot"><span>DECK 7B</span><span>22 MAY 2026</span></div>
+      </div>
+
+      <div class="widget"><span class="dot"></span>Coffee Shop &middot; live</div>
+    </div>
+  </div>
+
+  <!-- ====================== PANEL 2: Site Manager — Settings + Apply/Reset ====================== -->
+  <div class="caption"><span>Plate II — Site Manager · Settings</span><span class="sub">Five fields, then a typed-phrase Apply &amp; Reset desk with an auto-snapshot.</span></div>
+  <div class="frame">
+    <div class="desktop">
+      <div class="iframe-area">
+        <iframe srcdoc='<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>
+          body{margin:0;font-family:sans-serif;background:#f0f0f1;color:#1d2327;font-size:13px}
+          .wpbar{background:#1d2327;color:#fff;padding:6px 18px;display:flex;gap:18px;font-size:12px;align-items:center}
+          .layout{display:grid;grid-template-columns:160px 1fr;min-height:100vh}
+          .side{background:#1d2327;color:#cfd6e2;padding:18px 0;font-size:13px}
+          .side a{display:block;padding:8px 18px;color:#cfd6e2;text-decoration:none}
+          .side a.on{background:#2271b1;color:#fff}
+          .main{padding:24px 32px}
+          .main h1{font-size:23px;font-weight:400;color:#1d2327;margin:0 0 18px}
+          .card{background:#fff;border:1px solid #c3c4c7;padding:18px;margin-bottom:14px}
+          table{width:100%;border-collapse:collapse;font-size:13px}
+          th{text-align:left;padding:8px 0;width:200px;font-weight:400;color:#646970}
+          input,select{padding:5px 8px;border:1px solid #8c8f94;font-family:inherit;font-size:13px;background:#fff}
+        </style></head><body>
+        <div class=&quot;wpbar&quot;><span style=&quot;color:#9ec2e6&quot;>⌂ Coffee Shop</span><span>+ New</span><span style=&quot;margin-left:auto&quot;>Howdy, Admin</span></div>
+        <div class=&quot;layout&quot;>
+          <div class=&quot;side&quot;><a>Dashboard</a><a>Posts</a><a>Media</a><a>Products</a><a class=&quot;on&quot;>Settings</a><a>WooCommerce</a><a>Plugins</a></div>
+          <div class=&quot;main&quot;><h1>General Settings</h1><div class=&quot;card&quot;><table><tr><th>Site Title</th><td><input value=&quot;Coffee Shop&quot;/></td></tr><tr><th>Tagline</th><td><input value=&quot;Slow-roasted&quot;/></td></tr><tr><th>WordPress Address (URL)</th><td><input value=&quot;https://playground.test&quot;/></td></tr></table></div></div>
+        </div>
+        </body></html>'></iframe>
+      </div>
+
+      <div class="topcap">
+        <button class="ibtn" title="back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ibtn" title="forward"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ibtn" title="refresh"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 9"/></svg></button>
+        <div class="addr"><span class="lock">●</span> /wp-admin/options-general.php</div>
+        <div class="pgname">Coffee Shop</div>
+        <div class="save" style="color:var(--ok);border-color:var(--ok);background:rgba(92,138,79,.08)">Saved</div>
+        <button class="ibtn">WP Admin</button>
+        <button class="ibtn">Homepage</button>
+        <div class="fs">Focus mode ⤢</div>
+        <button class="ibtn">⋯</button>
+      </div>
+
+      <div class="rail">
+        <div class="mast">WP</div>
+        <div class="docks">
+          <div class="dock p1"><div class="punches"><span></span></div></div>
+          <div class="dock p2 active"><div class="punches"><span></span><span></span></div></div>
+          <div class="dock p3"><div class="punches"><span></span><span></span><span></span></div></div>
+          <div class="dock p4"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+          <div class="dock p5"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+        </div>
+        <div class="ser">SER 04</div>
+      </div>
+
+      <div class="pane" style="width:480px">
+        <div class="pane-mast">
+          <div class="id">DECK 7B · CARD 04 · MANAGER</div>
+          <h3><em>Coffee Shop</em></h3>
+          <div class="sub">Five settings, then the Apply &amp; Reset desk.</div>
+        </div>
+        <div class="sm">
+          <div class="sm-tabs">
+            <a class="on">Settings</a><a>Files</a><a>Blueprint</a><a>Database</a><a>Logs</a>
+          </div>
+          <div class="field">
+            <div>
+              <label>WordPress version</label>
+              <div class="meta">currently 6.7 · stable</div>
+              <div class="older">Include older versions (5.9, 6.0, 6.1…)</div>
+            </div>
+            <div class="ctl"><select><option>6.7 (stable)</option><option>6.8 RC1</option><option>trunk</option></select></div>
+          </div>
+          <div class="field">
+            <div><label>PHP version</label><div class="meta">currently 8.2 · ZTS</div></div>
+            <div class="ctl"><select><option>8.2</option><option>8.3</option><option>8.4</option><option>7.4</option></select></div>
+          </div>
+          <div class="field">
+            <div><label>Language</label><div class="meta">site locale + admin</div></div>
+            <div class="ctl"><select><option>English (US)</option><option>Français</option><option>日本語</option></select></div>
+          </div>
+          <div class="field">
+            <div><label>Allow network access</label><div class="meta">outbound HTTP from PHP</div></div>
+            <div class="ctl"><span class="toggle on"></span></div>
+          </div>
+          <div class="field">
+            <div><label>Create a multisite network</label><div class="meta">subdomain or subdirectory</div></div>
+            <div class="ctl"><span class="toggle"></span></div>
+          </div>
+
+          <div class="apply-reset">
+            <div class="h">Apply &amp; Reset Playground</div>
+            <div class="p">Three values changed. Applying will reset the playground filesystem; an auto-snapshot is taken first so this stays undoable for seven days.</div>
+            <div class="diff">
+              <div class="row"><div class="k">PHP</div><div class="old">8.2</div><div class="new">8.3</div></div>
+              <div class="row"><div class="k">Language</div><div class="old">en_US</div><div class="new">ja</div></div>
+              <div class="row"><div class="k">Network</div><div class="old">off</div><div class="new">on</div></div>
+            </div>
+            <div class="confirm">Type the phrase <em>reset coffee shop</em> to confirm — a typed-phrase confirmation is a deliberate friction.</div>
+            <div class="phrase"></div>
+            <div class="actions">
+              <button class="btn-apply">Apply &amp; Reset</button>
+              <button class="btn-reset">Cancel</button>
+              <div class="snap">Auto-snapshot before reset · undo within 7 days</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="widget"><span class="dot" style="background:var(--warn);box-shadow:0 0 6px rgba(201,155,63,.45)"></span>Coffee Shop &middot; unsaved</div>
+    </div>
+  </div>
+
+  <!-- ====================== PANEL 3: Files + Blueprint + Database + Logs ====================== -->
+  <div class="caption"><span>Plate III — Files · Blueprint · Database · Logs</span><span class="sub">The four other Site Manager pages bound together for review.</span></div>
+  <div class="frame">
+    <div class="desktop">
+      <div class="iframe-area" style="background:#0A0C0E">
+        <div style="position:absolute;inset:50px 0 0 0;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule)">
+
+          <div style="background:#0A0C0E;padding:22px 26px;overflow:auto">
+            <div class="bp-head"><div><div style="font-family:'Cutive';font-size:10px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase">FILES TAB</div><h4>The Cabinet</h4></div></div>
+            <div class="files-tree">
+              <div class="d">/wordpress/</div>
+              <div style="padding-left:14px">
+                <div class="d">wp-content/</div>
+                <div style="padding-left:14px">
+                  <div class="d">themes/</div>
+                  <div style="padding-left:14px"><div class="f">coffeeshop/</div><div class="f">twentytwentyfive/</div></div>
+                  <div class="d">plugins/</div>
+                  <div style="padding-left:14px"><div class="f">woocommerce/ <span class="sz">2.4 MB</span></div><div class="f">classic-editor/ <span class="sz">48 KB</span></div></div>
+                  <div class="d">database/</div>
+                  <div style="padding-left:14px"><div class="f on">.ht.sqlite <span class="sz">14.2 MB</span></div></div>
+                  <div class="d">uploads/</div>
+                  <div style="padding-left:14px"><div class="f">2026/05/ <span class="sz">2.1 MB</span></div></div>
+                </div>
+                <div class="f">wp-config.php <span class="sz">3.4 KB</span></div>
+                <div class="f">wp-load.php <span class="sz">1.1 KB</span></div>
+                <div class="f">index.php <span class="sz">405 B</span></div>
+              </div>
+            </div>
+            <div style="margin-top:18px;font-family:'Cutive';font-size:10px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase">EDITING wp-config.php</div>
+            <div class="file-editor">
+              <div><span class="ln">1</span><span class="kw">&lt;?php</span></div>
+              <div><span class="ln">2</span>define(<span class="str">'DB_NAME'</span>, <span class="str">'wordpress'</span>);</div>
+              <div><span class="ln">3</span>define(<span class="str">'DB_USER'</span>, <span class="str">'wp'</span>);</div>
+              <div><span class="ln">4</span>define(<span class="str">'WP_DEBUG'</span>, true);</div>
+              <div><span class="ln">5</span>define(<span class="str">'WP_DEBUG_LOG'</span>, true);</div>
+              <div><span class="ln">6</span>$table_prefix = <span class="str">'wp_'</span>;</div>
+              <div><span class="ln">7</span><span class="kw">require_once</span>(ABSPATH . <span class="str">'wp-settings.php'</span>);</div>
+            </div>
+          </div>
+
+          <div style="background:#0A0C0E;padding:22px 26px;overflow:auto">
+            <div class="bp-head"><div><div style="font-family:'Cutive';font-size:10px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase">BLUEPRINT TAB</div><h4>The Recipe Card</h4></div><div class="src">source · blueprint.json</div></div>
+            <div class="blueprint-json">{
+  <span class="k">"$schema"</span>: <span class="s">"https://playground.wp.net/blueprint-schema.json"</span>,
+  <span class="k">"meta"</span>: { <span class="k">"title"</span>: <span class="s">"Coffee Shop"</span> },
+  <span class="k">"preferredVersions"</span>: { <span class="k">"php"</span>: <span class="s">"8.2"</span>, <span class="k">"wp"</span>: <span class="s">"6.7"</span> },
+  <span class="k">"steps"</span>: [
+    { <span class="k">"step"</span>: <span class="s">"installPlugin"</span>, <span class="k">"pluginData"</span>: { <span class="k">"resource"</span>: <span class="s">"wordpress.org/plugins"</span>, <span class="k">"slug"</span>: <span class="s">"woocommerce"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"installTheme"</span>, <span class="k">"themeData"</span>: { <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"./coffeeshop.zip"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"importWxr"</span>, <span class="k">"file"</span>: { <span class="k">"resource"</span>: <span class="s">"url"</span>, <span class="k">"url"</span>: <span class="s">"./content/coffee.wxr"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"setSiteOptions"</span>, <span class="k">"options"</span>: { <span class="k">"blogname"</span>: <span class="s">"Coffee Shop"</span> } },
+    { <span class="k">"step"</span>: <span class="s">"runPHP"</span>, <span class="k">"code"</span>: <span class="s">"&lt;?php update_option('woocommerce_currency','USD');"</span> }
+  ]
+}</div>
+            <div class="bp-actions">
+              <a class="primary">Run blueprint</a>
+              <a>Copy JSON</a>
+              <a>Download .json</a>
+              <a>Blueprint URL</a>
+            </div>
+            <div style="margin-top:18px;font-family:'Cutive';font-size:10px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase">EXPORT</div>
+            <div class="bp-actions" style="margin-top:6px">
+              <a>Export to GitHub PR</a>
+              <a>Download .zip</a>
+            </div>
+          </div>
+
+          <div style="background:#0A0C0E;padding:22px 26px;overflow:auto">
+            <div class="bp-head"><div><div style="font-family:'Cutive';font-size:10px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase">DATABASE TAB</div><h4>SQLite Register</h4></div></div>
+            <table class="db-tbl">
+              <thead><tr><th>Table</th><th class="num">Rows</th><th class="num">Size</th></tr></thead>
+              <tbody>
+                <tr><td class="t">wp_posts</td><td class="num">342</td><td class="num">1.2 MB</td></tr>
+                <tr><td class="t">wp_postmeta</td><td class="num">1 204</td><td class="num">0.9 MB</td></tr>
+                <tr><td class="t">wp_options</td><td class="num">624</td><td class="num">0.4 MB</td></tr>
+                <tr><td class="t">wp_users</td><td class="num">3</td><td class="num">4 KB</td></tr>
+                <tr><td class="t">wp_woocommerce_orders</td><td class="num">22</td><td class="num">180 KB</td></tr>
+                <tr><td class="t">wp_term_taxonomy</td><td class="num">48</td><td class="num">12 KB</td></tr>
+              </tbody>
+            </table>
+            <div class="db-path"><span class="code-block">/wordpress/wp-content/database/.ht.sqlite</span><span>14.2 MB</span></div>
+            <div class="db-tools">
+              <a>Open in Adminer</a><a>Open in phpMyAdmin</a><a>Export .sql</a><a>Download .sqlite</a>
+            </div>
+          </div>
+
+          <div style="background:#0A0C0E;padding:22px 26px;overflow:auto">
+            <div class="bp-head"><div><div style="font-family:'Cutive';font-size:10px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase">LOGS TAB</div><h4>PHP Error &amp; Debug Log</h4></div></div>
+            <div class="logs">
+              <div class="row"><span class="t">14:30:02</span><span class="lv I">info</span><span class="msg">WordPress 6.7 loaded; PHP 8.2.18 (ZTS); SAPI: cli-server.</span></div>
+              <div class="row"><span class="t">14:30:02</span><span class="lv I">info</span><span class="msg">WooCommerce 9.4.2 activated. 22 orders detected; running migrations 901 → 905.</span></div>
+              <div class="row"><span class="t">14:30:04</span><span class="lv W">warn</span><span class="msg">Plugin "classic-editor" was loaded after gutenberg; styles may double.</span></div>
+              <div class="row"><span class="t">14:30:09</span><span class="lv W">warn</span><span class="msg">PHP Notice: Trying to access array offset on value of type null in /wp-content/themes/coffeeshop/functions.php on line 142.</span></div>
+              <div class="row"><span class="t">14:30:14</span><span class="lv E">err</span><span class="msg">PHP Fatal Error: Uncaught Error: Call to undefined function wc_get_logger() in /wp-content/plugins/coffee-roast/loader.php:88.</span></div>
+              <div class="row"><span class="t">14:30:14</span><span class="lv I">info</span><span class="msg">Fatal recovered by Playground sandbox; request restarted with plugin deactivated.</span></div>
+              <div class="row"><span class="t">14:30:18</span><span class="lv I">info</span><span class="msg">REST: GET /wp/v2/posts?per_page=10 → 200 in 64 ms.</span></div>
+              <div class="row"><span class="t">14:30:31</span><span class="lv I">info</span><span class="msg">Snapshot saved: coffeeshop-2026-05-22-1430.snap (14.2 MB).</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="topcap">
+        <button class="ibtn" title="back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ibtn" title="forward"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ibtn" title="refresh"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 9"/></svg></button>
+        <div class="addr"><span class="lock">●</span> /wordpress/wp-content/database/.ht.sqlite</div>
+        <div class="pgname">Coffee Shop</div>
+        <div class="save" style="color:var(--ok);border-color:var(--ok)">Saved</div>
+        <button class="ibtn">WP Admin</button>
+        <button class="ibtn">Homepage</button>
+        <div class="fs">Focus mode ⤢</div>
+        <button class="ibtn">⋯</button>
+      </div>
+
+      <div class="rail">
+        <div class="mast">WP</div>
+        <div class="docks">
+          <div class="dock p1"><div class="punches"><span></span></div></div>
+          <div class="dock p2"><div class="punches"><span></span><span></span></div></div>
+          <div class="dock p3 active"><div class="punches"><span></span><span></span><span></span></div></div>
+          <div class="dock p4"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+          <div class="dock p5"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+        </div>
+        <div class="ser">SER 04</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== PANEL 4: Booting ====================== -->
+  <div class="caption"><span>Plate IV — Booting</span><span class="sub">Loading state expressed as punches lighting one by one.</span></div>
+  <div class="frame">
+    <div class="desktop" style="height:560px">
+      <div class="iframe-area">
+        <div class="booting">
+          <div class="title">Punching <em>a fresh card</em>…</div>
+          <div class="punches-big">
+            <span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span>
+          </div>
+          <div class="pct">55 % · LOADING WORDPRESS CORE</div>
+          <div class="stages">
+            <div class="stage done"><span>I</span><span>RESOLVE BLUEPRINT</span><span class="t">0.2s</span></div>
+            <div class="stage done"><span>II</span><span>BOOT PHP 8.2 (WASM)</span><span class="t">0.8s</span></div>
+            <div class="stage done"><span>III</span><span>STAGE FILESYSTEM</span><span class="t">1.1s</span></div>
+            <div class="stage now"><span>IV</span><span>LOAD WORDPRESS CORE</span><span class="t">in progress</span></div>
+            <div class="stage"><span>V</span><span>APPLY BLUEPRINT STEPS</span><span class="t">—</span></div>
+            <div class="stage"><span>VI</span><span>OPEN THE HOMEPAGE</span><span class="t">—</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="topcap">
+        <button class="ibtn" title="back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ibtn" title="forward"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ibtn" title="refresh"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 9"/></svg></button>
+        <div class="addr"><span class="lock" style="color:var(--warn)">●</span> booting…</div>
+        <div class="pgname">Unsaved Playground</div>
+        <div class="save">Booting</div>
+        <button class="ibtn">WP Admin</button>
+        <button class="ibtn">Homepage</button>
+        <div class="fs">Focus mode ⤢</div>
+        <button class="ibtn">⋯</button>
+      </div>
+      <div class="rail">
+        <div class="mast">WP</div>
+        <div class="docks">
+          <div class="dock p1"><div class="punches"><span></span></div></div>
+          <div class="dock p2"><div class="punches"><span></span><span></span></div></div>
+          <div class="dock p3"><div class="punches"><span></span><span></span><span></span></div></div>
+          <div class="dock p4"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+          <div class="dock p5"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+        </div>
+        <div class="ser">SER 04</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== PANEL 5: Library overlay ====================== -->
+  <div class="caption"><span>Plate V — The Card Index</span><span class="sub">A stack of punchcards, each labeled with a single blueprint title and a few perforations.</span></div>
+  <div class="frame">
+    <div class="desktop">
+      <div class="iframe-area" style="filter:brightness(.5)">
+        <iframe srcdoc='<!doctype html><html><body style=&quot;background:#F6F4ED;margin:0&quot;></body></html>'></iframe>
+      </div>
+      <div class="topcap">
+        <button class="ibtn" title="back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ibtn" title="forward"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="ibtn" title="refresh"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 9"/></svg></button>
+        <div class="addr"><span class="lock">●</span> /coffee-shop / index.php</div>
+        <div class="pgname">Coffee Shop</div>
+        <div class="save" style="color:var(--ok);border-color:var(--ok)">Saved</div>
+        <button class="ibtn">WP Admin</button>
+        <button class="ibtn">Homepage</button>
+        <div class="fs">Focus mode ⤢</div>
+        <button class="ibtn">⋯</button>
+      </div>
+      <div class="rail">
+        <div class="mast">WP</div>
+        <div class="docks">
+          <div class="dock p1"><div class="punches"><span></span></div></div>
+          <div class="dock p2"><div class="punches"><span></span><span></span></div></div>
+          <div class="dock p3"><div class="punches"><span></span><span></span><span></span></div></div>
+          <div class="dock p4"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+          <div class="dock p5"><div class="punches"><span></span><span></span><span></span><span></span></div></div>
+        </div>
+        <div class="ser">SER 04</div>
+      </div>
+
+      <div class="lib">
+        <div class="lib-deck">
+          <div class="lib-mast">
+            <h2>Blueprint Library · <em>Card Index</em></h2>
+            <div class="cnt">DECK 7B · 43 CARDS</div>
+          </div>
+          <div class="lib-toolbar">
+            <div class="search">⌕ search the index — woocommerce</div>
+            <div class="filters">
+              <a class="on">All</a><a>Featured</a><a>Website</a><a>Personal</a><a>Content</a><a>Themes</a><a>Gutenberg</a><a>Experiments</a><a>WooCommerce</a><a>News</a>
+            </div>
+            <div class="close">close ×</div>
+          </div>
+          <div class="lib-body">
+            <div class="deck">
+              <div class="card"><div class="name">Coffee Shop</div><div class="tag">WooCommerce</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Art Gallery</div><div class="tag">Website</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Gaming News</div><div class="tag">News</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Photography Portfolio</div><div class="tag">Personal</div><div class="dots"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Personal Blog</div><div class="tag">Personal</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">University Website</div><div class="tag">Website</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Non-profit Organization</div><div class="tag">Website</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Skincare Blog</div><div class="tag">News</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Create Block Theme</div><div class="tag">Themes</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Custom Post Type: Books</div><div class="tag">Content</div><div class="dots"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Twenty-Twenty-Five</div><div class="tag">Themes</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Latest Gutenberg plugin</div><div class="tag">Gutenberg</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Grid Variations</div><div class="tag">Experiments</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Dataview Experiments</div><div class="tag">Experiments</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Feed Reader (Friends)</div><div class="tag">Website</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">My WordPress</div><div class="tag">Featured</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">Stylish Press</div><div class="tag">WooCommerce</div><div class="dots"><span class="on"></span><span class="on"></span><span></span><span></span><span></span><span></span></div></div>
+              <div class="card"><div class="name">WordPress Beta</div><div class="tag">Featured</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span><span></span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== PANEL 6: Mobile ====================== -->
+  <div class="caption"><span>Plate VI — Mobile Mirror</span><span class="sub">390×844. Bottom dock with punch-pattern silhouettes; saved-cards as a bottom sheet.</span></div>
+  <div class="frame" style="background:transparent;border:0;box-shadow:none;display:flex;justify-content:center;padding:36px 0">
+    <div class="mobile">
+      <div class="m-iframe">
+        <iframe srcdoc='<!doctype html><html><head><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;><style>
+          body{margin:0;font-family:Georgia,serif;background:#F6F4ED;color:#2A2620}
+          header{background:#1d2327;color:#fff;padding:8px 14px;font-size:12px;font-family:sans-serif;display:flex;gap:14px}
+          .hero{padding:30px 22px}
+          .ey{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#A86B45;font-weight:600;font-family:sans-serif}
+          h1{font-size:32px;font-weight:500;line-height:1.05;margin:10px 0 0}
+          p{color:#5C544A;font-size:14px;line-height:1.5}
+          .prod{padding:14px 22px;border-top:1px solid #1F1B16}
+          h3{font-weight:500;margin:6px 0;font-size:18px}
+          .pr{font-family:sans-serif;font-size:12px;color:#A86B45;font-weight:700}
+          .img{aspect-ratio:4/3;background:linear-gradient(135deg,#D9C9A8,#A8845E);margin-bottom:8px}
+        </style></head><body>
+        <header><span style=&quot;color:#9ec2e6&quot;>⌂ Coffee Shop</span><span>+ New</span></header>
+        <div class=&quot;hero&quot;>
+          <div class=&quot;ey&quot;>Slow-roasted</div>
+          <h1>A Morning of Quiet Mountain Coffee</h1>
+        </div>
+        <div class=&quot;prod&quot;><div class=&quot;img&quot;></div><h3>Ethiopian Yirgacheffe</h3><div class=&quot;pr&quot;>$18 / 12 OZ</div></div>
+        </body></html>'></iframe>
+      </div>
+      <div class="m-top">
+        <button class="ibtn" style="color:var(--ink-mid)">⌃</button>
+        <div class="addr"><span class="lock">●</span> /coffee-shop</div>
+        <div class="pill">Saving</div>
+        <button class="ibtn" style="color:var(--ink-mid)">⋯</button>
+      </div>
+      <div class="m-sheet">
+        <div class="grab"></div>
+        <h4>Your Card Stack</h4>
+        <div class="card-row active" style="padding:10px 0">
+          <div class="title">Coffee Shop</div>
+          <div class="axes"><div class="lbl">WP</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span><span class="scale">6.7</span></div></div>
+          <div class="axes"><div class="lbl">SIZE</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span><span></span><span></span><span class="scale">14.2 MB</span></div></div>
+        </div>
+        <div class="card-row" style="padding:10px 0">
+          <div class="title">Vueo theme dev</div>
+          <div class="axes"><div class="lbl">SIZE</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="scale">9.8 MB</span></div></div>
+        </div>
+        <div class="card-row" style="padding:10px 0">
+          <div class="title">Gaming News</div>
+          <div class="axes"><div class="lbl">SIZE</div><div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on cur"></span><span></span><span></span><span class="scale">22.1 MB</span></div></div>
+        </div>
+      </div>
+      <div class="m-widget"><span class="dot"></span>Coffee Shop &middot; live</div>
+      <div class="m-rail">
+        <div class="d on"><div class="punches"><span></span></div>SI</div>
+        <div class="d"><div class="punches"><span></span><span></span></div>SM</div>
+        <div class="d"><div class="punches"><span></span><span></span><span></span></div>BP</div>
+        <div class="d"><div class="punches"><span></span><span></span></div>DB</div>
+        <div class="d"><div class="punches"><span></span><span></span><span></span></div>LG</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
